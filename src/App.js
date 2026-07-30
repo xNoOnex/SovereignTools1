@@ -15,31 +15,35 @@ function App() {
   const [pinSetup, setPinSetup] = useState(!localStorage.getItem('sovereign_pin'));
 
   const [expertMode, setExpertMode] = useState(true);
-  const [activeTab, setActiveTab] = useState(6); // Default to Camera Tab
+  const [activeTab, setActiveTab] = useState(11); // Default to Cryptography Tab
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
 
   // --- TAB 1: LOCAL AI STATE ---
   const [aiInput, setAiInput] = useState('');
   const [aiLogs, setAiLogs] = useState([{ sender: 'ai', text: 'Sovereign On-Device Assistant ready.' }]);
-
-  // --- TAB 4: DOCS & SHEETS STATE ---
-  const [docSubTab, setDocSubTab] = useState('docs');
-  const [docTitle, setDocTitle] = useState('Notes');
-  const [docContent, setDocContent] = useState('');
 
   // --- TAB 6: EXIF-FREE CAMERA STATE ---
   const videoCamRef = useRef(null);
   const canvasRef = useRef(null);
   const [camActive, setCamActive] = useState(false);
   const [capturedImg, setCapturedImg] = useState(null);
-  const [exifStatus, setExifStatus] = useState('');
 
-  // --- TAB 8: VIDEO PLAYER STATE ---
-  const videoRef = useRef(null);
-  const [playlist, setPlaylist] = useState([]);
+  // --- TAB 11: CRYPTOGRAPHY & PGP VAULT STATE ---
+  const [cryptoSubTab, setCryptoSubTab] = useState('aes'); // 'aes', 'pgp', 'hash'
+  const [plainText, setPlainText] = useState('');
+  const [passphrase, setPassphrase] = useState('');
+  const [cipherText, setCipherText] = useState('');
+  const [cryptoStatus, setCryptoStatus] = useState('');
 
-  // --- TAB 10: PASSWORD MANAGER STATE ---
-  const [generatedPassword, setGeneratedPassword] = useState('');
+  // PGP / Asymmetric Keys
+  const [publicKey, setPublicKey] = useState('');
+  const [privateKey, setPrivateKey] = useState('');
+  const [keyGenLoading, setKeyGenLoading] = useState(false);
+
+  // Hashing State
+  const [hashInput, setHashInput] = useState('');
+  const [sha256Result, setSha256Result] = useState('');
 
   // --- TAB 16: DEBLOATER STATE ---
   const [selectedPkgs, setSelectedPkgs] = useState([]);
@@ -56,50 +60,117 @@ function App() {
     setPinInput('');
   };
 
-  // --- EXIF-FREE CAMERA LOGIC ---
-  const startCamera = async () => {
+  // --- AES-256-GCM ENCRYPTION HELPERS ---
+  const getKeyMaterial = (password) => {
+    const enc = new TextEncoder();
+    return window.crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
+  };
+
+  const deriveKey = async (password, salt) => {
+    const keyMaterial = await getKeyMaterial(password);
+    return window.crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt, iterations: 100000, hash: "SHA-256" },
+      keyMaterial,
+      { name: "AES-GCM", length: 256 },
+      false,
+      ["encrypt", "decrypt"]
+    );
+  };
+
+  const handleAesEncrypt = async () => {
+    if (!plainText || !passphrase) return alert('Enter both text and a passphrase');
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-      if (videoCamRef.current) {
-        videoCamRef.current.srcObject = stream;
-        setCamActive(true);
-      }
-    } catch (err) {
-      alert('Camera access blocked. Check permissions in Tab 17.');
+      const salt = window.crypto.getRandomValues(new Uint8Array(16));
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const key = await deriveKey(passphrase, salt);
+      const enc = new TextEncoder();
+
+      const encryptedContent = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        enc.encode(plainText)
+      );
+
+      const buffer = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
+      buffer.set(salt, 0);
+      buffer.set(iv, salt.length);
+      buffer.set(new Uint8Array(encryptedContent), salt.length + iv.length);
+
+      const b64 = btoa(String.fromCharCode.apply(null, buffer));
+      setCipherText(b64);
+      setCryptoStatus('✅ Encrypted with AES-256-GCM + PBKDF2 (100,000 iterations)');
+    } catch (e) {
+      setCryptoStatus('❌ Encryption failed: ' + e.message);
     }
   };
 
-  const stopCamera = () => {
-    if (videoCamRef.current && videoCamRef.current.srcObject) {
-      const stream = videoCamRef.current.srcObject;
-      stream.getTracks().forEach(track => track.stop());
-      setCamActive(false);
+  const handleAesDecrypt = async () => {
+    if (!cipherText || !passphrase) return alert('Enter both cipher text and passphrase');
+    try {
+      const raw = Uint8Array.from(atob(cipherText), c => c.charCodeAt(0));
+      const salt = raw.slice(0, 16);
+      const iv = raw.slice(16, 28);
+      const data = raw.slice(28);
+
+      const key = await deriveKey(passphrase, salt);
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        key,
+        data
+      );
+
+      const dec = new TextDecoder();
+      setPlainText(dec.decode(decrypted));
+      setCryptoStatus('✅ Decryption successful! Plaintext restored.');
+    } catch (e) {
+      setCryptoStatus('❌ Decryption failed! Invalid passphrase or corrupted ciphertext.');
     }
   };
 
-  const captureCleanPhoto = () => {
-    if (!videoCamRef.current || !canvasRef.current) return;
-    const video = videoCamRef.current;
-    const canvas = canvasRef.current;
-    
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    
-    const ctx = canvas.getContext('2d');
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Convert to raw PNG data URL (Strips all EXIF metadata natively)
-    const cleanDataUrl = canvas.toDataURL('image/png');
-    setCapturedImg(cleanDataUrl);
-    setExifStatus('✅ Image sanitized in memory. 0 GPS coordinates, 0 device IDs attached.');
+  // --- ON-DEVICE RSA/PGP KEYPAIR GENERATION ---
+  const generateKeyPair = async () => {
+    setKeyGenLoading(true);
+    try {
+      const keyPair = await window.crypto.subtle.generateKey(
+        {
+          name: "RSA-OAEP",
+          modulusLength: 2048,
+          publicExponent: new Uint8Array([1, 0, 1]),
+          hash: "SHA-256",
+        },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      const exportedPub = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+      const exportedPriv = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+      const pubB64 = btoa(String.fromCharCode.apply(null, new Uint8Array(exportedPub)));
+      const privB64 = btoa(String.fromCharCode.apply(null, new Uint8Array(exportedPriv)));
+
+      setPublicKey(`-----BEGIN PUBLIC KEY-----\n${pubB64}\n-----END PUBLIC KEY-----`);
+      setPrivateKey(`-----BEGIN PRIVATE KEY-----\n${privB64}\n-----END PRIVATE KEY-----`);
+    } catch (e) {
+      alert('Key generation error: ' + e.message);
+    }
+    setKeyGenLoading(false);
   };
 
-  const downloadCleanPhoto = () => {
-    if (!capturedImg) return;
-    const a = document.createElement('a');
-    a.href = capturedImg;
-    a.download = `SOVEREIGN_CLEAN_${Date.now()}.png`;
-    a.click();
+  // --- SHA-256 HASHER ---
+  const computeHash = async (val) => {
+    setHashInput(val);
+    if (!val) { setSha256Result(''); return; }
+    const enc = new TextEncoder();
+    const hashBuffer = await window.crypto.subtle.digest('SHA-256', enc.encode(val));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    setSha256Result(hashHex);
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    setStatusMsg(`${label} copied to clipboard!`);
+    setTimeout(() => setStatusMsg(''), 2500);
   };
 
   const allMenuItems = [
@@ -108,6 +179,7 @@ function App() {
     { id: 6, name: '6. EXIF-Free Camera', expertOnly: false },
     { id: 8, name: '8. Sovereign Video Player', expertOnly: false },
     { id: 10, name: '10. Password Manager & Vault', expertOnly: false },
+    { id: 11, name: '11. Cryptography & PGP Vault', expertOnly: false },
     { id: 16, name: '16. Shizuku Debloater (Expert)', expertOnly: true },
     { id: 17, name: '17. Settings & Permissions', expertOnly: false },
   ];
@@ -154,37 +226,114 @@ function App() {
       )}
 
       <main style={{ padding: '15px' }}>
-        {/* --- TAB 6: EXIF-FREE CAMERA --- */}
-        {activeTab === 6 && (
-          <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
-            <h2 style={{ color: '#00ffcc', marginTop: 0 }}>📷 EXIF-Free Privacy Camera</h2>
-            <p style={{ color: '#888', fontSize: '12px' }}>Strips all GPS tracking, device serial numbers, and metadata from captured photos.</p>
-
-            {/* Live Camera Viewfinder */}
-            <div style={{ background: '#000', borderRadius: '8px', overflow: 'hidden', position: 'relative', marginBottom: '15px', minHeight: '220px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-              <video ref={videoCamRef} autoPlay playsInline style={{ width: '100%', maxHeight: '280px', display: camActive ? 'block' : 'none' }} />
-              {!camActive && <p style={{ color: '#555', fontSize: '13px' }}>Camera is currently off.</p>}
+        {/* --- TAB 11: CRYPTOGRAPHY & PGP VAULT --- */}
+        {activeTab === 11 && (
+          <div>
+            {/* Sub-tab Switcher */}
+            <div style={{ display: 'flex', gap: '6px', marginBottom: '15px' }}>
+              <button onClick={() => setCryptoSubTab('aes')} style={{ flex: 1, padding: '10px', background: cryptoSubTab === 'aes' ? '#1b4d3e' : '#121212', color: cryptoSubTab === 'aes' ? '#00ffcc' : '#888', border: '1px solid #333', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px' }}>🔐 AES-256 Text</button>
+              <button onClick={() => setCryptoSubTab('pgp')} style={{ flex: 1, padding: '10px', background: cryptoSubTab === 'pgp' ? '#1b4d3e' : '#121212', color: cryptoSubTab === 'pgp' ? '#00ffcc' : '#888', border: '1px solid #333', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px' }}>🔑 RSA/PGP Keys</button>
+              <button onClick={() => setCryptoSubTab('hash')} style={{ flex: 1, padding: '10px', background: cryptoSubTab === 'hash' ? '#1b4d3e' : '#121212', color: cryptoSubTab === 'hash' ? '#00ffcc' : '#888', border: '1px solid #333', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px' }}>⚡ SHA-256 Hasher</button>
             </div>
 
-            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            {statusMsg && <p style={{ color: '#00ffcc', fontSize: '12px', fontStyle: 'italic', marginBottom: '10px' }}>{statusMsg}</p>}
 
-            {/* Controls */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-              {!camActive ? (
-                <button onClick={startCamera} style={{ padding: '12px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Start Camera</button>
-              ) : (
-                <button onClick={stopCamera} style={{ padding: '12px', background: '#333', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '4px' }}>Stop Camera</button>
-              )}
-              <button onClick={captureCleanPhoto} disabled={!camActive} style={{ padding: '12px', background: camActive ? '#00ffcc' : '#444', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Take Clean Photo</button>
-            </div>
+            {/* AES-256 MODULE */}
+            {cryptoSubTab === 'aes' && (
+              <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
+                <h2 style={{ color: '#00ffcc', marginTop: 0 }}>AES-256-GCM Symmetric Encryption</h2>
+                <p style={{ color: '#888', fontSize: '12px' }}>Encrypt sensitive text messages into scrambled ciphertext using a shared passphrase.</p>
 
-            {/* Sanitized Output Preview */}
-            {capturedImg && (
-              <div style={{ background: '#181818', padding: '12px', borderRadius: '6px', border: '1px solid #2a2a2a' }}>
-                <h3 style={{ color: '#00ffcc', margin: '0 0 8px 0', fontSize: '13px' }}>Sanitized Photo Preview:</h3>
-                <img src={capturedImg} alt="Sanitized" style={{ width: '100%', borderRadius: '4px', marginBottom: '10px' }} />
-                <p style={{ color: '#00ffcc', fontSize: '11px', margin: '0 0 10px 0' }}>{exifStatus}</p>
-                <button onClick={downloadCleanPhoto} style={{ width: '100%', padding: '10px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Save Clean Photo to Device</button>
+                <input 
+                  type="password" 
+                  value={passphrase} 
+                  onChange={e => setPassphrase(e.target.value)} 
+                  placeholder="Master Secret Passphrase..." 
+                  style={{ width: '100%', padding: '10px', marginBottom: '10px', background: '#1e1e1e', color: '#fff', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box' }}
+                />
+
+                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Plain Text Message:</label>
+                <textarea 
+                  value={plainText} 
+                  onChange={e => setPlainText(e.target.value)} 
+                  placeholder="Type secret message here..."
+                  style={{ width: '100%', height: '90px', padding: '10px', background: '#181818', color: '#fff', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box', marginBottom: '10px', fontSize: '12px' }}
+                />
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '15px' }}>
+                  <button onClick={handleAesEncrypt} style={{ padding: '10px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Encrypt Text</button>
+                  <button onClick={handleAesDecrypt} style={{ padding: '10px', background: '#333', color: '#00ffcc', border: '1px solid #00ffcc', borderRadius: '4px', fontWeight: 'bold' }}>Decrypt Text</button>
+                </div>
+
+                {cryptoStatus && <p style={{ fontSize: '11px', color: '#00ffcc', marginBottom: '10px' }}>{cryptoStatus}</p>}
+
+                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '4px' }}>Encrypted Ciphertext (Base64):</label>
+                <textarea 
+                  value={cipherText} 
+                  onChange={e => setCipherText(e.target.value)} 
+                  placeholder="Scrambled ciphertext outputs here..."
+                  style={{ width: '100%', height: '90px', padding: '10px', background: '#000', color: '#00ff00', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box', marginBottom: '10px', fontFamily: 'monospace', fontSize: '11px' }}
+                />
+
+                <button onClick={() => copyToClipboard(cipherText, 'Ciphertext')} disabled={!cipherText} style={{ width: '100%', padding: '10px', background: cipherText ? '#00cc66' : '#444', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>
+                  Copy Encrypted Ciphertext
+                </button>
+              </div>
+            )}
+
+            {/* PGP / RSA KEY GENERATOR MODULE */}
+            {cryptoSubTab === 'pgp' && (
+              <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
+                <h2 style={{ color: '#00ffcc', marginTop: 0 }}>On-Device RSA / PGP Key Generator</h2>
+                <p style={{ color: '#888', fontSize: '12px' }}>Generate 2048-bit asymmetric cryptographic keypairs directly on your hardware.</p>
+
+                <button onClick={generateKeyPair} disabled={keyGenLoading} style={{ width: '100%', padding: '12px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px', marginBottom: '15px' }}>
+                  {keyGenLoading ? 'Generating 2048-bit Keypair...' : 'Generate New Keypair'}
+                </button>
+
+                {publicKey && (
+                  <div style={{ marginBottom: '15px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '12px', color: '#00ffcc', fontWeight: 'bold' }}>Public Key (Shareable):</label>
+                      <button onClick={() => copyToClipboard(publicKey, 'Public Key')} style={{ padding: '2px 8px', background: '#222', color: '#00ffcc', border: '1px solid #333', borderRadius: '3px', fontSize: '10px' }}>Copy</button>
+                    </div>
+                    <textarea readOnly value={publicKey} style={{ width: '100%', height: '80px', padding: '8px', background: '#000', color: '#00ff00', border: '1px solid #333', borderRadius: '4px', fontFamily: 'monospace', fontSize: '10px', boxSizing: 'border-box' }} />
+                  </div>
+                )}
+
+                {privateKey && (
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                      <label style={{ fontSize: '12px', color: '#ff4444', fontWeight: 'bold' }}>Private Key (SECRET):</label>
+                      <button onClick={() => copyToClipboard(privateKey, 'Private Key')} style={{ padding: '2px 8px', background: '#222', color: '#ff4444', border: '1px solid #333', borderRadius: '3px', fontSize: '10px' }}>Copy</button>
+                    </div>
+                    <textarea readOnly value={privateKey} style={{ width: '100%', height: '80px', padding: '8px', background: '#000', color: '#ff4444', border: '1px solid #333', borderRadius: '4px', fontFamily: 'monospace', fontSize: '10px', boxSizing: 'border-box' }} />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SHA-256 HASHER MODULE */}
+            {cryptoSubTab === 'hash' && (
+              <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
+                <h2 style={{ color: '#00ffcc', marginTop: 0 }}>SHA-256 Data Integrity Hasher</h2>
+                <p style={{ color: '#888', fontSize: '12px' }}>Compute real-time cryptographic hashes to verify text or checksums.</p>
+
+                <textarea 
+                  value={hashInput} 
+                  onChange={e => computeHash(e.target.value)} 
+                  placeholder="Type or paste data to hash..."
+                  style={{ width: '100%', height: '100px', padding: '10px', background: '#181818', color: '#fff', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box', marginBottom: '10px', fontSize: '12px' }}
+                />
+
+                <label style={{ fontSize: '12px', color: '#aaa', display: 'block', marginBottom: '4px' }}>SHA-256 Hash Output:</label>
+                <div style={{ background: '#000', color: '#00ff00', padding: '10px', borderRadius: '4px', fontFamily: 'monospace', fontSize: '11px', wordBreak: 'break-all', border: '1px solid #333', marginBottom: '10px' }}>
+                  {sha256Result || 'Hash will appear here as you type...'}
+                </div>
+
+                <button onClick={() => copyToClipboard(sha256Result, 'SHA-256 Hash')} disabled={!sha256Result} style={{ width: '100%', padding: '10px', background: sha256Result ? '#00cc66' : '#444', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>
+                  Copy SHA-256 Hash
+                </button>
               </div>
             )}
           </div>
