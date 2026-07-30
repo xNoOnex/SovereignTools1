@@ -10,7 +10,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
   "dependencies": {
     "@capacitor-community/bluetooth-le": "^8.2.0",
     "@capacitor/android": "^8.4.2",
@@ -20,5 +19,17 @@
     "@capacitor/geolocation": "^8.2.0",
     "@mlc-ai/web-llm": "^0.2.84",
     "react-scripts": "^5.0.1"
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
