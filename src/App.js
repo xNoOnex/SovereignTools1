@@ -317,7 +317,7 @@ function App() {
     return (
       <div style={{ background: '#080808', color: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'monospace', padding: '20px' }}>
         <div style={{ background: '#121212', border: '1px solid #00ffcc', padding: '30px 24px', borderRadius: '12px', width: '100%', maxWidth: '340px', textAlign: 'center', boxShadow: '0 0 20px rgba(0, 255, 204, 0.15)', boxSizing: 'border-box' }}>
-          <div style={{ fontSize: '32px', marginBottom: '10px' }}>🛡️</div>
+          <img src="./logo.png" alt="Sovereign Shield" style={{ width: "90px", height: "90px", marginBottom: "10px", objectFit: "contain" }} />
           <h2 style={{ color: '#00ffcc', margin: '0 0 6px 0', fontSize: '18px', tracking: '1px' }}>SOVEREIGN VAULT</h2>
           <p style={{ color: '#888', fontSize: '11px', margin: '0 0 20px 0' }}>
             {pinSetup ? 'Set Master Passcode:' : 'Enter Master PIN to Decrypt Suite:'}
