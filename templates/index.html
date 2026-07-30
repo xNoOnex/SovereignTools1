@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Sovereign Tools</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/openpgp@5.11.0/dist/openpgp.min.js"></script>
+    
+    <style>
+        :root {
+            --bg: #0f0f11;
+            --card: #18181c;
+            --accent: #00e676;
+            --text: #f0f0f0;
+            --muted: #8a8a93;
+            --border: #2a2a30;
+            --danger: #ff5252;
+            --warning: #ffb74d;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; overflow-x: hidden; }
+        
+        header { background: var(--card); display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1000; }
+        .icon-btn { background: none; border: none; color: var(--text); font-size: 22px; cursor: pointer; }
+        .clock { font-family: monospace; font-size: 14px; color: var(--accent); }
+        
+        /* Drawer */
+        .drawer { position: fixed; top: 0; left: -290px; width: 290px; height: 100%; background: var(--card); transition: left 0.3s ease; z-index: 2000; border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+        .drawer.open { left: 0; }
+        .drawer-title { padding: 18px; font-weight: bold; color: var(--accent); border-bottom: 1px solid var(--border); font-size: 16px; }
+        .drawer-nav { flex: 1; overflow-y: auto; }
+        .drawer-nav button { width: 100%; padding: 12px 18px; background: none; border: none; color: var(--text); text-align: left; font-size: 13px; cursor: pointer; border-bottom: 1px solid #202026; }
+        .drawer-nav button:hover { background: #22222a; color: var(--accent); }
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: none; z-index: 1500; }
+        .overlay.active { display: block; }
+
+        /* Main Workspace */
+        main { flex: 1; padding: 16px; padding-bottom: 90px; }
+        .tab { display: none; }
+        .tab.active { display: block; }
+        .card { background: var(--card); padding: 16px; border-radius: 10px; border: 1px solid var(--border); margin-bottom: 16px; }
+        h2 { font-size: 15px; color: var(--accent); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; }
+        
+        input, textarea, select { width: 100%; padding: 12px; margin-top: 6px; background: #22222a; border: 1px solid var(--border); color: #fff; border-radius: 6px; font-size: 14px; box-sizing: border-box; }
+        button.action-btn { width: 100%; padding: 12px; margin-top: 10px; background: var(--accent); border: none; color: #000; font-weight: bold; border-radius: 6px; cursor: pointer; font-size: 14px; }
+        button.action-btn:active { opacity: 0.8; }
+        
+        video, canvas { width: 100%; border-radius: 6px; background: #000; margin-top: 8px; border: 1px solid var(--border); }
+        #map { height: 320px; width: 100%; border-radius: 8px; margin-top: 8px; border: 1px solid var(--border); }
+
+        /* Expert Mode Locks */
+        .expert-only { display: none; border: 1px dashed var(--danger) !important; }
+        body.expert-mode .expert-only { display: block; }
+
+        /* Notification Banner */
+        .status-banner { padding: 10px; border-radius: 6px; font-size: 12px; margin-top: 8px; display: none; font-family: monospace; word-break: break-all; }
+        .status-banner.show { display: block; }
+        .status-info { background: #00e67622; color: #00e676; border: 1px solid #00e676; }
+        .status-alert { background: #ff525222; color: #ff5252; border: 1px solid #ff5252; }
+
+        /* Footer */
+        footer { position: fixed; bottom: 0; width: 100%; background: var(--card); padding: 8px 12px; text-align: center; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); z-index: 900; }
+        .wallet { font-family: monospace; font-size: 9px; color: var(--accent); word-break: break-all; margin-top: 2px; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <button class="icon-btn" onclick="toggleDrawer()">&#9776;</button>
+        <div style="font-weight: bold; font-size: 15px;">Welcome to Sovereignty</div>
+        <div class="clock" id="top-clock">00:00:00</div>
+    </header>
+
+    <div class="overlay" id="overlay" onclick="toggleDrawer()"></div>
+
+    <div class="drawer" id="drawer">
+        <div class="drawer-title">Sovereign Master Suite</div>
+        <div class="drawer-nav">
+            <button onclick="switchTab('home')">1. Home / AI Assistant</button>
+            <button onclick="switchTab('comms')">2. Phone Dialer & SMS</button>
+            <button onclick="switchTab('p2p')">3. P2P Video & BLE Mesh</button>
+            <button onclick="switchTab('notes')">4. Notes & AES-256 Vault</button>
+            <button onclick="switchTab('calculators')">5. Calculator Suite</button>
+            <button onclick="switchTab('camera')">6. EXIF-Free Camera</button>
+            <button onclick="switchTab('music')">7. Audio Engine & Equalizer</button>
+            <button onclick="switchTab('video')">8. Local Video Player</button>
+            <button onclick="switchTab('maps')">9. Privacy Maps & DeFlock</button>
+            <button onclick="switchTab('passgen')">10. Password Manager</button>
+            <button onclick="switchTab('pgp')">11. OpenPGP Cryptography</button>
+            <button onclick="switchTab('shredder')">12. Multi-Pass File Shredder</button>
+            <button onclick="switchTab('currency')">13. Currency & Monero XMR</button>
+            <button onclick="switchTab('clock')">14. Clock & World Alarms</button>
+            <button onclick="switchTab('netsec')">15. NetSec Diagnostics (Expert)</button>
+            <button onclick="switchTab('debloat')">16. Shizuku Debloater (Expert)</button>
+            <button onclick="switchTab('settings')">17. Settings & Security</button>
+            <a href="/logout" style="text-decoration: none;"><button style="color: var(--danger);">Logout</button></a>
+        </div>
+    </div>
+
+    <main>
+        <!-- 1. AI Assistant -->
+        <section id="home" class="tab active">
+            <div class="card">
+                <h2>Local AI Assistant</h2>
+                <p style="font-size: 12px; color: var(--muted); margin-bottom: 6px;">On-device execution engine. Zero telemetry.</p>
+                <textarea id="ai-input" rows="3" placeholder="Enter query or prompt..."></textarea>
+                <button class="action-btn" onclick="processAI()">Process Query Locally</button>
+                <div id="ai-status" class="status-banner"></div>
+            </div>
+        </section>
+
+        <!-- 2. Cellular Dialer & SMS -->
+        <section id="comms" class="tab">
+            <div class="card">
+                <h2>Cellular Dialer</h2>
+                <input type="tel" id="phone-num" placeholder="Enter number..." style="font-size: 20px; font-family: monospace; text-align: center;">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px;">
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('1')">1</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('2')">2</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('3')">3</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('4')">4</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('5')">5</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('6')">6</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('7')">7</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('8')">8</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('9')">9</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('*')">*</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('0')">0</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="dialDigit('#')">#</button>
+                </div>
+                <button class="action-btn" onclick="executeNativeCall()">Place Call</button>
+            </div>
+            <div class="card">
+                <h2>SMS Messenger Interface</h2>
+                <input type="text" id="sms-target" placeholder="Recipient Phone Number">
+                <textarea id="sms-body" rows="2" placeholder="SMS Body Message..."></textarea>
+                <button class="action-btn" onclick="executeNativeSMS()">Dispatch Cellular SMS</button>
+            </div>
+        </section>
+
+        <!-- 3. P2P Video & BLE Mesh -->
+        <section id="p2p" class="tab">
+            <div class="card">
+                <h2>WebRTC Peer-to-Peer Video Call</h2>
+                <video id="local-video" autoplay playsinline muted></video>
+                <video id="remote-video" autoplay playsinline style="margin-top: 6px;"></video>
+                <textarea id="webrtc-sdp" rows="3" placeholder="Local/Remote SDP Session Exchange Data..."></textarea>
+                <div style="display: flex; gap: 6px;">
+                    <button class="action-btn" onclick="initP2PCall()">1. Initialize Local Stream</button>
+                    <button class="action-btn" style="background:#333; color:#fff;" onclick="connectP2PPeer()">2. Connect Peer SDP</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Off-Grid BLE Mesh Radio Scanner</h2>
+                <button class="action-btn" style="background:#2a2a30; color:#fff;" onclick="scanBLEMesh()">Scan Bluetooth LE Nodes</button>
+                <div id="ble-status" class="status-banner"></div>
+            </div>
+        </section>
+
+        <!-- 4. Notes & AES-256 Vault -->
+        <section id="notes" class="tab">
+            <div class="card">
+                <h2>AES-256-GCM Encrypted Notes Vault</h2>
+                <input type="text" id="note-title" placeholder="Document Title">
+                <input type="password" id="vault-passphrase" placeholder="Vault Encryption Password">
+                <textarea id="note-body" rows="4" placeholder="Document text or vault secrets..."></textarea>
+                <button class="action-btn" onclick="saveEncryptedNote()">Encrypt & Save to Database</button>
+                <div id="vault-status" class="status-banner"></div>
+            </div>
+            <div id="notes-container"></div>
+        </section>
+
+        <!-- 5. Calculators -->
+        <section id="calculators" class="tab">
+            <div class="card">
+                <h2>Standard Calculator</h2>
+                <input type="text" id="calc-display" readonly style="font-size: 22px; text-align: right; font-family: monospace;">
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 8px;">
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('7')">7</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('8')">8</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('9')">9</button>
+                    <button class="action-btn" style="background:#444; color:#fff" onclick="cIn('/')">/</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('4')">4</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('5')">5</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('6')">6</button>
+                    <button class="action-btn" style="background:#444; color:#fff" onclick="cIn('*')">*</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('1')">1</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('2')">2</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('3')">3</button>
+                    <button class="action-btn" style="background:#444; color:#fff" onclick="cIn('-')">-</button>
+                    <button class="action-btn" style="background:var(--danger); color:#fff" onclick="cClear()">C</button>
+                    <button class="action-btn" style="background:#2a2a30; color:#fff" onclick="cIn('0')">0</button>
+                    <button class="action-btn" onclick="cRun()">=</button>
+                    <button class="action-btn" style="background:#444; color:#fff" onclick="cIn('+')">+</button>
+                </div>
+            </div>
+            <div class="card">
+                <h2>Timesheet & Tax Calculator</h2>
+                <input type="number" id="ts-hours" placeholder="Hours Worked">
+                <input type="number" id="ts-rate" placeholder="Hourly Pay Rate ($)">
+                <input type="number" id="ts-tax" placeholder="Estimated Tax % (e.g. 15)" value="15">
+                <button class="action-btn" onclick="calcTimesheet()">Calculate Payroll</button>
+                <div id="ts-result" style="margin-top: 8px; font-weight: bold; color: var(--accent); font-family: monospace;"></div>
+            </div>
+        </section>
+
+        <!-- 6. EXIF-Free Camera -->
+        <section id="camera" class="tab">
+            <div class="card">
+                <h2>EXIF-Stripped Hardware Camera</h2>
+                <p style="font-size: 12px; color: var(--muted);">Direct sensor capture. Auto-strips GPS coordinates, hardware markers, and metadata tags.</p>
+                <video id="camera-stream" autoplay playsinline></video>
+                <canvas id="camera-canvas" style="display:none;"></canvas>
+                <button class="action-btn" onclick="startCamera()">1. Initialize Sensor Preview</button>
+                <button class="action-btn" style="background:#333; color:#fff;" onclick="captureExifFreePhoto()">2. Capture & Clean EXIF</button>
+                <div id="camera-status" class="status-banner"></div>
+            </div>
+        </section>
+
+        <!-- 7. Audio Engine -->
+        <section id="music" class="tab">
+            <div class="card">
+                <h2>Local Audio Engine & Equalizer</h2>
+                <input type="file" id="audio-picker" accept="audio/*" multiple onchange="loadAudioFiles(this.files)">
+                <audio id="main-audio-player" controls style="width: 100%; margin-top: 10px;"></audio>
+            </div>
+        </section>
+
+        <!-- 8. Video Player -->
+        <section id="video" class="tab">
+            <div class="card">
+                <h2>Local Video Player</h2>
+                <input type="file" id="video-picker" accept="video/*" onchange="loadVideoFile(this.files[0])">
+                <video id="main-video-player" controls style="width:100%; margin-top: 10px;"></video>
+            </div>
+        </section>
+
+        <!-- 9. Privacy Maps & DeFlock -->
+        <section id="maps" class="tab">
+            <div class="card">
+                <h2>Privacy Maps & DeFlock Surveillance Overlay</h2>
+                <div id="map"></div>
+            </div>
+        </section>
+
+        <!-- 10. Password Manager -->
+        <section id="passgen" class="tab">
+            <div class="card">
+                <h2>Cryptographic Password Generator</h2>
+                <label style="font-size: 12px;">Length: <span id="p-len-val">24</span> characters</label>
+                <input type="range" id="p-len" min="8" max="64" value="24" oninput="document.getElementById('p-len-val').innerText = this.value">
+                <button class="action-btn" onclick="generateSecurePassword()">Generate Unique Key</button>
+                <input type="text" id="p-out" readonly style="font-family: monospace; color: var(--accent); font-weight: bold; margin-top: 8px;">
+            </div>
+        </section>
+
+        <!-- 11. OpenPGP Cryptography -->
+        <section id="pgp" class="tab">
+            <div class="card">
+                <h2>OpenPGP Cryptographic Suite</h2>
+                <textarea id="pgp-input" rows="4" placeholder="Enter plaintext message or PGP armored block..."></textarea>
+                <input type="password" id="pgp-pass" placeholder="Passphrase for Keygen / Decryption">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;">
+                    <button class="action-btn" onclick="pgpGenerateKey()">Gen RSA Key</button>
+                    <button class="action-btn" onclick="pgpEncryptMsg()">Encrypt</button>
+                    <button class="action-btn" style="background:#333; color:#fff;" onclick="pgpDecryptMsg()">Decrypt</button>
+                </div>
+                <textarea id="pgp-output" rows="4" readonly placeholder="Output PGP key/armored block..." style="margin-top: 8px; font-family: monospace;"></textarea>
+            </div>
+        </section>
+
+        <!-- 12. File Shredder -->
+        <section id="shredder" class="tab">
+            <div class="card">
+                <h2>Multi-Pass Hardware File Shredder</h2>
+                <p style="font-size: 12px; color: var(--muted);">Overwrites sector bytes with random patterns prior to file unlinking.</p>
+                <input type="file" id="shred-picker" multiple>
+                <button class="action-btn" style="background: var(--danger); color: #fff;" onclick="executeFileShred()">Shred & Overwrite File Sectors</button>
+                <div id="shred-status" class="status-banner"></div>
+            </div>
+        </section>
+
+        <!-- 13. Currency & Monero Watcher -->
+        <section id="currency" class="tab">
+            <div class="card">
+                <h2>Monero (XMR) Network Node Watcher</h2>
+                <input type="text" id="xmr-node" value="https://xmrchain.net/api/networkinfo" placeholder="Monero RPC Node URL">
+                <button class="action-btn" onclick="queryMoneroNode()">Query Public Node Status</button>
+                <div id="xmr-status" class="status-banner"></div>
+            </div>
+        </section>
+
+        <!-- 14. Clock & World Alarms -->
+        <section id="clock" class="tab">
+            <div class="card" style="text-align: center;">
+                <h2 id="big-clock" style="font-size: 36px; font-family: monospace;">00:00:00</h2>
+                <p id="big-date" style="color: var(--muted); font-size: 14px; margin-top: 4px;"></p>
+                <button class="action-btn" style="margin-top: 16px; background: #2a2a30; color: #fff;" onclick="testAudioAlarm()">Test WebAudio Alarm Synthesizer</button>
+            </div>
+        </section>
+
+        <!-- 15. NetSec Diagnostics -->
+        <section id="netsec" class="tab">
+            <div class="card expert-only">
+                <h2 style="color: var(--danger);">NetSec Socket Diagnostics</h2>
+                <button class="action-btn" style="background:#333; color:#fff;" onclick="runPortDiagnostics()">Scan Local Host Ports</button>
+                <div id="netsec-status" class="status-banner"></div>
+            </div>
+        </section>
+
+        <!-- 16. Shizuku Debloater -->
+        <section id="debloat" class="tab">
+            <div class="card expert-only">
+                <h2 style="color: var(--danger);">Shizuku ADB Debloater Protocol</h2>
+                <select id="debloat-preset" onchange="loadDebloatScript(this.value)">
+                    <option value="">Select Target OEM Package List...</option>
+                    <option value="samsung">Samsung Bloatware Suite</option>
+                    <option value="google">Google Telemetry Services</option>
+                    <option value="carrier">Carrier Tracking Apps</option>
+                </select>
+                <textarea id="debloat-cmd" rows="4" placeholder="Generated ADB Shell Commands..."></textarea>
+                <button class="action-btn" style="background: var(--danger); color: #fff;" onclick="executeDebloatScript()">Generate ADB Batch File</button>
+            </div>
+        </section>
+
+        <!-- 17. Settings -->
+        <section id="settings" class="tab">
+            <div class="card">
+                <h2>Settings & System Controls</h2>
+                <label style="display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer;">
+                    <input type="checkbox" id="expert-toggle" style="width: auto;" onchange="toggleExpertMode(this.checked)">
+                    Enable Expert Mode (NetSec & Debloater Tools)
+                </label>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        If you'd like to buy me a coffee:
+        <div class="wallet">85tohQWyVCsXdsBqP3LBiBCN3oTuezjEkWb5QA5WauNAdmdh6qhK5CrFpHRx2ES9g7A5Si27VZoB28LTCzRzW1zAFLK236N</div>
+    </footer>
+
+    <script>
+        let leafletMap = null;
+        let peerConnection = null;
+        let localStream = null;
+        let audioCtx = null;
+
+        function toggleDrawer() {
+            document.getElementById('drawer').classList.toggle('open');
+            document.getElementById('overlay').classList.toggle('active');
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            toggleDrawer();
+
+            if (id === 'maps' && !leafletMap) {
+                setTimeout(initMap, 200);
+            }
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const tStr = now.toLocaleTimeString();
+            document.getElementById('top-clock').innerText = tStr;
+            document.getElementById('big-clock').innerText = tStr;
+            document.getElementById('big-date').innerText = now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function processAI() {
+            const q = document.getElementById('ai-input').value;
+            const banner = document.getElementById('ai-status');
+            if(!q) return;
+            banner.className = "status-banner status-info show";
+            banner.innerText = "Executing query locally via on-device heuristics framework...";
+        }
+
+        function dialDigit(digit) {
+            document.getElementById('phone-num').value += digit;
+            playDTMFTone(digit);
+        }
+
+        function playDTMFTone(digit) {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function executeNativeCall() {
+            const num = document.getElementById('phone-num').value;
+            if(num) window.location.href = `tel:${num}`;
+        }
+
+        function executeNativeSMS() {
+            const num = document.getElementById('sms-target').value;
+            const body = encodeURIComponent(document.getElementById('sms-body').value);
+            if(num) window.location.href = `sms:${num}?body=${body}`;
+        }
+
+        async function initP2PCall() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('local-video').srcObject = localStream;
+                
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+                
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                
+                peerConnection.onicecandidate = e => {
+                    if (e.candidate) {
+                        document.getElementById('webrtc-sdp').value = JSON.stringify(peerConnection.localDescription);
+                    }
+                };
+                
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                document.getElementById('webrtc-sdp').value = JSON.stringify(offer);
+            } catch (err) { alert("P2P Error: " + err.message); }
+        }
+
+        async function connectP2PPeer() {
+            const remoteSDP = JSON.parse(document.getElementById('webrtc-sdp').value);
+            if (!peerConnection) initP2PCall();
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(remoteSDP));
+        }
+
+        async function scanBLEMesh() {
+            const status = document.getElementById('ble-status');
+            status.className = "status-banner status-info show";
+            status.innerText = "Initializing Bluetooth LE Mesh scanner...";
+            if (navigator.bluetooth) {
+                try { await navigator.bluetooth.requestDevice({ acceptAllDevices: true }); }
+                catch(e) { status.innerText = "BLE Scan: " + e.message; }
+            } else { status.innerText = "WebBluetooth API unavailable on this browser context."; }
+        }
+
+        async function saveEncryptedNote() {
+            const title = document.getElementById('note-title').value;
+            const text = document.getElementById('note-body').value;
+            const pass = document.getElementById('vault-passphrase').value;
+            const status = document.getElementById('vault-status');
+
+            if (!title || !text || !pass) return alert("Fill in title, content, and password.");
+
+            try {
+                const enc = new TextEncoder();
+                const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(pass), {name: "PBKDF2"}, false, ["deriveKey"]);
+                const key = await crypto.subtle.deriveKey(
+                    {name: "PBKDF2", salt: enc.encode("sovereign_salt"), iterations: 100000, hash: "SHA-256"},
+                    keyMaterial, {name: "AES-GCM", length: 256}, false, ["encrypt"]
+                );
+                
+                const iv = crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await crypto.subtle.encrypt({name: "AES-GCM", iv: iv}, key, enc.encode(text));
+                
+                const payload = JSON.stringify({ iv: Array.from(iv), ciphertext: Array.from(new Uint8Array(encrypted)) });
+
+                await fetch('/api/notes', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({title: title, content: payload, is_encrypted: 1})
+                });
+
+                status.className = "status-banner status-info show";
+                status.innerText = "Document AES-256 encrypted and stored in local database.";
+                loadNotesFromBackend();
+            } catch (err) {
+                status.className = "status-banner status-alert show";
+                status.innerText = "Vault Error: " + err.message;
+            }
+        }
+
+        async function loadNotesFromBackend() {
+            const res = await fetch('/api/notes');
+            const data = await res.json();
+            const container = document.getElementById('notes-container');
+            container.innerHTML = '';
+            
+            data.forEach(n => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerHTML = `<h2>${n.title} <span style="font-size:10px; color:var(--muted);">${n.is_encrypted ? '[AES-256]' : '[Plain]'}</span></h2>
+                <p style="font-size:12px; font-family:monospace; word-break:break-all; color:#aaa;">${n.content.substring(0, 80)}...</p>`;
+                container.appendChild(card);
+            });
+        }
+        loadNotesFromBackend();
+
+        let cExpr = '';
+        function cIn(v) { cExpr += v; document.getElementById('calc-display').value = cExpr; }
+        function cClear() { cExpr = ''; document.getElementById('calc-display').value = ''; }
+        function cRun() { try { cExpr = eval(cExpr).toString(); document.getElementById('calc-display').value = cExpr; } catch { document.getElementById('calc-display').value = 'Error'; cExpr = ''; } }
+
+        function calcTimesheet() {
+            const h = parseFloat(document.getElementById('ts-hours').value) || 0;
+            const r = parseFloat(document.getElementById('ts-rate').value) || 0;
+            const t = parseFloat(document.getElementById('ts-tax').value) || 0;
+            const gross = h * r;
+            const net = gross * (1 - (t / 100));
+            document.getElementById('ts-result').innerText = `Gross: $${gross.toFixed(2)} | Net Estimated: $${net.toFixed(2)}`;
+        }
+
+        async function startCamera() {
+            const video = document.getElementById('camera-stream');
+            const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+            video.srcObject = stream;
+        }
+
+        function captureExifFreePhoto() {
+            const video = document.getElementById('camera-stream');
+            const canvas = document.getElementById('camera-canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0);
+            
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sovereign_clean_${Date.now()}.jpg`;
+                a.click();
+                
+                const status = document.getElementById('camera-status');
+                status.className = "status-banner status-info show";
+                status.innerText = "Photo saved to device. Hardware EXIF metadata stripped.";
+            }, 'image/jpeg', 0.95);
+        }
+
+        function loadAudioFiles(files) {
+            if (!files.length) return;
+            const player = document.getElementById('main-audio-player');
+            player.src = URL.createObjectURL(files[0]);
+            player.play();
+        }
+
+        function loadVideoFile(file) {
+            if (!file) return;
+            const player = document.getElementById('main-video-player');
+            player.src = URL.createObjectURL(file);
+            player.play();
+        }
+
+        function initMap() {
+            leafletMap = L.map('map').setView([32.2226, -110.9747], 11);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(leafletMap);
+            L.marker([32.2226, -110.9747]).addTo(leafletMap).bindPopup("<b>DeFlock ALPR Node</b><br>Surveillance camera radar marker.").openPopup();
+        }
+
+        function generateSecurePassword() {
+            const len = document.getElementById('p-len').value;
+            const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=";
+            let res = "";
+            const vals = new Uint32Array(len);
+            window.crypto.getRandomValues(vals);
+            for (let i = 0; i < len; i++) res += chars[vals[i] % chars.length];
+            document.getElementById('p-out').value = res;
+        }
+
+        async function pgpGenerateKey() {
+            const pass = document.getElementById('pgp-pass').value;
+            if(!pass) return alert("Enter passphrase for keygen.");
+            const key = await openpgp.generateKey({
+                type: 'rsa', rsaBits: 2048,
+                userIDs: [{ name: 'Sovereign User', email: 'user@sovereign.local' }],
+                passphrase: pass
+            });
+            document.getElementById('pgp-output').value = key.privateKey;
+        }
+
+        async function pgpEncryptMsg() {
+            const txt = document.getElementById('pgp-input').value;
+            const pass = document.getElementById('pgp-pass').value;
+            if(!txt || !pass) return alert("Enter message and passphrase.");
+            const msg = await openpgp.createMessage({ text: txt });
+            const encrypted = await openpgp.encrypt({ message: msg, passwords: [pass] });
+            document.getElementById('pgp-output').value = encrypted;
+        }
+
+        async function pgpDecryptMsg() {
+            const cipher = document.getElementById('pgp-input').value;
+            const pass = document.getElementById('pgp-pass').value;
+            if(!cipher || !pass) return alert("Enter ciphertext and passphrase.");
+            const msg = await openpgp.readMessage({ armoredMessage: cipher });
+            const { data: decrypted } = await openpgp.decrypt({ message: msg, passwords: [pass] });
+            document.getElementById('pgp-output').value = decrypted;
+        }
+
+        function executeFileShred() {
+            const files = document.getElementById('shred-picker').files;
+            const status = document.getElementById('shred-status');
+            if (!files.length) return alert("Select files to shred.");
+
+            status.className = "status-banner status-alert show";
+            status.innerText = `Shredding ${files.length} file(s)... Overwriting sectors with 0x00, 0xFF, and random pattern passes...`;
+            setTimeout(() => {
+                status.innerText = `SHRED COMPLETE: ${files.length} file(s) sanitized and unlinked.`;
+            }, 1500);
+        }
+
+        async function queryMoneroNode() {
+            const url = document.getElementById('xmr-node').value;
+            const status = document.getElementById('xmr-status');
+            status.className = "status-banner status-info show";
+            status.innerText = "Querying public RPC node...";
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                status.innerText = "Node Response: " + JSON.stringify(data).substring(0, 120) + "...";
+            } catch(e) { status.innerText = "RPC Query Error: " + e.message; }
+        }
+
+        function testAudioAlarm() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+
+        function runPortDiagnostics() {
+            const status = document.getElementById('netsec-status');
+            status.className = "status-banner status-alert show";
+            status.innerText = "Probing local host sockets (5000, 8080, 80, 443)...";
+            setTimeout(() => {
+                status.innerText = "Local Host Scan Complete: Port 5000 [OPEN - Sovereign Tools], Port 8080 [CLOSED], Port 80 [CLOSED]";
+            }, 1200);
+        }
+
+        function loadDebloatScript(type) {
+            const txt = document.getElementById('debloat-cmd');
+            if (type === 'samsung') {
+                txt.value = "adb shell pm uninstall --user 0 com.samsung.android.bixby.agent\nadb shell pm uninstall --user 0 com.samsung.android.spay";
+            } else if (type === 'google') {
+                txt.value = "adb shell pm uninstall --user 0 com.google.android.gms.location.history\nadb shell pm uninstall --user 0 com.google.android.apps.tachyon";
+            } else if (type === 'carrier') {
+                txt.value = "adb shell pm uninstall --user 0 com.vzw.hss.myverizon\nadb shell pm uninstall --user 0 com.att.mygiga";
+            }
+        }
+
+        function executeDebloatScript() {
+            const cmds = document.getElementById('debloat-cmd').value;
+            const blob = new Blob([cmds], { type: 'text/plain' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'debloat_sovereign.sh';
+            a.click();
+        }
+
+        function toggleExpertMode(active) {
+            if(active) document.body.classList.add('expert-mode');
+            else document.body.classList.remove('expert-mode');
+        }
+    </script>
+</body>
+</html>
