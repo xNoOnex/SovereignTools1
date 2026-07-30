@@ -7,27 +7,52 @@ function App() {
   const [pinSetup, setPinSetup] = useState(!localStorage.getItem('sovereign_pin'));
 
   const [expertMode, setExpertMode] = useState(true);
-  const [activeTab, setActiveTab] = useState(10); // Password Manager Tab ID
+  const [activeTab, setActiveTab] = useState(4); // Tab 4: Docs & Sheets
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Password Generator State
-  const [genLength, setGenLength] = useState(16);
-  const [useUpper, setUseUpper] = useState(true);
-  const [useLower, setUseLower] = useState(true);
-  const [useNums, setUseNums] = useState(true);
-  const [useSyms, setUseSyms] = useState(true);
-  const [generatedPassword, setGeneratedPassword] = useState('');
+  // --- TAB 4: DOCS & SHEETS STATE ---
+  const [docSubTab, setDocSubTab] = useState('docs'); // 'docs' or 'sheets'
 
-  // Vault State
-  const [vaultItems, setVaultItems] = useState(() => {
-    const saved = localStorage.getItem('sovereign_vault');
-    return saved ? JSON.parse(saved) : [];
+  // Docs State
+  const [docsList, setDocsList] = useState(() => {
+    const saved = localStorage.getItem('sovereign_docs');
+    return saved ? JSON.parse(saved) : [
+      { id: 1, title: 'Welcome Document', content: '# Welcome to Sovereign Docs\n\n100% offline document editing.\n- Zero cloud telemetry\n- Local storage encryption', category: 'General' }
+    ];
   });
-  const [serviceName, setServiceName] = useState('');
-  const [vaultUser, setVaultUser] = useState('');
-  const [vaultPass, setVaultPass] = useState('');
+  const [currentDocId, setCurrentDocId] = useState(1);
+  const [docTitle, setDocTitle] = useState('Welcome Document');
+  const [docContent, setDocContent] = useState('# Welcome to Sovereign Docs\n\n100% offline document editing.\n- Zero cloud telemetry\n- Local storage encryption');
+  const [docCategory, setDocCategory] = useState('General');
+
+  // Sheets State
+  const [sheetsList, setSheetsList] = useState(() => {
+    const saved = localStorage.getItem('sovereign_sheets');
+    return saved ? JSON.parse(saved) : [
+      { 
+        id: 1, 
+        title: 'Monthly Budget', 
+        grid: [
+          ['Item', 'Cost', 'Category'],
+          ['Rent', '1200', 'Housing'],
+          ['Groceries', '350', 'Food'],
+          ['Total', '=SUM(B2:B3)', 'Summary']
+        ] 
+      }
+    ];
+  });
+  const [currentSheetId, setCurrentSheetId] = useState(1);
+  const [sheetTitle, setSheetTitle] = useState('Monthly Budget');
+  const [sheetGrid, setSheetGrid] = useState([
+    ['Item', 'Cost', 'Category'],
+    ['Rent', '1200', 'Housing'],
+    ['Groceries', '350', 'Food'],
+    ['Total', '=SUM(B2:B3)', 'Summary']
+  ]);
+
   const [statusMsg, setStatusMsg] = useState('');
 
+  // Lock Screen Auth
   const handleAuth = () => {
     if (pinSetup) {
       if (pinInput.length < 4) return alert('PIN must be at least 4 digits');
@@ -45,62 +70,113 @@ function App() {
     setPinInput('');
   };
 
-  // Cryptographically Secure Password Generator
-  const generatePassword = () => {
-    let chars = '';
-    if (useUpper) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    if (useLower) chars += 'abcdefghijklmnopqrstuvwxyz';
-    if (useNums) chars += '0123456789';
-    if (useSyms) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
-
-    if (!chars) return alert('Select at least one character set!');
-
-    const array = new Uint32Array(genLength);
-    window.crypto.getRandomValues(array);
-    let result = '';
-    for (let i = 0; i < genLength; i++) {
-      result += chars[array[i] % chars.length];
+  // --- DOCS LOGIC ---
+  const saveCurrentDoc = () => {
+    let updated;
+    const existing = docsList.find(d => d.id === currentDocId);
+    if (existing) {
+      updated = docsList.map(d => d.id === currentDocId ? { ...d, title: docTitle, content: docContent, category: docCategory } : d);
+    } else {
+      const newDoc = { id: Date.now(), title: docTitle || 'Untitled Doc', content: docContent, category: docCategory };
+      updated = [...docsList, newDoc];
+      setCurrentDocId(newDoc.id);
     }
-    setGeneratedPassword(result);
-  };
-
-  useEffect(() => {
-    generatePassword();
-  }, [genLength, useUpper, useLower, useNums, useSyms]);
-
-  // Save Credential to Vault
-  const saveToVault = (e) => {
-    e.preventDefault();
-    if (!serviceName || !vaultPass) return alert('Service name and password are required.');
-    
-    const newItem = {
-      id: Date.now(),
-      service: serviceName,
-      username: vaultUser,
-      password: vaultPass
-    };
-
-    const updated = [...vaultItems, newItem];
-    setVaultItems(updated);
-    localStorage.setItem('sovereign_vault', JSON.stringify(updated));
-
-    setServiceName('');
-    setVaultUser('');
-    setVaultPass('');
-    setStatusMsg('Credential securely saved to local vault.');
-    setTimeout(() => setStatusMsg(''), 3000);
-  };
-
-  const deleteVaultItem = (id) => {
-    const updated = vaultItems.filter(item => item.id !== id);
-    setVaultItems(updated);
-    localStorage.setItem('sovereign_vault', JSON.stringify(updated));
-  };
-
-  const copyText = (text, label) => {
-    navigator.clipboard.writeText(text);
-    setStatusMsg(`${label} copied to clipboard!`);
+    setDocsList(updated);
+    localStorage.setItem('sovereign_docs', JSON.stringify(updated));
+    setStatusMsg('Document saved to local vault!');
     setTimeout(() => setStatusMsg(''), 2500);
+  };
+
+  const createNewDoc = () => {
+    const newId = Date.now();
+    setCurrentDocId(newId);
+    setDocTitle('New Document');
+    setDocContent('');
+    setDocCategory('General');
+  };
+
+  const loadDoc = (doc) => {
+    setCurrentDocId(doc.id);
+    setDocTitle(doc.title);
+    setDocContent(doc.content);
+    setDocCategory(doc.category || 'General');
+  };
+
+  const deleteDoc = (id) => {
+    const updated = docsList.filter(d => d.id !== id);
+    setDocsList(updated);
+    localStorage.setItem('sovereign_docs', JSON.stringify(updated));
+    if (updated.length > 0) loadDoc(updated[0]);
+    else createNewDoc();
+  };
+
+  const insertMarkdown = (syntax) => {
+    setDocContent(prev => prev + syntax);
+  };
+
+  const exportDocFile = () => {
+    const element = document.createElement("a");
+    const file = new Blob([docContent], {type: 'text/plain'});
+    element.href = URL.createObjectURL(file);
+    element.download = `${docTitle.replace(/\s+/g, '_')}.md`;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  // --- SHEETS LOGIC ---
+  const handleCellChange = (rIndex, cIndex, value) => {
+    const newGrid = sheetGrid.map((row, r) => 
+      row.map((cell, c) => (r === rIndex && c === cIndex ? value : cell))
+    );
+    setSheetGrid(newGrid);
+  };
+
+  const addRow = () => {
+    const colsCount = sheetGrid[0].length;
+    setSheetGrid([...sheetGrid, new Array(colsCount).fill('')]);
+  };
+
+  const addColumn = () => {
+    setSheetGrid(sheetGrid.map(row => [...row, '']));
+  };
+
+  const saveCurrentSheet = () => {
+    let updated;
+    const existing = sheetsList.find(s => s.id === currentSheetId);
+    if (existing) {
+      updated = sheetsList.map(s => s.id === currentSheetId ? { ...s, title: sheetTitle, grid: sheetGrid } : s);
+    } else {
+      const newSheet = { id: Date.now(), title: sheetTitle || 'Untitled Sheet', grid: sheetGrid };
+      updated = [...sheetsList, newSheet];
+      setCurrentSheetId(newSheet.id);
+    }
+    setSheetsList(updated);
+    localStorage.setItem('sovereign_sheets', JSON.stringify(updated));
+    setStatusMsg('Spreadsheet saved to local vault!');
+    setTimeout(() => setStatusMsg(''), 2500);
+  };
+
+  const createNewSheet = () => {
+    const newId = Date.now();
+    setCurrentSheetId(newId);
+    setSheetTitle('New Spreadsheet');
+    setSheetGrid([
+      ['A', 'B', 'C'],
+      ['', '', ''],
+      ['', '', '']
+    ]);
+  };
+
+  const exportCsv = () => {
+    const csvContent = "data:text/csv;charset=utf-8," + sheetGrid.map(e => e.join(",")).join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${sheetTitle.replace(/\s+/g, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   if (isLocked) {
@@ -129,74 +205,147 @@ function App() {
       {drawerOpen && (
         <div style={{ background: '#161616', borderBottom: '2px solid #00ffcc', padding: '15px' }}>
           <button onClick={() => { setActiveTab(1); setDrawerOpen(false); }} style={{ width: '100%', padding: '10px', background: '#222', color: '#fff', marginBottom: '5px', textAlign: 'left', border: '1px solid #333' }}>1. Home / AI Assistant</button>
-          <button onClick={() => { setActiveTab(10); setDrawerOpen(false); }} style={{ width: '100%', padding: '10px', background: '#1b4d3e', color: '#00ffcc', marginBottom: '5px', textAlign: 'left', border: '1px solid #333' }}>10. Password Manager & Vault</button>
+          <button onClick={() => { setActiveTab(4); setDrawerOpen(false); }} style={{ width: '100%', padding: '10px', background: '#1b4d3e', color: '#00ffcc', marginBottom: '5px', textAlign: 'left', border: '1px solid #333' }}>4. Notes, Docs & Sovereign Sheets</button>
+          <button onClick={() => { setActiveTab(10); setDrawerOpen(false); }} style={{ width: '100%', padding: '10px', background: '#222', color: '#fff', marginBottom: '5px', textAlign: 'left', border: '1px solid #333' }}>10. Password Manager</button>
           <button onClick={() => { setActiveTab(16); setDrawerOpen(false); }} style={{ width: '100%', padding: '10px', background: '#222', color: '#fff', textAlign: 'left', border: '1px solid #333' }}>16. Shizuku Debloater</button>
         </div>
       )}
 
       <main style={{ padding: '15px' }}>
-        {activeTab === 10 && (
+        {activeTab === 4 && (
           <div>
-            {/* Password Generator Card */}
-            <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222', marginBottom: '15px' }}>
-              <h2 style={{ color: '#00ffcc', marginTop: 0 }}>🔑 Secure Password Generator</h2>
-              
-              <div style={{ background: '#181818', padding: '10px', borderRadius: '6px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', border: '1px solid #333' }}>
-                <code style={{ color: '#00ffcc', fontSize: '14px', wordBreak: 'break-all' }}>{generatedPassword}</code>
-                <button onClick={() => copyText(generatedPassword, 'Password')} style={{ padding: '6px 12px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Copy</button>
-              </div>
-
-              <div style={{ marginBottom: '10px' }}>
-                <label style={{ fontSize: '13px', color: '#aaa' }}>Length: {genLength}</label>
-                <input type="range" min="8" max="64" value={genLength} onChange={e => setGenLength(parseInt(e.target.value))} style={{ width: '100%' }} />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', fontSize: '13px' }}>
-                <label><input type="checkbox" checked={useUpper} onChange={e => setUseUpper(e.target.checked)} /> Uppercase</label>
-                <label><input type="checkbox" checked={useLower} onChange={e => setUseLower(e.target.checked)} /> Lowercase</label>
-                <label><input type="checkbox" checked={useNums} onChange={e => setUseNums(e.target.checked)} /> Numbers</label>
-                <label><input type="checkbox" checked={useSyms} onChange={e => setUseSyms(e.target.checked)} /> Symbols</label>
-              </div>
-
-              <button onClick={generatePassword} style={{ width: '100%', marginTop: '12px', padding: '10px', background: '#333', color: '#00ffcc', border: '1px solid #00ffcc', borderRadius: '4px', fontWeight: 'bold' }}>
-                Generate New Password
+            {/* Mode Switcher */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <button 
+                onClick={() => setDocSubTab('docs')} 
+                style={{ flex: 1, padding: '12px', background: docSubTab === 'docs' ? '#1b4d3e' : '#121212', color: docSubTab === 'docs' ? '#00ffcc' : '#aaa', border: '1px solid #333', borderRadius: '6px', fontWeight: 'bold' }}
+              >
+                📝 Sovereign Docs (Word)
+              </button>
+              <button 
+                onClick={() => setDocSubTab('sheets')} 
+                style={{ flex: 1, padding: '12px', background: docSubTab === 'sheets' ? '#1b4d3e' : '#121212', color: docSubTab === 'sheets' ? '#00ffcc' : '#aaa', border: '1px solid #333', borderRadius: '6px', fontWeight: 'bold' }}
+              >
+                📊 Sovereign Sheets (Excel)
               </button>
             </div>
 
-            {/* Local Vault Manager Card */}
-            <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
-              <h2 style={{ color: '#00ffcc', marginTop: 0 }}>🛡️ Local Credential Vault</h2>
+            {statusMsg && <p style={{ color: '#00ffcc', fontSize: '12px', fontStyle: 'italic', marginBottom: '10px' }}>{statusMsg}</p>}
 
-              <form onSubmit={saveToVault} style={{ marginBottom: '15px' }}>
-                <input placeholder="Service Name (e.g. ProtonMail)" value={serviceName} onChange={e => setServiceName(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '8px', background: '#1e1e1e', color: '#fff', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box' }} />
-                <input placeholder="Username / Email" value={vaultUser} onChange={e => setVaultUser(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '8px', background: '#1e1e1e', color: '#fff', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box' }} />
-                <input placeholder="Password" value={vaultPass} onChange={e => setVaultPass(e.target.value)} style={{ width: '100%', padding: '8px', marginBottom: '8px', background: '#1e1e1e', color: '#fff', border: '1px solid #333', borderRadius: '4px', boxSizing: 'border-box' }} />
-                <button type="submit" style={{ width: '100%', padding: '10px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Save to Vault</button>
-              </form>
+            {/* --- DOCS EDITOR MODULE --- */}
+            {docSubTab === 'docs' && (
+              <div>
+                <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222', marginBottom: '15px' }}>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                    <input 
+                      value={docTitle} onChange={e => setDocTitle(e.target.value)} 
+                      placeholder="Document Title" 
+                      style={{ flex: 2, padding: '10px', background: '#1e1e1e', color: '#00ffcc', border: '1px solid #333', borderRadius: '4px', fontWeight: 'bold' }}
+                    />
+                    <button onClick={saveCurrentDoc} style={{ flex: 1, padding: '10px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Save</button>
+                  </div>
 
-              {statusMsg && <p style={{ color: '#00ffcc', fontSize: '12px', fontStyle: 'italic', marginBottom: '10px' }}>{statusMsg}</p>}
+                  {/* Formatting Toolbar */}
+                  <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '10px' }}>
+                    <button onClick={() => insertMarkdown('# ')} style={{ padding: '4px 8px', background: '#222', color: '#00ffcc', border: '1px solid #333', borderRadius: '4px' }}>H1</button>
+                    <button onClick={() => insertMarkdown('## ')} style={{ padding: '4px 8px', background: '#222', color: '#00ffcc', border: '1px solid #333', borderRadius: '4px' }}>H2</button>
+                    <button onClick={() => insertMarkdown('**bold**')} style={{ padding: '4px 8px', background: '#222', color: '#fff', border: '1px solid #333', borderRadius: '4px' }}><b>B</b></button>
+                    <button onClick={() => insertMarkdown('*italic*')} style={{ padding: '4px 8px', background: '#222', color: '#fff', border: '1px solid #333', borderRadius: '4px' }}><i>I</i></button>
+                    <button onClick={() => insertMarkdown('- ')} style={{ padding: '4px 8px', background: '#222', color: '#fff', border: '1px solid #333', borderRadius: '4px' }}>• List</button>
+                    <button onClick={() => insertMarkdown('```\ncode block\n```')} style={{ padding: '4px 8px', background: '#222', color: '#fff', border: '1px solid #333', borderRadius: '4px' }}>Code</button>
+                    <button onClick={exportDocFile} style={{ padding: '4px 8px', background: '#333', color: '#00ffcc', border: '1px solid #00ffcc', borderRadius: '4px', marginLeft: 'auto' }}>Export .md</button>
+                  </div>
 
-              <h3 style={{ fontSize: '14px', color: '#aaa', borderBottom: '1px solid #222', paddingBottom: '5px' }}>Stored Logins ({vaultItems.length})</h3>
-              
-              <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
-                {vaultItems.length === 0 ? (
-                  <p style={{ color: '#666', fontSize: '12px', fontStyle: 'italic' }}>Vault is currently empty.</p>
-                ) : (
-                  vaultItems.map(item => (
-                    <div key={item.id} style={{ background: '#181818', padding: '10px', borderRadius: '6px', marginBottom: '8px', border: '1px solid #2a2a2a', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <strong style={{ color: '#00ffcc', fontSize: '13px' }}>{item.service}</strong>
-                        <div style={{ color: '#888', fontSize: '11px' }}>User: {item.username || 'N/A'}</div>
+                  {/* Document Text Area */}
+                  <textarea 
+                    value={docContent} onChange={e => setDocContent(e.target.value)}
+                    placeholder="Write your document here..."
+                    style={{ width: '100%', height: '220px', padding: '12px', background: '#181818', color: '#fff', border: '1px solid #333', borderRadius: '6px', boxSizing: 'border-box', fontFamily: 'monospace', fontSize: '13px', lineHeight: '1.5' }}
+                  />
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: '#666', marginTop: '6px' }}>
+                    <span>Words: {docContent.trim() ? docContent.trim().split(/\s+/).length : 0} | Characters: {docContent.length}</span>
+                    <button onClick={createNewDoc} style={{ background: 'none', border: 'none', color: '#00ffcc', cursor: 'pointer' }}>+ New Blank Doc</button>
+                  </div>
+                </div>
+
+                {/* Stored Documents Vault */}
+                <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
+                  <h3 style={{ color: '#00ffcc', marginTop: 0, fontSize: '14px' }}>📁 Stored Documents ({docsList.length})</h3>
+                  <div style={{ maxHeight: '150px', overflowY: 'auto' }}>
+                    {docsList.map(doc => (
+                      <div key={doc.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#181818', padding: '8px 12px', borderRadius: '4px', marginBottom: '6px', border: '1px solid #222' }}>
+                        <span onClick={() => loadDoc(doc)} style={{ color: doc.id === currentDocId ? '#00ffcc' : '#fff', cursor: 'pointer', fontWeight: doc.id === currentDocId ? 'bold' : 'normal', fontSize: '13px' }}>
+                          📄 {doc.title}
+                        </span>
+                        <button onClick={() => deleteDoc(doc.id)} style={{ padding: '2px 6px', background: '#333', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '3px', fontSize: '10px' }}>Del</button>
                       </div>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button onClick={() => copyText(item.password, item.service)} style={{ padding: '5px 10px', background: '#222', color: '#00ffcc', border: '1px solid #00ffcc', borderRadius: '4px', fontSize: '11px' }}>Copy</button>
-                        <button onClick={() => deleteVaultItem(item.id)} style={{ padding: '5px 10px', background: '#333', color: '#ff4444', border: '1px solid #ff4444', borderRadius: '4px', fontSize: '11px' }}>Del</button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* --- SHEETS SPREADSHEET MODULE --- */}
+            {docSubTab === 'sheets' && (
+              <div style={{ background: '#121212', padding: '15px', borderRadius: '8px', border: '1px solid #222' }}>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
+                  <input 
+                    value={sheetTitle} onChange={e => setSheetTitle(e.target.value)} 
+                    placeholder="Spreadsheet Title" 
+                    style={{ flex: 2, padding: '10px', background: '#1e1e1e', color: '#00ffcc', border: '1px solid #333', borderRadius: '4px', fontWeight: 'bold' }}
+                  />
+                  <button onClick={saveCurrentSheet} style={{ flex: 1, padding: '10px', background: '#00cc66', color: '#000', fontWeight: 'bold', border: 'none', borderRadius: '4px' }}>Save Sheet</button>
+                </div>
+
+                {/* Grid Controls */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                  <button onClick={addRow} style={{ padding: '6px 10px', background: '#222', color: '#00ffcc', border: '1px solid #333', borderRadius: '4px', fontSize: '12px' }}>+ Add Row</button>
+                  <button onClick={addColumn} style={{ padding: '6px 10px', background: '#222', color: '#00ffcc', border: '1px solid #333', borderRadius: '4px', fontSize: '12px' }}>+ Add Column</button>
+                  <button onClick={exportCsv} style={{ padding: '6px 10px', background: '#333', color: '#00ffcc', border: '1px solid #00ffcc', borderRadius: '4px', fontSize: '12px', marginLeft: 'auto' }}>Export CSV</button>
+                  <button onClick={createNewSheet} style={{ padding: '6px 10px', background: '#222', color: '#aaa', border: '1px solid #333', borderRadius: '4px', fontSize: '12px' }}>New Sheet</button>
+                </div>
+
+                {/* Grid Spreadsheet View */}
+                <div style={{ overflowX: 'auto', marginBottom: '15px', border: '1px solid #333', borderRadius: '4px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', background: '#181818' }}>
+                    <tbody>
+                      {sheetGrid.map((row, rIndex) => (
+                        <tr key={rIndex}>
+                          {row.map((cell, cIndex) => (
+                            <td key={cIndex} style={{ border: '1px solid #2a2a2a', padding: '0' }}>
+                              <input 
+                                value={cell} 
+                                onChange={e => handleCellChange(rIndex, cIndex, e.target.value)}
+                                style={{ 
+                                  width: '90px', 
+                                  padding: '8px', 
+                                  background: rIndex === 0 ? '#1f2d27' : 'transparent', 
+                                  color: rIndex === 0 ? '#00ffcc' : '#fff', 
+                                  border: 'none', 
+                                  fontWeight: rIndex === 0 ? 'bold' : 'normal',
+                                  fontSize: '12px'
+                                }}
+                              />
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Saved Sheets Vault */}
+                <h3 style={{ color: '#00ffcc', marginTop: '10px', fontSize: '14px' }}>📊 Stored Spreadsheets ({sheetsList.length})</h3>
+                <div style={{ maxHeight: '120px', overflowY: 'auto' }}>
+                  {sheetsList.map(s => (
+                    <div key={s.id} onClick={() => { setCurrentSheetId(s.id); setSheetTitle(s.title); setSheetGrid(s.grid); }} style={{ padding: '8px', background: '#181818', borderRadius: '4px', marginBottom: '5px', border: '1px solid #222', cursor: 'pointer', color: s.id === currentSheetId ? '#00ffcc' : '#ccc', fontSize: '12px' }}>
+                      📊 {s.title} ({s.grid.length}x{s.grid[0].length})
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </main>
