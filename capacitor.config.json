@@ -1,5 +1,6 @@
 {
-  "appId": "com.sovereign.tools",
-  "appName": "Sovereign Tools",
-  "webDir": "templates"
+  "appId": "com.sovereignty.tools",
+  "appName": "Sovereignty Suite",
+  "webDir": "build",
+  "bundledWebRuntime": false
 }
