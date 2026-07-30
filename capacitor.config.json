@@ -2,5 +2,7 @@
   "appId": "com.sovereignty.tools",
   "appName": "Sovereignty Suite",
   "webDir": "build",
-  "bundledWebRuntime": false
+  "server": {
+    "androidScheme": "https"
+  }
 }
