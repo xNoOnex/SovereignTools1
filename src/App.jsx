@@ -17,14 +17,14 @@ export default function App() {
   return (
     <div 
       className="min-h-screen text-white font-sans flex flex-col justify-between bg-cover bg-center bg-fixed relative select-none"
-      style={{ backgroundImage: `url('/sovereign_logo.jpg')` }}
+      style={{ backgroundImage: `url('./sovereign_logo.jpg')` }}
     >
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
       {/* Top Header */}
       <header className="bg-zinc-900/90 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center space-x-3">
-          <img src="/sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" />
+          <img src="./sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
           <h1 className="font-bold text-sm text-white tracking-wide">SOVEREIGN TOOLS</h1>
         </div>
         <button
@@ -35,7 +35,7 @@ export default function App() {
         </button>
       </header>
 
-      {/* Main View */}
+      {/* Main Content Area */}
       <main className="flex-1 pb-20 relative z-10">
         {currentTab === 'camera' && <ExifFreeCamera />}
         {currentTab === 'vault' && <PasswordManager />}

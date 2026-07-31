@@ -29,33 +29,27 @@ export function LockScreen({ onUnlock }) {
 
   return (
     <div className="relative min-h-screen w-full flex flex-col items-center justify-between p-6 bg-black text-white select-none">
-      {/* Background Graphic Overlay */}
       <div 
         className="absolute inset-0 bg-cover bg-center opacity-30 pointer-events-none"
-        style={{ backgroundImage: `url('/sovereign_logo.jpg')` }}
+        style={{ backgroundImage: `url('./sovereign_logo.jpg')` }}
       />
       
       <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/90 to-black z-0" />
 
-      {/* Keypad Container */}
       <div className="relative z-10 w-full max-w-xs flex flex-col items-center my-auto space-y-6">
-
-        {/* Shield Logo Header */}
         <div className="text-center space-y-2">
           <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden border-2 border-cyan-500/50 shadow-lg shadow-cyan-500/20 bg-zinc-900 flex items-center justify-center">
             <img 
-              src="/sovereign_logo.jpg" 
+              src="./sovereign_logo.jpg" 
               alt="Logo" 
               className="w-full h-full object-cover"
               onError={(e) => { e.target.style.display = 'none'; }}
             />
-            <span className="text-3xl">🛡️</span>
           </div>
           <h1 className="text-xl font-black text-white tracking-wider">SOVEREIGN TOOLS</h1>
           <p className="text-[10px] text-cyan-400 font-mono tracking-widest uppercase">Sovereignty & Privacy in Your Pocket</p>
         </div>
 
-        {/* PIN Indicators */}
         <div className="flex space-x-4 my-2">
           {[0, 1, 2, 3].map((idx) => (
             <div
@@ -69,7 +63,6 @@ export function LockScreen({ onUnlock }) {
           ))}
         </div>
 
-        {/* Numeric Keypad */}
         <div className="grid grid-cols-3 gap-4 w-full">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <button
@@ -94,13 +87,11 @@ export function LockScreen({ onUnlock }) {
             ⌫
           </button>
         </div>
-
       </div>
 
       <div className="relative z-10 text-center text-[10px] text-zinc-500 font-mono">
         🔒 Encrypted Local Sandbox
       </div>
-
     </div>
   );
 }

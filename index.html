@@ -4,14 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Sovereign Tools</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
-      body { background-color: #000000; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; -webkit-user-select: none; user-select: none; overflow-x: hidden; }
+      body { background-color: #000000; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; -webkit-user-select: none; user-select: none; }
       #root { min-height: 100vh; display: flex; flex-direction: column; }
     </style>
-    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body>
+  <body class="bg-black text-white select-none">
     <div id="root"></div>
     <script type="module" src="./src/index.jsx"></script>
   </body>
