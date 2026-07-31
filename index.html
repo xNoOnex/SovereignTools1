@@ -4,22 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Sovereign Tools</title>
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { background-color: #000000; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; -webkit-user-select: none; user-select: none; overflow-x: hidden; }
+      #root { min-height: 100vh; display: flex; flex-direction: column; }
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // Catch any runtime JS errors and display them on screen instead of a blank page
-      window.addEventListener('error', function(e) {
-        var errBox = document.getElementById('debug-error');
-        if (errBox) {
-          errBox.style.display = 'block';
-          errBox.innerText += '\n[JS ERROR]: ' + e.message + ' (' + e.filename + ':' + e.lineno + ')';
-        }
-      });
-    </script>
   </head>
-  <body class="bg-black text-white select-none">
-    <div id="debug-error" style="display:none; color:#ff4444; background:#0a0a0a; padding:20px; font-family:monospace; font-size:11px; z-index:9999; position:fixed; inset:0; overflow:auto; word-break:break-all;">
-      ⚠️ Startup Error Caught:
-    </div>
+  <body>
     <div id="root"></div>
     <script type="module" src="./src/index.jsx"></script>
   </body>
