@@ -17,25 +17,20 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Dependencies & Build Vite Bundle
+      - name: Install Dependencies & Build Web App
         run: |
-          npm install react react-dom @vitejs/plugin-react vite --save
-          
-          # Force Vite to compile JSX into dist/
+          npm install
           npx vite build
-
-          # Ensure public assets are inside dist/
           if [ -d "public" ]; then cp -r public/* dist/ || true; fi
 
-      - name: Inject Launcher Icons & Sync Capacitor
+      - name: Sync Capacitor & Inject Native Launcher Icons
         run: |
           sudo apt-get update && sudo apt-get install -y imagemagick
-          npm install @capacitor/core @capacitor/cli @capacitor/android
           
           if [ ! -d "android" ]; then
             npx cap add android
