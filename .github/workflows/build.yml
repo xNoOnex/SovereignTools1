@@ -27,11 +27,18 @@ jobs:
           npm install
           npm run build || npx vite build || npx react-scripts build || mkdir -p dist
 
-      - name: Setup & Sync Capacitor
+      - name: Setup & Generate App Launcher Icons
         run: |
+          npm install @capacitor/assets @capacitor/core @capacitor/cli @capacitor/android
           if [ ! -d "android" ]; then
             npx cap add android
           fi
+          
+          # Generate Android launcher icons from sovereign_logo.jpg
+          if [ -f "public/sovereign_logo.jpg" ]; then
+            npx @capacitor/assets generate --android --iconSource public/sovereign_logo.jpg || true
+          fi
+          
           npx cap copy
           npx cap sync android
 
