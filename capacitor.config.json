@@ -1,8 +1,6 @@
 {
-  "appId": "com.sovereignty.tools",
-  "appName": "Sovereignty Suite",
-  "webDir": "build",
-  "server": {
-    "androidScheme": "https"
-  }
+  "appId": "com.sovereign.tools",
+  "appName": "Sovereign Tools",
+  "webDir": "dist",
+  "bundledWebRuntime": false
 }
