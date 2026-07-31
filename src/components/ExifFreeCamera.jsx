@@ -8,7 +8,7 @@ export function ExifFreeCamera() {
 
   const [hasPermission, setHasPermission] = useState(false);
   const [isInitializing, setIsInitializing] = useState(false);
-  const [cameraMode, setCameraMode] = useState('photo'); // 'photo', 'video', 'pro', 'burst'
+  const [cameraMode, setCameraMode] = useState('photo');
   const [facingMode, setFacingMode] = useState('environment');
   
   const [aspectRatio, setAspectRatio] = useState('full');
@@ -26,42 +26,45 @@ export function ExifFreeCamera() {
   const [shutterFlash, setShutterFlash] = useState(false);
   const [statusText, setStatusText] = useState('');
 
-  const requestCameraAccess = async () => {
+  // Single safe stream initialization to prevent hardware driver deadlocks
+  const startCameraStream = async () => {
     setIsInitializing(true);
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-      stream.getTracks().forEach(track => track.stop());
+      if (videoRef.current && videoRef.current.srcObject) {
+        const existing = videoRef.current.srcObject;
+        existing.getTracks().forEach(track => track.stop());
+      }
+
+      const constraints = {
+        video: { facingMode: facingMode },
+        audio: cameraMode === 'video'
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        await videoRef.current.play();
+      }
       setHasPermission(true);
     } catch (err) {
-      alert("Camera permission denied.");
+      console.error("Camera access error:", err);
+      setStatusText('⚠️ Camera permission or hardware access failed');
+      setTimeout(() => setStatusText(''), 3000);
     } finally {
       setIsInitializing(false);
     }
   };
 
   useEffect(() => {
-    if (!hasPermission) return;
-    let activeStream = null;
-
-    async function startStream() {
-      try {
-        activeStream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-          audio: cameraMode === 'video'
-        });
-
-        if (videoRef.current) {
-          videoRef.current.srcObject = activeStream;
-          await videoRef.current.play();
-        }
-      } catch (err) {
-        console.error("Camera error:", err);
-      }
+    if (hasPermission) {
+      startCameraStream();
     }
-
-    startStream();
-    return () => { if (activeStream) activeStream.getTracks().forEach(track => track.stop()); };
-  }, [hasPermission, facingMode, cameraMode]);
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [facingMode, cameraMode]);
 
   useEffect(() => {
     let timer = null;
@@ -90,8 +93,8 @@ export function ExifFreeCamera() {
     const video = videoRef.current;
     const canvas = canvasRef.current || document.createElement('canvas');
     
-    let w = video.videoWidth || 1920;
-    let h = video.videoHeight || 1080;
+    let w = video.videoWidth || 1280;
+    let h = video.videoHeight || 720;
 
     if (aspectRatio === '1:1') {
       const dim = Math.min(w, h);
@@ -180,16 +183,16 @@ export function ExifFreeCamera() {
         <div className="w-20 h-20 mb-4 rounded-2xl bg-zinc-900 border border-cyan-500/40 flex items-center justify-center text-4xl shadow-lg shadow-cyan-500/10">
           📷
         </div>
-        <h2 className="text-xl font-bold text-white mb-2">Full-Screen Privacy Camera</h2>
+        <h2 className="text-xl font-bold text-white mb-2">Pro Privacy Camera</h2>
         <p className="text-xs text-zinc-400 mb-6 max-w-xs">
-          100% viewable viewfinder with EXIF metadata stripping, zoom, exposure control, and burst capture.
+          EXIF-free hardware camera suite with clean frame isolation, exposure controls, and burst capture.
         </p>
         <button
-          onClick={requestCameraAccess}
+          onClick={startCameraStream}
           disabled={isInitializing}
           className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
         >
-          {isInitializing ? 'Launching Camera...' : 'Launch Full-Screen Camera'}
+          {isInitializing ? 'Initializing Hardware...' : 'Open Camera Viewfinder'}
         </button>
       </div>
     );
@@ -240,7 +243,7 @@ export function ExifFreeCamera() {
               torchOn ? 'bg-amber-500 text-black border-amber-400' : 'bg-black/60 text-zinc-300 border-zinc-700 backdrop-blur-md'
             }`}
           >
-            {torchOn ? '⚡ On' : '⚡ Off'}
+            {torchOn ? '⚡ Flash On' : '⚡ Flash Off'}
           </button>
 
           <select
@@ -269,12 +272,12 @@ export function ExifFreeCamera() {
             onClick={() => setShowDetails(!showDetails)}
             className="p-2 bg-black/60 border border-zinc-700 text-zinc-300 text-xs font-bold rounded-full backdrop-blur-md"
           >
-            ℹ️ Details
+            ℹ️ Specs
           </button>
         </div>
       </div>
 
-      {/* DETAILS & DISCLAIMERS DRAWER */}
+      {/* DETAILS DRAWER */}
       {showDetails && (
         <div className="relative z-30 mx-4 bg-zinc-950/90 border border-zinc-800 p-4 rounded-xl backdrop-blur-md max-h-[50vh] overflow-y-auto">
           <div className="flex justify-between items-center border-b border-zinc-800 pb-2 mb-2">
@@ -283,8 +286,8 @@ export function ExifFreeCamera() {
           </div>
           <ToolFooter
             title="EXIF-Free Full-Screen Camera"
-            details="Captures raw unlinked image streams directly off the device sensor and renders onto an isolated HTML5 canvas to scrub GPS coordinates, camera model fingerprints, and timestamp logs."
-            disclaimer="Camera frames are stored locally in application memory. Always double-check photo backgrounds for identifying markers prior to external distribution."
+            details="Captures raw unlinked image streams directly off the hardware sensor onto an isolated HTML5 canvas to scrub GPS coordinates, camera model fingerprints, and timestamp logs."
+            disclaimer="Camera frames are saved locally in app memory. Double-check photo backgrounds for physical location markers before sharing."
           />
         </div>
       )}
@@ -296,7 +299,7 @@ export function ExifFreeCamera() {
           <input
             type="range"
             min="1"
-            max="4"
+            max="3"
             step="0.1"
             value={zoomLevel}
             onChange={(e) => setZoomLevel(Number(e.target.value))}
