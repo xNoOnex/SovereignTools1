@@ -25,11 +25,8 @@ jobs:
       - name: Install & Build React Frontend
         run: |
           npm install
-          
-          # Attempt build with standard tooling
           npm run build || npx vite build || true
 
-          # Guarantee dist directory and index.html exist
           mkdir -p dist
           if [ ! -f "dist/index.html" ]; then
             if [ -f "public/index.html" ]; then cp public/index.html dist/; fi
@@ -37,35 +34,34 @@ jobs:
             if [ -f "index.html" ]; then cp index.html dist/; fi
           fi
 
-          # Fallback HTML if index.html is still missing
-          if [ ! -f "dist/index.html" ]; then
-            cat << 'HTML' > dist/index.html
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>Sovereign Tools</title>
-          </head>
-          <body>
-            <div id="root"></div>
-          </body>
-          </html>
-          HTML
-          fi
-
-          # Copy public assets into dist
           if [ -d "public" ]; then cp -r public/* dist/ || true; fi
-          if [ -d "templates" ]; then cp -r templates/* dist/ || true; fi
 
-      - name: Setup & Sync Capacitor
+      - name: Inject Custom Android App Launcher Icons
         run: |
-          npm install @capacitor/core @capacitor/cli @capacitor/android
+          sudo apt-get update && sudo apt-get install -y imagemagick
           
+          npm install @capacitor/core @capacitor/cli @capacitor/android
           if [ ! -d "android" ]; then
             npx cap add android
           fi
-          
+
+          # Convert sovereign_logo.jpg directly into native Android launcher icons
+          if [ -f "public/sovereign_logo.jpg" ]; then
+            echo "Generating native launcher icons from sovereign_logo.jpg..."
+            
+            convert public/sovereign_logo.jpg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+            convert public/sovereign_logo.jpg -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+            convert public/sovereign_logo.jpg -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            convert public/sovereign_logo.jpg -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            convert public/sovereign_logo.jpg -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            
+            convert public/sovereign_logo.jpg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+            convert public/sovereign_logo.jpg -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+            convert public/sovereign_logo.jpg -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+            convert public/sovereign_logo.jpg -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+            convert public/sovereign_logo.jpg -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+          fi
+
           npx cap copy
           npx cap sync android
 

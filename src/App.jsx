@@ -19,10 +19,9 @@ export default function App() {
       className="min-h-screen text-white font-sans flex flex-col justify-between bg-cover bg-center bg-fixed relative select-none"
       style={{ backgroundImage: `url('/sovereign_logo.jpg')` }}
     >
-      {/* Dark overlay for high contrast readability */}
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
-      {/* Top Navigation Bar */}
+      {/* Top Header */}
       <header className="bg-zinc-900/90 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center space-x-3">
           <img src="/sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" />
@@ -36,7 +35,7 @@ export default function App() {
         </button>
       </header>
 
-      {/* Main Content Area */}
+      {/* Main View */}
       <main className="flex-1 pb-20 relative z-10">
         {currentTab === 'camera' && <ExifFreeCamera />}
         {currentTab === 'vault' && <PasswordManager />}
@@ -45,7 +44,7 @@ export default function App() {
         {currentTab === 'ai' && <LocalAIAssistant />}
       </main>
 
-      {/* Bottom Dock */}
+      {/* Bottom Nav Dock */}
       <nav className="fixed bottom-0 inset-x-0 bg-zinc-900/90 border-t border-zinc-800 p-2 flex justify-around text-[10px] font-bold z-40 backdrop-blur-md">
         <button
           onClick={() => setCurrentTab('camera')}
