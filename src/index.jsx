@@ -14,23 +14,22 @@ class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, errorInfo) {
-    console.error("Runtime error caught:", error, errorInfo);
+    console.error("React mount error:", error, errorInfo);
   }
 
   render() {
     if (this.state.hasError) {
       return (
         <div style={{ padding: 24, color: '#ff4444', backgroundColor: '#0a0a0a', minHeight: '100vh', fontFamily: 'monospace', boxSizing: 'border-box' }}>
-          <h2 style={{ fontSize: 18, marginBottom: 12, color: '#ff6666' }}>⚠️ Sovereign Tools Launch Exception</h2>
-          <p style={{ fontSize: 12, color: '#aaa', marginBottom: 16 }}>An error occurred while mounting the React engine:</p>
+          <h2 style={{ fontSize: 16, marginBottom: 10, color: '#ff6666' }}>⚠️ React Render Exception</h2>
           <div style={{ background: '#000', padding: 12, borderRadius: 8, border: '1px solid #333', fontSize: 11, wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginBottom: 20 }}>
             {this.state.error?.toString()}
           </div>
           <button
             onClick={() => { localStorage.clear(); window.location.reload(); }}
-            style={{ width: '100%', padding: '14px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 'bold', fontSize: 13 }}
+            style={{ width: '100%', padding: '12px', background: '#ff4444', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 'bold' }}
           >
-            Clear Storage & Restart App
+            Clear Storage & Reload
           </button>
         </div>
       );

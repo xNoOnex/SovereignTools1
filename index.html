@@ -7,10 +7,25 @@
     <style>
       * { box-sizing: border-box; margin: 0; padding: 0; }
       html, body, #root { width: 100%; height: 100%; min-height: 100vh; background-color: #000000; color: #ffffff; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
+      #startup-banner { padding: 40px; font-family: monospace; color: #00ffff; font-size: 14px; text-align: center; }
     </style>
+    <script>
+      window.addEventListener('error', function(e) {
+        var banner = document.getElementById('startup-banner');
+        if (banner) {
+          banner.style.color = '#ff4444';
+          banner.innerHTML = '<h3>⚠️ Runtime Script Error</h3><p>' + e.message + '</p><p style="font-size:10px; color:#888;">' + e.filename + ':' + e.lineno + '</p>';
+        }
+      });
+    </script>
   </head>
-  <body class="bg-black text-white select-none">
-    <div id="root"></div>
+  <body>
+    <div id="root">
+      <div id="startup-banner">
+        <h2>🛡️ Sovereign Tools</h2>
+        <p style="margin-top: 10px; color: #888;">Initializing secure offline sandbox...</p>
+      </div>
+    </div>
     <script type="module" src="./src/index.jsx"></script>
   </body>
 </html>
