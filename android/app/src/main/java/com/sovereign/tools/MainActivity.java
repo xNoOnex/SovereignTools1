@@ -312,7 +312,6 @@ public class MainActivity extends BridgeActivity {
         wv.getSettings().setDomStorageEnabled(true);
         wv.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-        // 1. STANDARD DOWNLOAD LISTENER (For clicking links to MP4s, PDFs, Zips)
         wv.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimetype, contentLength) -> {
             try {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
@@ -335,7 +334,6 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
-        // 2. LONG-PRESS MEDIA SNIFFER (For ripping images/videos straight off the page)
         wv.setOnLongClickListener(v -> {
             WebView.HitTestResult result = wv.getHitTestResult();
             if (result != null) {
@@ -356,9 +354,7 @@ public class MainActivity extends BridgeActivity {
                                     DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                                     dm.enqueue(request);
                                     Toast.makeText(getApplicationContext(), "📥 Ripping media...", Toast.LENGTH_SHORT).show();
-                                } catch (Exception e) {
-                                    Toast.makeText(getApplicationContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                                }
+                                } catch (Exception e) {}
                             })
                             .setNegativeButton("Cancel", null)
                             .show();
@@ -371,10 +367,7 @@ public class MainActivity extends BridgeActivity {
 
         wv.setWebViewClient(new WebViewClient() {
             @Override
-            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                return false;
-            }
-
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return false; }
             @Override
             public void onPageFinished(WebView view, String finishedUrl) {
                 super.onPageFinished(view, finishedUrl);
@@ -409,33 +402,23 @@ public class MainActivity extends BridgeActivity {
         WebView wv = tabList.remove(index);
         webViewHolder.removeView(wv);
         wv.destroy();
-
-        if (currentTabIndex >= tabList.size()) {
-            currentTabIndex = tabList.size() - 1;
-        }
+        if (currentTabIndex >= tabList.size()) currentTabIndex = tabList.size() - 1;
         switchToTab(currentTabIndex);
     }
 
     private void renderTabStrip() {
         if (tabStripLayout == null) return;
         tabStripLayout.removeAllViews();
-
         for (int i = 0; i < tabList.size(); i++) {
             final int tabIdx = i;
             WebView wv = tabList.get(i);
-
             LinearLayout tabItem = new LinearLayout(this);
             tabItem.setOrientation(LinearLayout.HORIZONTAL);
             tabItem.setGravity(Gravity.CENTER_VERTICAL);
             tabItem.setPadding(dpToPx(8), 0, dpToPx(4), 0);
-            
             boolean isActive = (i == currentTabIndex);
             tabItem.setBackgroundColor(Color.parseColor(isActive ? "#27272a" : "#18181b"));
-
-            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.MATCH_PARENT
-            );
+            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
             itemParams.setMargins(0, 0, dpToPx(4), 0);
             tabItem.setLayoutParams(itemParams);
 
@@ -455,9 +438,7 @@ public class MainActivity extends BridgeActivity {
             btnClose.setOnClickListener(v -> closeTab(tabIdx));
 
             tabItem.addView(btnTitle);
-            if (tabList.size() > 1) {
-                tabItem.addView(btnClose);
-            }
+            if (tabList.size() > 1) tabItem.addView(btnClose);
             tabStripLayout.addView(tabItem);
         }
     }
@@ -466,30 +447,20 @@ public class MainActivity extends BridgeActivity {
         runOnUiThread(() -> {
             if (nativeBrowserContainer != null) {
                 nativeBrowserContainer.setVisibility(View.VISIBLE);
-                if (tabList.isEmpty()) {
-                    createNewTab((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com");
-                }
+                if (tabList.isEmpty()) createNewTab((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com");
             }
         });
     }
 
     public void closeNativeBrowser() {
         runOnUiThread(() -> {
-            if (nativeBrowserContainer != null) {
-                nativeBrowserContainer.setVisibility(View.GONE);
-            }
+            if (nativeBrowserContainer != null) nativeBrowserContainer.setVisibility(View.GONE);
         });
     }
 
     private void checkAndRequestPermissions() {
-        String[] permissions = {
-            Manifest.permission.CAMERA,
-            Manifest.permission.RECORD_AUDIO,
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-        };
+        String[] permissions = { Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE };
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
             try {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
@@ -504,24 +475,18 @@ public class MainActivity extends BridgeActivity {
 
     public class AndroidBridge {
         @JavascriptInterface
-        public void launchNativeBrowser(String url) {
-            openNativeBrowser((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com");
-        }
+        public void launchNativeBrowser(String url) { openNativeBrowser((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com"); }
 
         @JavascriptInterface
-        public void exitNativeBrowser() {
-            closeNativeBrowser();
-        }
+        public void exitNativeBrowser() { closeNativeBrowser(); }
 
         @JavascriptInterface
         public String getAllDeviceFiles() {
             JSONArray array = new JSONArray();
             try {
-                ContentResolver resolver = getContentResolver();
-                Cursor cursor = resolver.query(MediaStore.Files.getContentUri("external"), new String[]{MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.DISPLAY_NAME, MediaStore.Files.FileColumns.SIZE, MediaStore.Files.FileColumns.DATA, MediaStore.Files.FileColumns.MIME_TYPE}, MediaStore.Files.FileColumns.SIZE + " > 0", null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
+                Cursor cursor = getContentResolver().query(MediaStore.Files.getContentUri("external"), new String[]{MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.DISPLAY_NAME, MediaStore.Files.FileColumns.SIZE, MediaStore.Files.FileColumns.DATA, MediaStore.Files.FileColumns.MIME_TYPE}, MediaStore.Files.FileColumns.SIZE + " > 0", null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
                 if (cursor != null) {
-                    int count = 0;
-                    while (cursor.moveToNext() && count < 400) {
+                    while (cursor.moveToNext() && array.length() < 400) {
                         long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID));
                         String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME));
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE));
@@ -535,12 +500,11 @@ public class MainActivity extends BridgeActivity {
                             obj.put("absolutePath", dataPath);
                             obj.put("mimeType", mime != null ? mime : "application/octet-stream");
                             array.put(obj);
-                            count++;
                         }
                     }
                     cursor.close();
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {}
             return array.toString();
         }
 
@@ -548,17 +512,14 @@ public class MainActivity extends BridgeActivity {
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
-                ContentResolver resolver = getContentResolver();
-                Cursor cursor = resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, new String[]{ MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATA, MediaStore.Images.Media.RELATIVE_PATH }, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
+                Cursor cursor = getContentResolver().query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, new String[]{ MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATA, MediaStore.Images.Media.RELATIVE_PATH }, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
                 if (cursor != null) {
-                    int count = 0;
-                    while (cursor.moveToNext() && count < 300) {
+                    while (cursor.moveToNext() && array.length() < 300) {
                         long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
                         String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME));
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
                         String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA));
                         String relPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH));
-                        Uri contentUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
                         if (dataPath != null) {
                             JSONObject obj = new JSONObject();
                             obj.put("id", id);
@@ -567,25 +528,21 @@ public class MainActivity extends BridgeActivity {
                             obj.put("type", "image");
                             obj.put("absolutePath", dataPath);
                             obj.put("folder", relPath != null && relPath.contains("Screenshots") ? "Screenshots" : "Camera");
-                            obj.put("cleanUrl", contentUri.toString());
+                            obj.put("cleanUrl", Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id)).toString());
                             array.put(obj);
-                            count++;
                         }
                     }
                     cursor.close();
                 }
-                
-                Cursor vCursor = resolver.query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, new String[]{ MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATA, MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.MIME_TYPE }, null, null, MediaStore.Video.Media.DATE_ADDED + " DESC");
+                Cursor vCursor = getContentResolver().query(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, new String[]{ MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATA, MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.MIME_TYPE }, null, null, MediaStore.Video.Media.DATE_ADDED + " DESC");
                 if (vCursor != null) {
-                    int vCount = 0;
-                    while (vCursor.moveToNext() && vCount < 100) {
+                    while (vCursor.moveToNext() && array.length() < 400) {
                         long id = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID));
                         String name = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME));
                         long size = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE));
                         String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
                         String relPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
                         String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
-                        Uri contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
                         if (dataPath != null) {
                             JSONObject obj = new JSONObject();
                             obj.put("id", id + 10000000);
@@ -594,13 +551,50 @@ public class MainActivity extends BridgeActivity {
                             obj.put("type", "video");
                             obj.put("absolutePath", dataPath);
                             obj.put("folder", relPath != null && relPath.contains("SovereignTools") ? "Sovereign Videos" : "Videos");
-                            obj.put("cleanUrl", contentUri.toString());
+                            obj.put("cleanUrl", Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id)).toString());
                             obj.put("mimeType", mime != null ? mime : "video/mp4");
                             array.put(obj);
-                            vCount++;
                         }
                     }
                     vCursor.close();
+                }
+            } catch (Exception e) {}
+            return array.toString();
+        }
+
+        // NEW: MASSIVE AUDIO MEDIASTORE SCANNER
+        @JavascriptInterface
+        public String getAllAudioFiles() {
+            JSONArray array = new JSONArray();
+            try {
+                String[] projection = {
+                    MediaStore.Audio.Media._ID,
+                    MediaStore.Audio.Media.TITLE,
+                    MediaStore.Audio.Media.ARTIST,
+                    MediaStore.Audio.Media.ALBUM,
+                    MediaStore.Audio.Media.DURATION,
+                    MediaStore.Audio.Media.DATA
+                };
+                Cursor cursor = getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, null, null, MediaStore.Audio.Media.TITLE + " ASC");
+                if (cursor != null) {
+                    while (cursor.moveToNext()) {
+                        long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID));
+                        String title = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE));
+                        String artist = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST));
+                        String album = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM));
+                        long duration = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION));
+                        String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATA));
+                        
+                        JSONObject obj = new JSONObject();
+                        obj.put("id", id);
+                        obj.put("title", title != null ? title : "Unknown Track");
+                        obj.put("artist", artist != null && !artist.equals("<unknown>") ? artist : "Unknown Artist");
+                        obj.put("album", album != null ? album : "Unknown Album");
+                        obj.put("duration", duration);
+                        obj.put("absolutePath", dataPath);
+                        array.put(obj);
+                    }
+                    cursor.close();
                 }
             } catch (Exception e) { e.printStackTrace(); }
             return array.toString();
@@ -621,20 +615,17 @@ public class MainActivity extends BridgeActivity {
                     getContentResolver().delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, MediaStore.Images.Media.DATA + "=?", new String[]{absolutePath});
                     return deleted;
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {}
             return false;
         }
 
         @JavascriptInterface
         public boolean shredFileByUri(String uriString) {
             try {
-                Uri uri = Uri.parse(uriString);
-                getContentResolver().delete(uri, null, null);
+                getContentResolver().delete(Uri.parse(uriString), null, null);
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "Deleted", Toast.LENGTH_SHORT).show());
                 return true;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) {}
             return false;
         }
 
@@ -644,52 +635,30 @@ public class MainActivity extends BridgeActivity {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
-                conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0");
                 BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder content = new StringBuilder();
                 String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    content.append(inputLine).append("\n");
-                }
-                in.close();
-                conn.disconnect();
+                while ((inputLine = in.readLine()) != null) content.append(inputLine).append("\n");
+                in.close(); conn.disconnect();
                 return content.toString();
-            } catch (Exception e) {
-                return "ERROR: " + e.getMessage();
-            }
+            } catch (Exception e) { return "ERROR: " + e.getMessage(); }
         }
 
         @JavascriptInterface
         public boolean setNetworkProxy(String proxyType, String host, int port) {
-            if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                return false;
-            }
-
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) return false;
             try {
                 ProxyConfig.Builder proxyConfigBuilder = new ProxyConfig.Builder();
-                if ("tor".equalsIgnoreCase(proxyType) || "socks".equalsIgnoreCase(proxyType)) {
-                    proxyConfigBuilder.addProxyRule("socks://" + host + ":" + port);
-                } else if ("http".equalsIgnoreCase(proxyType)) {
-                    proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
-                } else {
-                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Direct connection active", Toast.LENGTH_SHORT).show());
-                    });
+                if ("tor".equalsIgnoreCase(proxyType) || "socks".equalsIgnoreCase(proxyType)) proxyConfigBuilder.addProxyRule("socks://" + host + ":" + port);
+                else if ("http".equalsIgnoreCase(proxyType)) proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
+                else {
+                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> { runOnUiThread(() -> Toast.makeText(MainActivity.this, "Direct connection active", Toast.LENGTH_SHORT).show()); });
                     return true;
                 }
-
-                ProxyConfig proxyConfig = proxyConfigBuilder.build();
-                ProxyController.getInstance().setProxyOverride(proxyConfig, Executors.newSingleThreadExecutor(), () -> {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Proxy active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
-                });
+                ProxyController.getInstance().setProxyOverride(proxyConfigBuilder.build(), Executors.newSingleThreadExecutor(), () -> { runOnUiThread(() -> Toast.makeText(MainActivity.this, "Proxy active: " + host + ":" + port, Toast.LENGTH_SHORT).show()); });
                 return true;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) {}
             return false;
         }
 
@@ -704,13 +673,9 @@ public class MainActivity extends BridgeActivity {
                 Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 if (uri != null) {
                     OutputStream out = getContentResolver().openOutputStream(uri);
-                    if (out != null) {
-                        out.write(data);
-                        out.close();
-                        return true;
-                    }
+                    if (out != null) { out.write(data); out.close(); return true; }
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {}
             return false;
         }
     }

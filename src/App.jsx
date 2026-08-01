@@ -3,11 +3,12 @@ import { LockScreen } from './components/LockScreen';
 import { Home } from './components/Home';
 import { ExifFreeCamera } from './components/ExifFreeCamera';
 import { Gallery } from './components/Gallery';
+import { AudioPlayer } from './components/AudioPlayer'; // BRAND NEW AUDIO ENGINE
 import { DocumentManager } from './components/DocumentManager';
 import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
-import { PgpCipherTool } from './components/PgpCipherTool'; // RESTORED YOUR ORIGINAL PGP TOOL!
-import { EncryptedComms } from './components/EncryptedComms'; // NEW SEPARATE COMMS TAB
+import { PgpCipherTool } from './components/PgpCipherTool';
+import { EncryptedComms } from './components/EncryptedComms';
 import { AesCipherTool } from './components/AesCipherTool';
 import { FileShredder } from './components/FileShredder';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
@@ -74,6 +75,7 @@ export default function App() {
         {currentTab === 'home' && <Home onSelectTab={(tab) => setCurrentTab(tab)} />}
         {currentTab === 'browser' && <PrivacyBrowser />}
         {currentTab === 'gallery' && <Gallery />}
+        {currentTab === 'audio' && <AudioPlayer />}
         {currentTab === 'docs' && <DocumentManager />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
@@ -90,42 +92,22 @@ export default function App() {
         className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-start space-x-2 text-[8px] font-bold z-40 backdrop-blur-md overflow-x-auto no-scrollbar"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
       >
-        <button onClick={() => setCurrentTab('home')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'home' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🏠</span>Home
-        </button>
-        <button onClick={() => setCurrentTab('camera')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">📷</span>Camera
-        </button>
-        <button onClick={() => setCurrentTab('browser')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'browser' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🌐</span>Browser
-        </button>
-        <button onClick={() => setCurrentTab('gallery')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'gallery' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🖼️</span>Gallery
-        </button>
-        <button onClick={() => setCurrentTab('docs')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'docs' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">📝</span>Docs
-        </button>
-        <button onClick={() => setCurrentTab('vault')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🔐</span>Vault
-        </button>
-        <button onClick={() => setCurrentTab('debloater')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">⚡</span>Debloat
-        </button>
-        <button onClick={() => setCurrentTab('pgp')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🔑</span>PGP
-        </button>
-        <button onClick={() => setCurrentTab('comms')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'comms' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">📡</span>Comms
-        </button>
-        <button onClick={() => setCurrentTab('aes')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🛡️</span>AES
-        </button>
-        <button onClick={() => setCurrentTab('shredder')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">☣️</span>Shred
-        </button>
-        <button onClick={() => setCurrentTab('ai')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
-          <span className="text-sm">🤖</span>AI
-        </button>
+        <button onClick={() => setCurrentTab('home')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'home' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🏠</span>Home</button>
+        <button onClick={() => setCurrentTab('camera')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📷</span>Camera</button>
+        <button onClick={() => setCurrentTab('browser')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'browser' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🌐</span>Browser</button>
+        <button onClick={() => setCurrentTab('gallery')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'gallery' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🖼️</span>Gallery</button>
+        
+        {/* NEW AUDIO TAB */}
+        <button onClick={() => setCurrentTab('audio')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'audio' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🎧</span>Audio</button>
+        
+        <button onClick={() => setCurrentTab('docs')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'docs' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📝</span>Docs</button>
+        <button onClick={() => setCurrentTab('vault')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🔐</span>Vault</button>
+        <button onClick={() => setCurrentTab('debloater')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">⚡</span>Debloat</button>
+        <button onClick={() => setCurrentTab('pgp')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🔑</span>PGP</button>
+        <button onClick={() => setCurrentTab('comms')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'comms' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📡</span>Comms</button>
+        <button onClick={() => setCurrentTab('aes')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🛡️</span>AES</button>
+        <button onClick={() => setCurrentTab('shredder')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">☣️</span>Shred</button>
+        <button onClick={() => setCurrentTab('ai')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🤖</span>AI</button>
       </nav>
     </div>
   );
