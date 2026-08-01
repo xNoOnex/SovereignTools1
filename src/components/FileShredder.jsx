@@ -1,83 +1,89 @@
-import React, { useState } from 'react';
-import { useDeviceStorage } from '../hooks/useDeviceStorage';
+import React, { useState, useEffect } from 'react';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { ToolFooter } from './ToolFooter';
 
 export function FileShredder() {
-  const { deviceFiles, isScanning, rescanFiles, deleteFile } = useDeviceStorage();
-  const [query, setQuery] = useState('');
-  const [status, setStatus] = useState('');
+  const [files, setFiles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
-  const handleNuke = (file) => {
-    if (deleteFile(file)) {
-      setStatus(`Shredded: ${file.name}`);
-      setTimeout(() => setStatus(''), 2500);
+  const scanStorage = async () => {
+    setLoading(true);
+    let found = [];
+    const targetFolders = ['Download', 'DCIM', 'Pictures', 'Documents'];
+
+    for (const folder of targetFolders) {
+      try {
+        const res = await Filesystem.readdir({
+          path: folder,
+          directory: Directory.ExternalStorage
+        });
+
+        const folderFiles = res.files.map(f => ({
+          name: f.name,
+          path: `${folder}/${f.name}`
+        }));
+
+        found = [...found, ...folderFiles];
+      } catch (err) {
+        // Skip inaccessible folders
+      }
     }
+
+    setFiles(found);
+    setLoading(false);
   };
 
-  const filtered = deviceFiles.filter(f => 
-    f.name.toLowerCase().includes(query.toLowerCase()) || 
-    f.absolutePath.toLowerCase().includes(query.toLowerCase())
-  );
+  // AUTOMATIC SCAN ON MOUNT
+  useEffect(() => {
+    scanStorage();
+  }, []);
+
+  const filtered = files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()) || f.path.toLowerCase().includes(search.toLowerCase()));
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none">
-      <div className="border-b border-zinc-800 pb-3 flex justify-between items-center">
+      <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            File Shredder
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Physical sector zero-fill and file unlinking.
-          </p>
+          <h2 className="text-xl font-bold text-white">File Shredder</h2>
+          <p className="text-xs text-zinc-400">Physical sector zero-fill and unlinking</p>
         </div>
-        <button
-          onClick={rescanFiles}
-          disabled={isScanning}
-          className="text-xs bg-zinc-800 hover:bg-zinc-700 text-cyan-400 font-bold px-3 py-1.5 rounded-xl border border-zinc-700 transition-all"
-        >
-          {isScanning ? 'Scanning...' : 'Rescan Storage'}
+        <button onClick={scanStorage} className="bg-cyan-600 text-white text-xs px-3 py-1.5 rounded-xl font-bold">
+          {loading ? 'Scanning...' : 'Rescan Storage'}
         </button>
       </div>
 
-      {status && (
-        <div className="bg-red-950/80 border border-red-500/40 text-red-300 text-xs font-bold py-2 px-3 rounded-xl text-center">
-          {status}
-        </div>
-      )}
-
       <input
         type="text"
-        value={query}
-        onChange={e => setQuery(e.target.value)}
         placeholder="Filter by name or path..."
-        className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-cyan-500"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="w-full bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-2.5 text-xs text-white placeholder-zinc-500 focus:outline-none focus:border-cyan-500"
       />
 
-      <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
-        <div className="flex justify-between items-center text-xs">
-          <span className="font-bold text-zinc-300 uppercase tracking-wider text-[10px]">
-            Indexed Files ({filtered.length})
-          </span>
-        </div>
+      <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 min-h-[220px]">
+        <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-3">
+          Indexed Files ({filtered.length})
+        </h3>
 
-        {filtered.length === 0 ? (
-          <div className="p-8 border border-dashed border-zinc-800 rounded-2xl text-center text-xs text-zinc-500">
+        {loading ? (
+          <div className="text-center py-12 text-xs text-cyan-400 animate-pulse font-mono">
+            ☣️ Scanning storage sectors automatically...
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-12 text-xs text-zinc-500 font-mono">
             No files found matching criteria.
           </div>
         ) : (
-          <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-            {filtered.map(file => (
-              <div key={file.id} className="bg-black p-3 rounded-xl border border-zinc-800 flex justify-between items-center text-xs">
-                <div className="truncate max-w-[70%] space-y-0.5">
-                  <div className="font-mono text-white text-[11px] font-bold truncate">{file.name}</div>
-                  <div className="text-[9px] text-zinc-400 font-mono truncate">{file.absolutePath}</div>
-                  <div className="text-[8px] font-mono text-zinc-500">{file.size}</div>
+          <div className="space-y-2 max-h-96 overflow-y-auto">
+            {filtered.map((f, idx) => (
+              <div key={idx} className="bg-black/60 border border-zinc-800 p-3 rounded-2xl flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-white truncate max-w-[200px]">{f.name}</p>
+                  <p className="text-[9px] text-zinc-400 font-mono">{f.path}</p>
                 </div>
-                <button
-                  onClick={() => handleNuke(file)}
-                  className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-bold text-[10px] uppercase rounded-lg"
-                >
-                  Nuke
+                <button className="bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold px-3 py-1 rounded-lg">
+                  Shred
                 </button>
               </div>
             ))}
@@ -85,11 +91,7 @@ export function FileShredder() {
         )}
       </div>
 
-      <ToolFooter
-        title="Sector Sanitizer"
-        details="Overwrites absolute target paths with binary zeroes before unlinking descriptors."
-        disclaimer="Deleted files are unrecoverable."
-      />
+      <ToolFooter title="Sector Sanitizer" details="Overwrites target paths with binary zeroes before unlinking descriptors." disclaimer="Deleted files are unrecoverable." />
     </div>
   );
 }
