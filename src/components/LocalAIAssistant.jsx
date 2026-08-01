@@ -41,7 +41,6 @@ export function LocalAIAssistant() {
 
     const q = query.toLowerCase();
 
-    // Astronomy & Science Queries
     if (q.includes('moon') || q.includes('rotate') || q.includes('orbit')) {
       return "🌕 **Astronomy & Physics:**\nThe Moon orbits Earth due to **gravitational attraction**. Earth's gravity exerts a continuous centripetal force pulling the Moon toward it, balancing the Moon's outward inertia to keep it in a stable circular orbit roughly 238,855 miles away.";
     }

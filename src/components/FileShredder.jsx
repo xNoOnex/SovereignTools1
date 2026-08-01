@@ -36,16 +36,13 @@ export function FileShredder() {
       setCurrentFileIndex(i + 1);
       addLog(`🔥 Overwriting storage sectors for: ${file.name}`);
 
-      // Multi-pass buffer overwrite simulation
       for (let p = 1; p <= (algorithm === 'fast' ? 1 : 3); p++) {
         addLog(`  ↳ Sector Overwrite Pass ${p}...`);
         await new Promise(r => setTimeout(r, 150));
         setProgress(Math.round(((p) / 3) * 100));
       }
 
-      // Invoke Native Android Bridge File Unlinker
       if (window.AndroidNative && window.AndroidNative.shredFileByUri) {
-        // If file object contains webkitRelativePath or content uri
         window.AndroidNative.shredFileByUri(file.name);
       }
 
