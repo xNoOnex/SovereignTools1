@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LockScreen } from './components/LockScreen';
 import { ExifFreeCamera } from './components/ExifFreeCamera';
+import { Gallery } from './components/Gallery';
 import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
 import { PgpMessaging } from './components/PgpMessaging';
@@ -25,8 +26,11 @@ export default function App() {
     >
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
-      {/* Top Header */}
-      <header className="bg-zinc-900/90 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md">
+      {/* TOP HEADER WITH SAFE AREA INSET (Prevents Status Bar Overlap) */}
+      <header 
+        className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md"
+        style={{ paddingTop: 'max(env(safe-area-inset-top), 36px)' }}
+      >
         <div className="flex items-center space-x-3">
           <img src="./sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
           <div>
@@ -53,9 +57,10 @@ export default function App() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 pb-20 relative z-10">
+      {/* MAIN CONTENT AREA */}
+      <main className="flex-1 pb-32 relative z-10">
         {currentTab === 'camera' && <ExifFreeCamera />}
+        {currentTab === 'gallery' && <Gallery />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
         {currentTab === 'pgp' && <PgpMessaging />}
@@ -65,14 +70,24 @@ export default function App() {
         {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
-      {/* Bottom Nav Dock */}
-      <nav className="fixed bottom-0 inset-x-0 bg-zinc-900/90 border-t border-zinc-800 p-1 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md">
+      {/* BOTTOM NAV DOCK WITH SAFE AREA INSET (Prevents Android 3-Button Nav Bar Overlap) */}
+      <nav 
+        className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md"
+        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
+      >
         <button
           onClick={() => setCurrentTab('camera')}
           className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
           <span className="text-sm">📷</span>
           Camera
+        </button>
+        <button
+          onClick={() => setCurrentTab('gallery')}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'gallery' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+        >
+          <span className="text-sm">🖼️</span>
+          Gallery
         </button>
         <button
           onClick={() => setCurrentTab('vault')}
@@ -93,7 +108,7 @@ export default function App() {
           className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
           <span className="text-sm">📡</span>
-          PGP SMS
+          PGP
         </button>
         <button
           onClick={() => setCurrentTab('aes')}
@@ -107,14 +122,14 @@ export default function App() {
           className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
           <span className="text-sm">☣️</span>
-          Shredder
+          Shred
         </button>
         <button
           onClick={() => setCurrentTab('ai')}
           className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
           <span className="text-sm">🤖</span>
-          AI Engine
+          AI
         </button>
       </nav>
     </div>
