@@ -29,6 +29,7 @@ import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
@@ -143,7 +144,6 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
 
-            // TOP NAVIGATION BAR
             LinearLayout topBar = new LinearLayout(this);
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -228,7 +228,6 @@ public class MainActivity extends BridgeActivity {
                 }
             });
 
-            // NEW: DEDICATED MEDIA RIP BUTTON
             Button btnRip = new Button(this);
             btnRip.setText("⬇️");
             btnRip.setTextSize(12);
@@ -263,7 +262,7 @@ public class MainActivity extends BridgeActivity {
             topBar.addView(btnForward);
             topBar.addView(nativeUrlInput);
             topBar.addView(btnGo);
-            topBar.addView(btnRip); // Added the Rip Button
+            topBar.addView(btnRip);
             topBar.addView(btnFullscreen);
 
             LinearLayout tabControlBar = new LinearLayout(this);
@@ -325,11 +324,17 @@ public class MainActivity extends BridgeActivity {
             ViewGroup.LayoutParams.MATCH_PARENT,
             ViewGroup.LayoutParams.MATCH_PARENT
         ));
+        
         wv.getSettings().setJavaScriptEnabled(true);
-        wv.getSettings().setDomStorageEnabled(true);
-        wv.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        wv.getSettings().setDomStorageEnabled(true); 
+        wv.getSettings().setDatabaseEnabled(true);
+        
+        // Spoof Mobile Chrome User-Agent to pass Cloudflare bot detection
+        wv.getSettings().setUserAgentString("Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
+        
+        // Essential for Cloudflare Turnstile clearance cookies
+        CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true);
 
-        // DOWNLOAD LISTENER (Catches all direct file requests, including those handed back from Cobalt)
         wv.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimetype, contentLength) -> {
             try {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
@@ -352,7 +357,6 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
-        // STANDARD LONG-PRESS SNIFFER (Still useful for simple images/memes on blogs)
         wv.setOnLongClickListener(v -> {
             WebView.HitTestResult result = wv.getHitTestResult();
             if (result != null) {
@@ -385,6 +389,25 @@ public class MainActivity extends BridgeActivity {
         });
 
         wv.setWebViewClient(new WebViewClient() {
+            // NATIVE ADBLOCKER HOSTS LIST
+            private final String[] AD_HOSTS = {
+                "doubleclick.net", "googlesyndication.com", "googleadservices.com",
+                "adnxs.com", "popads.net", "taboola.com", "outbrain.com",
+                "scorecardresearch.com", "zedo.com", "criteo.com", "amazon-adsystem.com"
+            };
+
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                String requestUrl = request.getUrl().toString().toLowerCase();
+                for (String adHost : AD_HOSTS) {
+                    if (requestUrl.contains(adHost)) {
+                        // Kill the request silently by returning an empty string
+                        return new WebResourceResponse("text/plain", "UTF-8", null);
+                    }
+                }
+                return super.shouldInterceptRequest(view, request);
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) { return false; }
             @Override
