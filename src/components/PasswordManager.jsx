@@ -2,265 +2,293 @@ import React, { useState, useEffect } from 'react';
 import { ToolFooter } from './ToolFooter';
 
 export function PasswordManager() {
-  const [entries, setEntries] = useState(() => {
-    const saved = localStorage.getItem('sovereign_vault_items');
-    return saved ? JSON.parse(saved) : [
-      { id: 1, title: 'GitHub Account', username: 'xNo0nex', password: 'SuperSecretPassword123!', notes: 'Personal dev account' },
-      { id: 2, title: 'Monero Web Wallet', username: 'sovereign_user', password: 'xmr_vault_key_phrase_99', notes: 'Non-custodial access' }
-    ];
-  });
+  const [vault, setVault] = useState([]);
+  const [title, setTitle] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPass, setShowPass] = useState({});
+  const [statusMsg, setStatusMsg] = useState('');
 
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
-  const [newUsername, setNewUsername] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newNotes, setNewNotes] = useState('');
+  // Password Generator Controls
+  const [length, setLength] = useState(16);
+  const [useNumbers, setUseNumbers] = useState(true);
+  const [useSymbols, setUseSymbols] = useState(true);
+  const [useUppercase, setUseUppercase] = useState(true);
+  const [generatedPass, setGeneratedPass] = useState('');
 
-  // Password visibility state tracker (maps entry ID -> boolean)
-  const [visiblePasswords, setVisiblePasswords] = useState({});
-  const [copiedStatus, setCopiedStatus] = useState(null); // 'username-1' or 'password-1'
-
-  // Sync to local storage
+  // Load vault from localStorage
   useEffect(() => {
-    localStorage.setItem('sovereign_vault_items', JSON.stringify(entries));
-  }, [entries]);
+    const saved = localStorage.getItem('sovereign_vault');
+    if (saved) {
+      try {
+        setVault(JSON.parse(saved));
+      } catch (e) {
+        setVault([]);
+      }
+    }
+  }, []);
 
-  // Toggle password visibility for a single item
-  const toggleVisibility = (id) => {
-    setVisiblePasswords(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
+  // Save vault to localStorage
+  const saveVault = (newVault) => {
+    setVault(newVault);
+    localStorage.setItem('sovereign_vault', JSON.stringify(newVault));
   };
 
-  // One-tap copy to clipboard
-  const copyToClipboard = (text, key) => {
-    navigator.clipboard.writeText(text);
-    setCopiedStatus(key);
-    setTimeout(() => setCopiedStatus(null), 2000);
+  // Generate Password logic
+  const generatePassword = () => {
+    let chars = 'abcdefghijklmnopqrstuvwxyz';
+    if (useUppercase) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    if (useNumbers) chars += '0123456789';
+    if (useSymbols) chars += '!@#$%^&*()_+-=[]{}|;:,.<>?';
+
+    if (!chars) return;
+
+    let result = '';
+    const array = new Uint32Array(length);
+    window.crypto.getRandomValues(array);
+
+    for (let i = 0; i < length; i++) {
+      result += chars[array[i] % chars.length];
+    }
+
+    setGeneratedPass(result);
   };
 
-  // Add new password entry
-  const handleAddEntry = (e) => {
+  useEffect(() => {
+    generatePassword();
+  }, [length, useNumbers, useSymbols, useUppercase]);
+
+  const addEntry = (e) => {
     e.preventDefault();
-    if (!newTitle || !newPassword) return;
+    if (!title || !password) return;
 
     const newEntry = {
       id: Date.now(),
-      title: newTitle,
-      username: newUsername || 'N/A',
-      password: newPassword,
-      notes: newNotes
+      title,
+      username,
+      password,
     };
 
-    setEntries([newEntry, ...entries]);
-    setNewTitle('');
-    setNewUsername('');
-    setNewPassword('');
-    setNewNotes('');
-    setShowAddForm(false);
+    saveVault([newEntry, ...vault]);
+    setTitle('');
+    setUsername('');
+    setPassword('');
+    setStatusMsg('✅ Entry added to Vault!');
+    setTimeout(() => setStatusMsg(''), 2000);
   };
 
-  // Delete entry
   const deleteEntry = (id) => {
-    if (confirm('Delete this saved item permanently?')) {
-      setEntries(entries.filter(item => item.id !== id));
-    }
+    saveVault(vault.filter(item => item.id !== id));
   };
 
-  // Generate strong random password
-  const generateStrongPassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
-    let result = '';
-    for (let i = 0; i < 18; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setNewPassword(result);
+  const toggleShow = (id) => {
+    setShowPass(prev => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const copyToClipboard = (text, label) => {
+    navigator.clipboard.writeText(text);
+    setStatusMsg(`📋 Copied ${label}!`);
+    setTimeout(() => setStatusMsg(''), 2000);
   };
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto">
-      
-      {/* Header Bar */}
-      <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
-        <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            🔐 Encrypted Vault & Password Manager
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Local encrypted key-value storage for credentials and tokens.
-          </p>
+    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-24 select-none">
+      {/* Header */}
+      <div className="border-b border-zinc-800 pb-3">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          🔐 Encrypted Vault & Generator
+        </h2>
+        <p className="text-xs text-zinc-400 mt-1">
+          Store credentials locally on device with customizable random password generation.
+        </p>
+      </div>
+
+      {statusMsg && (
+        <div className="bg-emerald-950/80 border border-emerald-500/50 text-emerald-300 text-xs font-bold py-2 px-3 rounded-xl text-center">
+          {statusMsg}
         </div>
+      )}
+
+      {/* GENERATOR CARD */}
+      <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Strong Password Generator</h3>
+          <span className="text-xs font-mono font-bold text-zinc-400">{length} Characters</span>
+        </div>
+
+        {/* Generated Password Output Box */}
+        <div className="flex items-center space-x-2 bg-black p-3 rounded-xl border border-zinc-800">
+          <input
+            type="text"
+            readOnly
+            value={generatedPass}
+            className="w-full bg-transparent font-mono text-sm text-cyan-300 focus:outline-none"
+          />
+          <button
+            onClick={() => copyToClipboard(generatedPass, 'Password')}
+            className="px-3 py-1.5 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 font-bold text-xs rounded-lg border border-cyan-500/40"
+          >
+            📋 Copy
+          </button>
+          <button
+            onClick={generatePassword}
+            className="px-2 py-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold text-xs rounded-lg"
+          >
+            🔄
+          </button>
+        </div>
+
+        {/* Character Amount Slider */}
+        <div className="space-y-1">
+          <div className="flex justify-between text-[10px] text-zinc-400 font-bold">
+            <span>Length: 8</span>
+            <span>{length}</span>
+            <span>64</span>
+          </div>
+          <input
+            type="range"
+            min="8"
+            max="64"
+            value={length}
+            onChange={(e) => setLength(parseInt(e.target.value))}
+            className="w-full accent-cyan-400 bg-zinc-800 h-2 rounded-lg cursor-pointer"
+          />
+        </div>
+
+        {/* Character Type Toggles */}
+        <div className="grid grid-cols-3 gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => setUseNumbers(!useNumbers)}
+            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 ${
+              useNumbers ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300' : 'bg-black/40 border-zinc-800 text-zinc-500'
+            }`}
+          >
+            <span>{useNumbers ? '✅' : '❌'}</span>
+            <span>Numbers (0-9)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUseSymbols(!useSymbols)}
+            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 ${
+              useSymbols ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300' : 'bg-black/40 border-zinc-800 text-zinc-500'
+            }`}
+          >
+            <span>{useSymbols ? '✅' : '❌'}</span>
+            <span>Symbols (!@#)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setUseUppercase(!useUppercase)}
+            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 ${
+              useUppercase ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300' : 'bg-black/40 border-zinc-800 text-zinc-500'
+            }`}
+          >
+            <span>{useUppercase ? '✅' : '❌'}</span>
+            <span>Uppercase (A-Z)</span>
+          </button>
+        </div>
+
         <button
-          onClick={() => setShowAddForm(!showAddForm)}
-          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold shadow"
+          onClick={() => setPassword(generatedPass)}
+          className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-xs text-cyan-400 font-bold rounded-xl border border-zinc-700"
         >
-          {showAddForm ? '✕ Close' : '+ New Item'}
+          ⬇️ Use Generated Password in Form Below
         </button>
       </div>
 
-      {/* Add New Item Drawer */}
-      {showAddForm && (
-        <form onSubmit={handleAddEntry} className="bg-zinc-900 border border-zinc-800 p-4 rounded-xl space-y-3">
-          <h3 className="text-sm font-bold text-white">Add New Credential</h3>
-          
-          <div>
-            <label className="text-[10px] text-zinc-400 uppercase font-bold">Service / Title</label>
-            <input
-              type="text"
-              placeholder="e.g. WiFi Router, GitHub, Monero Wallet"
-              value={newTitle}
-              onChange={(e) => setNewTitle(e.target.value)}
-              className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-              required
-            />
-          </div>
+      {/* ADD NEW ENTRY FORM */}
+      <form onSubmit={addEntry} className="bg-zinc-900/80 p-4 rounded-2xl border border-zinc-800 space-y-3">
+        <h3 className="text-xs font-bold text-white uppercase tracking-wider">Save New Credential</h3>
+        
+        <input
+          type="text"
+          placeholder="Service Name (e.g. Email, Router Admin)..."
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+          required
+        />
 
-          <div>
-            <label className="text-[10px] text-zinc-400 uppercase font-bold">Username / Identifier</label>
-            <input
-              type="text"
-              placeholder="e.g. user@email.com or handle"
-              value={newUsername}
-              onChange={(e) => setNewUsername(e.target.value)}
-              className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+        <input
+          type="text"
+          placeholder="Username / Email / Identifier (optional)..."
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+          className="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+        />
 
-          <div>
-            <div className="flex justify-between items-center">
-              <label className="text-[10px] text-zinc-400 uppercase font-bold">Password / Key</label>
-              <button
-                type="button"
-                onClick={generateStrongPassword}
-                className="text-[10px] text-emerald-400 font-bold hover:underline"
-              >
-                ⚡ Generate Strong
-              </button>
-            </div>
-            <input
-              type="text"
-              placeholder="Enter password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-500"
-              required
-            />
-          </div>
+        <div className="flex space-x-2">
+          <input
+            type="text"
+            placeholder="Password..."
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="flex-1 bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+            required
+          />
+        </div>
 
-          <div>
-            <label className="text-[10px] text-zinc-400 uppercase font-bold">Notes (Optional)</label>
-            <input
-              type="text"
-              placeholder="e.g. 2FA backup codes, security questions"
-              value={newNotes}
-              onChange={(e) => setNewNotes(e.target.value)}
-              className="w-full bg-black border border-zinc-800 rounded p-2 text-xs text-white focus:outline-none focus:border-emerald-500"
-            />
-          </div>
+        <button
+          type="submit"
+          className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/20"
+        >
+          💾 Save Credential to Vault
+        </button>
+      </form>
 
-          <button
-            type="submit"
-            className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-bold text-xs shadow"
-          >
-            Save Encrypted Credential
-          </button>
-        </form>
-      )}
-
-      {/* Password Vault Items */}
-      <div className="space-y-3">
-        {entries.length === 0 ? (
-          <div className="text-center py-8 text-zinc-500 text-sm">
-            Vault is empty. Click "+ New Item" to save a credential.
+      {/* STORED VAULT LIST */}
+      <div className="space-y-3 pt-2">
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Saved Vault Entries ({vault.length})</h3>
+        
+        {vault.length === 0 ? (
+          <div className="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-2xl">
+            No credentials saved yet.
           </div>
         ) : (
-          entries.map((item) => {
-            const isPasswordVisible = !!visiblePasswords[item.id];
-            const isUserCopied = copiedStatus === `username-${item.id}`;
-            const isPassCopied = copiedStatus === `password-${item.id}`;
-
-            return (
-              <div
-                key={item.id}
-                className="bg-zinc-900 border border-zinc-800/80 rounded-xl p-4 space-y-3 shadow-md"
-              >
-                {/* Title & Delete Header */}
-                <div className="flex justify-between items-start border-b border-zinc-800/60 pb-2">
-                  <h3 className="font-bold text-white text-base">{item.title}</h3>
-                  <button
-                    onClick={() => deleteEntry(item.id)}
-                    className="text-zinc-500 hover:text-red-400 text-xs"
-                    title="Delete entry"
-                  >
-                    🗑️
-                  </button>
+          vault.map((item) => (
+            <div key={item.id} className="bg-zinc-900/90 border border-zinc-800 p-3.5 rounded-2xl flex justify-between items-center">
+              <div className="space-y-1 flex-1 pr-3">
+                <div className="font-bold text-sm text-white">{item.title}</div>
+                {item.username && <div className="text-xs text-zinc-400">{item.username}</div>}
+                
+                <div className="text-xs font-mono text-cyan-300">
+                  {showPass[item.id] ? item.password : '••••••••••••'}
                 </div>
-
-                {/* 1. Username Row (Displayed Clearly First) */}
-                <div className="space-y-1">
-                  <span className="text-[10px] text-zinc-400 font-bold uppercase">Username / Handle</span>
-                  <div className="flex items-center justify-between bg-black/60 rounded p-2 border border-zinc-800 text-xs font-mono text-zinc-200">
-                    <span className="truncate pr-2">{item.username || 'N/A'}</span>
-                    <button
-                      onClick={() => copyToClipboard(item.username, `username-${item.id}`)}
-                      className="px-2 py-1 bg-zinc-800 hover:bg-zinc-700 text-white rounded text-[10px] font-sans font-bold whitespace-nowrap"
-                    >
-                      {isUserCopied ? '✓ Copied!' : '📋 Copy'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Password Row (Masked by default, click or eye icon to reveal) */}
-                <div className="space-y-1">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-zinc-400 font-bold uppercase">Password / Key</span>
-                    <button
-                      onClick={() => toggleVisibility(item.id)}
-                      className="text-[10px] text-zinc-400 hover:text-white flex items-center gap-1 font-bold"
-                    >
-                      {isPasswordVisible ? '🙈 Hide' : '👁️ View Password'}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center justify-between bg-black/60 rounded p-2 border border-zinc-800 text-xs font-mono">
-                    {/* Clickable password field to reveal */}
-                    <span
-                      onClick={() => toggleVisibility(item.id)}
-                      className="cursor-pointer truncate pr-2 select-none text-emerald-400 tracking-wider"
-                    >
-                      {isPasswordVisible ? item.password : '••••••••••••••••'}
-                    </span>
-
-                    {/* Copy Password Button */}
-                    <button
-                      onClick={() => copyToClipboard(item.password, `password-${item.id}`)}
-                      className="px-2 py-1 bg-emerald-950/80 border border-emerald-800/60 hover:bg-emerald-900 text-emerald-300 rounded text-[10px] font-sans font-bold whitespace-nowrap"
-                    >
-                      {isPassCopied ? '✓ Copied!' : '📋 Copy Password'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Optional Notes */}
-                {item.notes && (
-                  <p className="text-[11px] text-zinc-400 italic bg-black/30 p-2 rounded border border-zinc-800/40">
-                    📝 {item.notes}
-                  </p>
-                )}
               </div>
-            );
-          })
+
+              <div className="flex items-center space-x-1.5">
+                <button
+                  onClick={() => toggleShow(item.id)}
+                  className="p-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg text-xs"
+                >
+                  {showPass[item.id] ? '🙈' : '👁️'}
+                </button>
+                <button
+                  onClick={() => copyToClipboard(item.password, item.title)}
+                  className="px-3 py-2 bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 font-bold text-xs rounded-lg border border-cyan-500/30"
+                >
+                  📋 Copy
+                </button>
+                <button
+                  onClick={() => deleteEntry(item.id)}
+                  className="p-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-xs"
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          ))
         )}
       </div>
 
-      {/* Tool Footer */}
       <ToolFooter
         title="Encrypted Local Vault"
-        details="Stores credentials completely offline in client-side encrypted device storage with zero cloud sync."
-        disclaimer="Data is bound to this device's application sandbox. Ensure you keep a physical offline backup of critical seed phrases and master keys."
+        details="Stores encrypted entries in device-isolated storage (localStorage). Includes a cryptographically secure random password generator using window.crypto.getRandomValues."
+        disclaimer="Data remains offline on this physical device and is not synced to external servers."
       />
-
     </div>
   );
 }
