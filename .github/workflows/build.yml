@@ -1,6 +1,6 @@
 name: Build Sovereign Tools APK
 
-on: [push]
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -22,27 +22,29 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Dependencies & Build Web App
+      - name: Install Dependencies & Build Vite Bundle
         run: |
           npm install
           npx vite build
-          if [ -d "public" ]; then cp -r public/* dist/ || true; fi
+          
+          if [ ! -f "dist/index.html" ]; then
+            echo "ERROR: dist/index.html missing after vite build!"
+            exit 1
+          fi
 
       - name: Sync Capacitor & Inject Assets
         run: |
-          # 1. Ensure android directory exists
           if [ ! -d "android" ]; then
             npx cap add android
           fi
 
-          # 2. Sync Capacitor state and generate required Gradle plugin files
           npx cap sync android
 
-          # 3. Ensure assets are directly in place
+          # Guarantee compiled dist files are inside native Android assets
           mkdir -p android/app/src/main/assets/public
           cp -r dist/* android/app/src/main/assets/public/
 
-          # 4. Inject Launcher Icons via ImageMagick
+          # Inject App Launcher Icons
           sudo apt-get update && sudo apt-get install -y imagemagick
           if [ -f "public/sovereign_logo.jpg" ]; then
             convert public/sovereign_logo.jpg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
