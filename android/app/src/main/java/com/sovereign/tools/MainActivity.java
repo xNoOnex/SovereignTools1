@@ -1,6 +1,9 @@
 package com.sovereign.tools;
 
 import android.Manifest;
+import android.app.AlertDialog;
+import android.app.DownloadManager;
+import android.content.Context;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
@@ -18,8 +21,11 @@ import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.CookieManager;
+import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
+import android.webkit.URLUtil;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -305,6 +311,63 @@ public class MainActivity extends BridgeActivity {
         wv.getSettings().setJavaScriptEnabled(true);
         wv.getSettings().setDomStorageEnabled(true);
         wv.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        // 1. STANDARD DOWNLOAD LISTENER (For clicking links to MP4s, PDFs, Zips)
+        wv.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimetype, contentLength) -> {
+            try {
+                DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
+                request.setMimeType(mimetype);
+                String cookies = CookieManager.getInstance().getCookie(downloadUrl);
+                request.addRequestHeader("cookie", cookies);
+                request.addRequestHeader("User-Agent", userAgent);
+                request.setDescription("Downloading file...");
+                String fileName = URLUtil.guessFileName(downloadUrl, contentDisposition, mimetype);
+                request.setTitle(fileName);
+                request.allowScanningByMediaScanner();
+                request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                
+                DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                dm.enqueue(request);
+                Toast.makeText(getApplicationContext(), "📥 Downloading: " + fileName, Toast.LENGTH_LONG).show();
+            } catch (Exception e) {
+                Toast.makeText(getApplicationContext(), "Download Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // 2. LONG-PRESS MEDIA SNIFFER (For ripping images/videos straight off the page)
+        wv.setOnLongClickListener(v -> {
+            WebView.HitTestResult result = wv.getHitTestResult();
+            if (result != null) {
+                int type = result.getType();
+                if (type == WebView.HitTestResult.IMAGE_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) {
+                    String mediaUrl = result.getExtra();
+                    if (mediaUrl != null && (mediaUrl.startsWith("http"))) {
+                        new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Download Media")
+                            .setMessage("Save this image/video directly to your device?")
+                            .setPositiveButton("Download", (dialog, which) -> {
+                                try {
+                                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(mediaUrl));
+                                    request.allowScanningByMediaScanner();
+                                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
+                                    String fileName = URLUtil.guessFileName(mediaUrl, null, null);
+                                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
+                                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
+                                    dm.enqueue(request);
+                                    Toast.makeText(getApplicationContext(), "📥 Ripping media...", Toast.LENGTH_SHORT).show();
+                                } catch (Exception e) {
+                                    Toast.makeText(getApplicationContext(), "Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                                }
+                            })
+                            .setNegativeButton("Cancel", null)
+                            .show();
+                        return true;
+                    }
+                }
+            }
+            return false;
+        });
 
         wv.setWebViewClient(new WebViewClient() {
             @Override
