@@ -31,12 +31,10 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.Executor;
@@ -87,7 +85,6 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void requestAndroidPermissions() {
-        // Standard Runtime Permissions
         String[] permissions = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
@@ -96,7 +93,6 @@ public class MainActivity extends BridgeActivity {
         };
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
 
-        // Android 11+ System MANAGE_EXTERNAL_STORAGE Prompt ("All Files Access")
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 try {
@@ -118,25 +114,28 @@ public class MainActivity extends BridgeActivity {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
-                Uri uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-                String[] projection = {
+
+                // 1. Scan Photos (Camera & Imported)
+                Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                String[] imageProj = {
                     MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.SIZE
+                    MediaStore.Images.Media.SIZE,
+                    MediaStore.Images.Media.RELATIVE_PATH
                 };
-                
-                String selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
-                String[] selectionArgs = new String[]{"%DCIM/SovereignTools%"};
+                String imageSelection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                String[] imageArgs = new String[]{"%DCIM/SovereignTools%", "%Pictures%"};
 
-                Cursor cursor = resolver.query(uri, projection, selection, selectionArgs, MediaStore.Images.Media.DATE_ADDED + " DESC");
+                Cursor cursor = resolver.query(imageUri, imageProj, imageSelection, imageArgs, MediaStore.Images.Media.DATE_ADDED + " DESC");
                 if (cursor != null) {
                     while (cursor.moveToNext()) {
                         long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
                         String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME));
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
-                        Uri imageUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
+                        String relPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH));
+                        Uri fullUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
-                        InputStream inputStream = resolver.openInputStream(imageUri);
+                        InputStream inputStream = resolver.openInputStream(fullUri);
                         ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
                         byte[] buffer = new byte[4096];
                         int len;
@@ -151,27 +150,63 @@ public class MainActivity extends BridgeActivity {
                         obj.put("id", id);
                         obj.put("name", name);
                         obj.put("size", (size / 1024) + " KB");
-                        obj.put("uri", imageUri.toString());
+                        obj.put("type", "image");
+                        obj.put("folder", (relPath != null && relPath.contains("DCIM")) ? "Camera Photos" : "Imported Photos");
+                        obj.put("uri", fullUri.toString());
                         obj.put("cleanUrl", "data:image/jpeg;base64," + base64Str);
 
                         array.put(obj);
                     }
                     cursor.close();
                 }
+
+                // 2. Scan Videos (Camera Videos & Movies)
+                Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+                String[] videoProj = {
+                    MediaStore.Video.Media._ID,
+                    MediaStore.Video.Media.DISPLAY_NAME,
+                    MediaStore.Video.Media.SIZE,
+                    MediaStore.Video.Media.MIME_TYPE
+                };
+                String videoSelection = MediaStore.Video.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Video.Media.RELATIVE_PATH + " LIKE ?";
+                String[] videoArgs = new String[]{"%Movies/SovereignTools%", "%DCIM/SovereignTools%"};
+
+                Cursor vCursor = resolver.query(videoUri, videoProj, videoSelection, videoArgs, MediaStore.Video.Media.DATE_ADDED + " DESC");
+                if (vCursor != null) {
+                    while (vCursor.moveToNext()) {
+                        long id = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID));
+                        String name = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME));
+                        long size = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE));
+                        String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
+                        Uri fullUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
+
+                        JSONObject obj = new JSONObject();
+                        obj.put("id", id + 1000000);
+                        obj.put("name", name);
+                        obj.put("size", (size / 1024) + " KB");
+                        obj.put("type", "video");
+                        obj.put("folder", "Camera Videos");
+                        obj.put("uri", fullUri.toString());
+                        obj.put("cleanUrl", fullUri.toString());
+                        obj.put("mimeType", mime != null ? mime : "video/mp4");
+
+                        array.put(obj);
+                    }
+                    vCursor.close();
+                }
+
             } catch (Exception e) {
                 e.printStackTrace();
             }
             return array.toString();
         }
 
-        // PHYSICAL SECTOR SHREDDER & CONTENTRESOLVER UNLINKER
         @JavascriptInterface
         public boolean shredFileByUri(String uriString) {
             try {
                 Uri uri = Uri.parse(uriString);
                 ContentResolver resolver = getContentResolver();
 
-                // 1. Physical Byte-Block Zero Fill
                 try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rwt")) {
                     if (pfd != null) {
                         FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
@@ -192,10 +227,8 @@ public class MainActivity extends BridgeActivity {
                     e.printStackTrace();
                 }
 
-                // 2. Remove Handle from Android ContentResolver
                 int deletedRows = resolver.delete(uri, null, null);
 
-                // 3. Force MediaStore Scanner to Purge Gallery & My Files Cache
                 MediaScannerConnection.scanFile(
                     MainActivity.this, 
                     new String[]{uri.getPath()}, 

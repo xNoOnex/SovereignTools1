@@ -36,15 +36,15 @@ export function LocalAIAssistant() {
     return null;
   };
 
-  // Conversational Intent Guard: Avoid blindly searching DuckDuckGo for chat commentary
+  // Precise Conversational Intent Guard (Fixes "now" matching "no")
   const isConversationalFeedback = (query) => {
     const q = query.toLowerCase().trim();
     const chatPhrases = [
-      'thats not what i asked', "that's not what i asked", 'wrong answer',
-      'hello', 'hi', 'hey', 'thanks', 'thank you', 'who are you', 'stop',
-      'what else', 'no', 'nope', 'nevermind', 'cancel'
+      "thats not what i asked", "that's not what i asked", "wrong answer",
+      "hello", "hi", "hey", "thanks", "thank you", "who are you", "stop",
+      "nevermind", "cancel"
     ];
-    return chatPhrases.some(phrase => q.includes(phrase)) || q.length < 3;
+    return chatPhrases.some(phrase => q === phrase || q.startsWith(phrase + ' '));
   };
 
   const fetchPrivacyWebSearch = async (query) => {
@@ -78,7 +78,7 @@ export function LocalAIAssistant() {
       .filter(t => t.length > 15);
 
     if (rawSnippets.length > 0) {
-      return `🌐 **Live Web Information Summary:**\n\n` + rawSnippets.map((s, idx) => `• ${s}`).join('\n\n');
+      return `🌐 **Live Web Information Summary:**\n\n` + rawSnippets.map(s => `• ${s}`).join('\n\n');
     }
 
     return "🌐 Query executed, but no clean text snippets were returned. Try rephrasing your search term.";
@@ -88,7 +88,6 @@ export function LocalAIAssistant() {
     const mathResult = evaluateMath(query);
     if (mathResult) return mathResult;
 
-    // Direct conversational handler
     if (isConversationalFeedback(query)) {
       const q = query.toLowerCase();
       if (q.includes('not what i asked') || q.includes('wrong')) {
@@ -97,7 +96,6 @@ export function LocalAIAssistant() {
       if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
         return "👋 Hello! Ask me a math equation, privacy topic, or toggle Web Search ON to search current facts.";
       }
-      return "👍 Ready! Ask a specific question or calculation.";
     }
 
     if (webSearchEnabled) {

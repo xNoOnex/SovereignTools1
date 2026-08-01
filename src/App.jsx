@@ -19,6 +19,15 @@ export default function App() {
     return <LockScreen onUnlock={() => setIsUnlocked(true)} />;
   }
 
+  // Camera Mode: Edge-to-edge native full screen view
+  if (currentTab === 'camera') {
+    return (
+      <div className="fixed inset-0 z-50 bg-black">
+        <ExifFreeCamera onClose={() => setCurrentTab('gallery')} />
+      </div>
+    );
+  }
+
   return (
     <div 
       className="min-h-screen text-white font-sans flex flex-col justify-between bg-cover bg-center bg-fixed relative select-none"
@@ -26,7 +35,7 @@ export default function App() {
     >
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
-      {/* TOP HEADER WITH SAFE AREA INSET (Prevents Status Bar Overlap) */}
+      {/* TOP HEADER */}
       <header 
         className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 36px)' }}
@@ -59,7 +68,6 @@ export default function App() {
 
       {/* MAIN CONTENT AREA */}
       <main className="flex-1 pb-32 relative z-10">
-        {currentTab === 'camera' && <ExifFreeCamera />}
         {currentTab === 'gallery' && <Gallery />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
@@ -70,7 +78,7 @@ export default function App() {
         {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
-      {/* BOTTOM NAV DOCK WITH SAFE AREA INSET (Prevents Android 3-Button Nav Bar Overlap) */}
+      {/* BOTTOM NAV DOCK */}
       <nav 
         className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
