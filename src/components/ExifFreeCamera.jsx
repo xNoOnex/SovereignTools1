@@ -128,7 +128,6 @@ export function ExifFreeCamera() {
     if (!stream) return;
     recordedChunksRef.current = [];
     
-    // Choose compatible codec
     let options = {};
     if (MediaRecorder.isTypeSupported('video/mp4')) {
       options = { mimeType: 'video/mp4' };
@@ -193,7 +192,7 @@ export function ExifFreeCamera() {
   };
 
   return (
-    <div className="p-3 space-y-3 max-w-2xl mx-auto pb-24 select-none">
+    <div className="p-3 space-y-3 max-w-2xl mx-auto pb-28 select-none">
       <div className="border-b border-zinc-800 pb-2 flex justify-between items-center">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">

@@ -84,7 +84,7 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean setNetworkProxy(String proxyType, String host, int port) {
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "⚠️ Proxy override not supported on this Android WebKit version", Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "⚠️ Proxy override not supported on this WebKit version", Toast.LENGTH_SHORT).show());
                 return false;
             }
 
@@ -96,7 +96,6 @@ public class MainActivity extends BridgeActivity {
                 } else if ("http".equalsIgnoreCase(proxyType)) {
                     proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
                 } else {
-                    // Direct mode - bypass all proxies
                     ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
                         runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Proxy Cleared (Direct Connection)", Toast.LENGTH_SHORT).show());
                     });
@@ -119,6 +118,7 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean saveToGallery(String base64Data, String filename, String mimeType) {
             try {
+                // Safe Java base64 header extraction (no regex literals)
                 String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
                 byte[] data = Base64.decode(cleanBase64, Base64.DEFAULT);
                 
