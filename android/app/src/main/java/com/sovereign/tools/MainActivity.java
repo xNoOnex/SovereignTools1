@@ -41,10 +41,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
@@ -82,6 +80,8 @@ public class MainActivity extends BridgeActivity {
             webView.getSettings().setAllowFileAccess(true);
             webView.getSettings().setAllowContentAccess(true);
             webView.getSettings().setJavaScriptEnabled(true);
+            webView.getSettings().setAllowFileAccessFromFileURLs(true);
+            webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
             
             webView.addJavascriptInterface(new AndroidBridge(), "AndroidNative");
 
@@ -132,7 +132,6 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
 
-            // CLEAN HORIZONTAL TOP CONTROL BAR
             LinearLayout topBar = new LinearLayout(this);
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -362,12 +361,14 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
+        // LIGHTWEIGHT LIGHT-SPEED GALLERY MEDIA INDEXING (NO BASE64 RAM OVERLOAD)
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
 
+                // 1. Scan Photos
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
@@ -386,43 +387,33 @@ public class MainActivity extends BridgeActivity {
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
                         String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA));
                         String relPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH));
-                        Uri fullUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
-                        InputStream inputStream = resolver.openInputStream(fullUri);
-                        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
-                        byte[] buffer = new byte[4096];
-                        int len;
-                        while ((len = inputStream.read(buffer)) != -1) {
-                            byteBuffer.write(buffer, 0, len);
+                        if (dataPath != null) {
+                            JSONObject obj = new JSONObject();
+                            obj.put("id", id);
+                            obj.put("name", name != null ? name : "Img_" + id);
+                            obj.put("size", (size / 1024) + " KB");
+                            obj.put("type", "image");
+                            obj.put("absolutePath", dataPath);
+                            
+                            String folderName = "Pictures";
+                            if (relPath != null) {
+                                if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
+                                else if (relPath.contains("DCIM")) folderName = "Camera";
+                                else if (relPath.contains("Screenshots")) folderName = "Screenshots";
+                                else if (relPath.contains("Download")) folderName = "Downloads";
+                            }
+                            obj.put("folder", folderName);
+                            obj.put("cleanUrl", "file://" + dataPath);
+
+                            array.put(obj);
+                            count++;
                         }
-                        inputStream.close();
-
-                        String base64Str = Base64.encodeToString(byteBuffer.toByteArray(), Base64.NO_WRAP);
-                        
-                        JSONObject obj = new JSONObject();
-                        obj.put("id", id);
-                        obj.put("name", name != null ? name : "Img_" + id);
-                        obj.put("size", (size / 1024) + " KB");
-                        obj.put("type", "image");
-                        obj.put("absolutePath", dataPath != null ? dataPath : "");
-                        
-                        String folderName = "Pictures";
-                        if (relPath != null) {
-                            if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
-                            else if (relPath.contains("DCIM")) folderName = "Camera";
-                            else if (relPath.contains("Screenshots")) folderName = "Screenshots";
-                            else if (relPath.contains("Download")) folderName = "Downloads";
-                        }
-                        obj.put("folder", folderName);
-                        obj.put("uri", fullUri.toString());
-                        obj.put("cleanUrl", "data:image/jpeg;base64," + base64Str);
-
-                        array.put(obj);
-                        count++;
                     }
                     cursor.close();
                 }
 
+                // 2. Scan Videos
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
@@ -443,24 +434,24 @@ public class MainActivity extends BridgeActivity {
                         String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
                         String relPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
                         String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
-                        Uri fullUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
-                        JSONObject obj = new JSONObject();
-                        obj.put("id", id + 10000000);
-                        obj.put("name", name != null ? name : "Vid_" + id);
-                        obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
-                        obj.put("type", "video");
-                        obj.put("absolutePath", dataPath != null ? dataPath : "");
-                        
-                        String folderName = "Videos";
-                        if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
-                        obj.put("folder", folderName);
-                        obj.put("uri", fullUri.toString());
-                        obj.put("cleanUrl", fullUri.toString());
-                        obj.put("mimeType", mime != null ? mime : "video/mp4");
+                        if (dataPath != null) {
+                            JSONObject obj = new JSONObject();
+                            obj.put("id", id + 10000000);
+                            obj.put("name", name != null ? name : "Vid_" + id);
+                            obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
+                            obj.put("type", "video");
+                            obj.put("absolutePath", dataPath);
+                            
+                            String folderName = "Videos";
+                            if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
+                            obj.put("folder", folderName);
+                            obj.put("cleanUrl", "file://" + dataPath);
+                            obj.put("mimeType", mime != null ? mime : "video/mp4");
 
-                        array.put(obj);
-                        vCount++;
+                            array.put(obj);
+                            vCount++;
+                        }
                     }
                     vCursor.close();
                 }
