@@ -20,13 +20,33 @@ export function Gallery() {
     return item.folder === activeFolder;
   });
 
-  // FIX: Route absolute paths through Capacitor's local server for chunked video streaming
   const getMediaSrc = (item) => {
     if (!item) return '';
     if (item.absolutePath) {
       return Capacitor.convertFileSrc(item.absolutePath);
     }
     return item.cleanUrl || '';
+  };
+
+  // TRUE DEVICE FULLSCREEN CONTROLS
+  const openFullscreen = async () => {
+    setIsFullscreen(true);
+    try {
+      if (document.documentElement.requestFullscreen) {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (err) {
+      console.log("Fullscreen API blocked by device", err);
+    }
+  };
+
+  const closeFullscreen = async () => {
+    setIsFullscreen(false);
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (err) {}
   };
 
   return (
@@ -101,7 +121,7 @@ export function Gallery() {
 
       {/* INSPECTOR MODAL */}
       {selectedItem && !isFullscreen && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md p-4 flex flex-col justify-between overflow-y-auto">
+        <div className="fixed inset-0 z-[50] bg-black/95 backdrop-blur-md p-4 flex flex-col justify-between overflow-y-auto">
           <div className="flex justify-between items-center border-b border-zinc-800 pb-3 mt-4">
             <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
               Media Inspector
@@ -118,7 +138,7 @@ export function Gallery() {
             
             {/* TAP TO FULLSCREEN PREVIEW */}
             <div 
-              onClick={() => setIsFullscreen(true)}
+              onClick={openFullscreen}
               className="relative rounded-2xl overflow-hidden border border-zinc-800 max-h-80 bg-black flex justify-center items-center cursor-pointer group"
             >
               {selectedItem.type === 'video' ? (
@@ -162,15 +182,18 @@ export function Gallery() {
         </div>
       )}
 
-      {/* ⛶ FULLSCREEN OVERLAY */}
+      {/* ⛶ TRUE DEVICE FULLSCREEN OVERLAY */}
       {isFullscreen && selectedItem && (
-        <div className="fixed inset-0 z-[100] bg-black flex flex-col justify-center items-center">
-          <div className="absolute top-0 inset-x-0 p-4 flex justify-end bg-gradient-to-b from-black/80 to-transparent z-10 pt-10">
+        <div 
+          className="fixed inset-0 z-[99999] bg-black flex flex-col justify-center items-center" 
+          onClick={closeFullscreen}
+        >
+          <div className="absolute top-8 right-8 z-[100000]">
             <button 
-              onClick={() => setIsFullscreen(false)} 
-              className="px-4 py-2 bg-zinc-800/80 text-white rounded-xl font-bold text-xs backdrop-blur-md border border-zinc-700"
+              onClick={(e) => { e.stopPropagation(); closeFullscreen(); }} 
+              className="px-5 py-3 bg-red-600/90 text-white rounded-xl font-bold text-sm backdrop-blur-md shadow-2xl border border-red-500"
             >
-              ✕ Close
+              ✕ Exit Fullscreen
             </button>
           </div>
           
@@ -180,13 +203,14 @@ export function Gallery() {
               controls
               autoPlay
               playsInline
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain pointer-events-auto"
+              onClick={(e) => e.stopPropagation()}
             />
           ) : (
             <img
               src={getMediaSrc(selectedItem)}
               alt={selectedItem.name}
-              className="w-full h-full object-contain"
+              className="w-full h-full object-contain pointer-events-none"
             />
           )}
         </div>
