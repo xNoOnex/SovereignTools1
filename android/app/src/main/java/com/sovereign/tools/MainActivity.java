@@ -52,6 +52,13 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         requestAndroidPermissions();
 
+        // Clear proxy override by default to ensure direct connection works out-of-the-box
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+            try {
+                ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {});
+            } catch (Exception e) {}
+        }
+
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView webView = this.bridge.getWebView();
             webView.getSettings().setAllowFileAccess(true);
@@ -111,7 +118,6 @@ public class MainActivity extends BridgeActivity {
 
     public class AndroidBridge {
 
-        // AUTOMATIC FULL-DEVICE FILE SCANNER
         @JavascriptInterface
         public String getAllDeviceFiles() {
             JSONArray array = new JSONArray();
