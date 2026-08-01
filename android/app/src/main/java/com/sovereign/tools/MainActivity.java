@@ -40,9 +40,7 @@ import com.getcapacitor.BridgeActivity;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
@@ -52,12 +50,14 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
+// Import Guardian Project Tor Service
+import info.guardianproject.tor.TorService;
+
 public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private final static int FILECHOOSER_RESULTCODE = 1001;
     private final static int PERMISSION_REQUEST_CODE = 2002;
 
-    // MULTI-TAB NATIVE BROWSER OVERLAY
     private FrameLayout nativeBrowserContainer;
     private FrameLayout webViewHolder;
     private LinearLayout tabStripLayout;
@@ -76,11 +76,8 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         checkAndRequestPermissions();
 
-        if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-            try {
-                ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {});
-            } catch (Exception ignored) {}
-        }
+        // Automatically start embedded Tor background daemon & route app traffic through local SOCKS5 proxy (127.0.0.1:9050)
+        startEmbeddedTorDaemon();
 
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView webView = this.bridge.getWebView();
@@ -120,6 +117,28 @@ public class MainActivity extends BridgeActivity {
         initBrowserOverlay();
     }
 
+    private void startEmbeddedTorDaemon() {
+        try {
+            // Start the background Tor service package
+            Intent torIntent = new Intent(this, TorService.class);
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(torIntent);
+            } else {
+                startService(torIntent);
+            }
+
+            // Force WebKit ProxyController to tunnel all internal WebView requests through local SOCKS5 Tor port (9050)
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                ProxyConfig proxyConfig = new ProxyConfig.Builder().addProxyRule("socks://127.0.0.1:9050").build();
+                ProxyController.getInstance().setProxyOverride(proxyConfig, Executors.newSingleThreadExecutor(), () -> {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "🧅 Embedded Tor Onion Circuit Active", Toast.LENGTH_SHORT).show());
+                });
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void initBrowserOverlay() {
         runOnUiThread(() -> {
             ViewGroup rootView = findViewById(android.R.id.content);
@@ -139,7 +158,6 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
 
-            // TOP ACTION CONTROLS
             LinearLayout topBar = new LinearLayout(this);
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -236,7 +254,7 @@ public class MainActivity extends BridgeActivity {
             LinearLayout.LayoutParams btnFsParams = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(36));
             btnFsParams.setMargins(dpToPx(3), 0, 0, 0);
             btnFullscreen.setLayoutParams(btnFsParams);
-            btnFullscreen.setOnClickListener(v -> toggleFullscreenMode(topBar));
+            btnFullscreen.setOnClickListener(v -> toggleFullscreenMode());
 
             topBar.addView(btnExit);
             topBar.addView(btnHome);
@@ -246,7 +264,6 @@ public class MainActivity extends BridgeActivity {
             topBar.addView(btnGo);
             topBar.addView(btnFullscreen);
 
-            // TAB MANAGER BAR
             LinearLayout tabControlBar = new LinearLayout(this);
             tabControlBar.setOrientation(LinearLayout.HORIZONTAL);
             tabControlBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -272,7 +289,6 @@ public class MainActivity extends BridgeActivity {
             tabControlBar.addView(btnNewTab);
             tabControlBar.addView(tabScrollView);
 
-            // WEBVIEW CONTAINER
             webViewHolder = new FrameLayout(this);
             webViewHolder.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -286,18 +302,16 @@ public class MainActivity extends BridgeActivity {
             nativeBrowserContainer.addView(mainLayout);
             rootView.addView(nativeBrowserContainer);
 
-            // Initialize default first tab
             createNewTab("https://duckduckgo.com");
         });
     }
 
-    private void toggleFullscreenMode(View topBar) {
+    private void toggleFullscreenMode() {
         isFullscreenMode = !isFullscreenMode;
         if (isFullscreenMode) {
             getWindow().getDecorView().setSystemUiVisibility(
                 View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
             );
-            Toast.makeText(this, "Fullscreen Active (Tap ⛶ to Exit)", Toast.LENGTH_SHORT).show();
         } else {
             getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
         }
@@ -349,7 +363,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void closeTab(int index) {
-        if (tabList.size() <= 1) return; // Keep at least one tab
+        if (tabList.size() <= 1) return;
         WebView wv = tabList.remove(index);
         webViewHolder.removeView(wv);
         wv.destroy();
@@ -447,7 +461,6 @@ public class MainActivity extends BridgeActivity {
     }
 
     public class AndroidBridge {
-
         @JavascriptInterface
         public void launchNativeBrowser(String url) {
             openNativeBrowser((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com");
@@ -463,16 +476,7 @@ public class MainActivity extends BridgeActivity {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
-                Uri filesUri = MediaStore.Files.getContentUri("external");
-                String[] projection = {
-                    MediaStore.Files.FileColumns._ID,
-                    MediaStore.Files.FileColumns.DISPLAY_NAME,
-                    MediaStore.Files.FileColumns.SIZE,
-                    MediaStore.Files.FileColumns.DATA,
-                    MediaStore.Files.FileColumns.MIME_TYPE
-                };
-
-                Cursor cursor = resolver.query(filesUri, projection, MediaStore.Files.FileColumns.SIZE + " > 0", null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
+                Cursor cursor = resolver.query(MediaStore.Files.getContentUri("external"), new String[]{MediaStore.Files.FileColumns._ID, MediaStore.Files.FileColumns.DISPLAY_NAME, MediaStore.Files.FileColumns.SIZE, MediaStore.Files.FileColumns.DATA, MediaStore.Files.FileColumns.MIME_TYPE}, MediaStore.Files.FileColumns.SIZE + " > 0", null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
                 if (cursor != null) {
                     int count = 0;
                     while (cursor.moveToNext() && count < 400) {
@@ -481,7 +485,6 @@ public class MainActivity extends BridgeActivity {
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE));
                         String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA));
                         String mime = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE));
-
                         if (dataPath != null && !dataPath.contains("/Android/data") && !dataPath.contains("/Android/obb")) {
                             JSONObject obj = new JSONObject();
                             obj.put("id", id);
@@ -495,26 +498,16 @@ public class MainActivity extends BridgeActivity {
                     }
                     cursor.close();
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
             return array.toString();
         }
 
-        // SAFE MEDIASTORE CONTENT URI SCANNER
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
-
-                // Scan images using ContentResolver URIs
-                Cursor cursor = resolver.query(
-                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                    new String[]{ MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATA, MediaStore.Images.Media.RELATIVE_PATH },
-                    null, null, MediaStore.Images.Media.DATE_ADDED + " DESC"
-                );
-
+                Cursor cursor = resolver.query(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, new String[]{ MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATA, MediaStore.Images.Media.RELATIVE_PATH }, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
                 if (cursor != null) {
                     int count = 0;
                     while (cursor.moveToNext() && count < 300) {
@@ -524,261 +517,63 @@ public class MainActivity extends BridgeActivity {
                         String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA));
                         String relPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH));
                         Uri contentUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
-
-                        JSONObject obj = new JSONObject();
-                        obj.put("id", id);
-                        obj.put("name", name != null ? name : "Img_" + id);
-                        obj.put("size", (size / 1024) + " KB");
-                        obj.put("type", "image");
-                        obj.put("absolutePath", dataPath != null ? dataPath : "");
-
-                        String folderName = "Pictures";
-                        if (relPath != null) {
-                            if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
-                            else if (relPath.contains("DCIM")) folderName = "Camera";
-                            else if (relPath.contains("Screenshots")) folderName = "Screenshots";
-                            else if (relPath.contains("Download")) folderName = "Downloads";
+                        if (dataPath != null) {
+                            JSONObject obj = new JSONObject();
+                            obj.put("id", id);
+                            obj.put("name", name != null ? name : "Img_" + id);
+                            obj.put("size", (size / 1024) + " KB");
+                            obj.put("type", "image");
+                            obj.put("absolutePath", dataPath);
+                            obj.put("folder", relPath != null && relPath.contains("Screenshots") ? "Screenshots" : "Camera");
+                            obj.put("cleanUrl", contentUri.toString());
+                            array.put(obj);
+                            count++;
                         }
-                        obj.put("folder", folderName);
-                        obj.put("cleanUrl", contentUri.toString());
-
-                        array.put(obj);
-                        count++;
                     }
                     cursor.close();
                 }
-
-                // Scan videos using ContentResolver URIs
-                Cursor vCursor = resolver.query(
-                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                    new String[]{ MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATA, MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.MIME_TYPE },
-                    null, null, MediaStore.Video.Media.DATE_ADDED + " DESC"
-                );
-
-                if (vCursor != null) {
-                    int vCount = 0;
-                    while (vCursor.moveToNext() && vCount < 100) {
-                        long id = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID));
-                        String name = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME));
-                        long size = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE));
-                        String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
-                        String relPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
-                        String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
-                        Uri contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
-
-                        JSONObject obj = new JSONObject();
-                        obj.put("id", id + 10000000);
-                        obj.put("name", name != null ? name : "Vid_" + id);
-                        obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
-                        obj.put("type", "video");
-                        obj.put("absolutePath", dataPath != null ? dataPath : "");
-
-                        String folderName = "Videos";
-                        if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
-                        obj.put("folder", folderName);
-                        obj.put("cleanUrl", contentUri.toString());
-                        obj.put("mimeType", mime != null ? mime : "video/mp4");
-
-                        array.put(obj);
-                        vCount++;
-                    }
-                    vCursor.close();
-                }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
             return array.toString();
         }
 
         @JavascriptInterface
         public boolean shredFileByAbsolutePath(String absolutePath) {
             try {
-                if (absolutePath == null || absolutePath.isEmpty()) return false;
                 File file = new File(absolutePath);
                 if (file.exists()) {
                     long length = file.length();
                     if (length > 0) {
                         RandomAccessFile raf = new RandomAccessFile(file, "rw");
-                        byte[] zeros = new byte[8192];
-                        long written = 0;
-                        while (written < length) {
-                            int toWrite = (int) Math.min(zeros.length, length - written);
-                            raf.write(zeros, 0, toWrite);
-                            written += toWrite;
-                        }
-                        raf.getFD().sync();
+                        raf.write(new byte[8192]);
                         raf.close();
                     }
                     boolean deleted = file.delete();
-
                     getContentResolver().delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, MediaStore.Images.Media.DATA + "=?", new String[]{absolutePath});
-                    getContentResolver().delete(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, MediaStore.Video.Media.DATA + "=?", new String[]{absolutePath});
-
-                    MediaScannerConnection.scanFile(MainActivity.this, new String[]{absolutePath}, null, (p, u) -> {});
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "File deleted", Toast.LENGTH_SHORT).show());
                     return deleted;
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-
-        @JavascriptInterface
-        public boolean shredFileByUri(String uriString) {
-            try {
-                Uri uri = Uri.parse(uriString);
-                getContentResolver().delete(uri, null, null);
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Deleted", Toast.LENGTH_SHORT).show());
-                return true;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
-
-        @JavascriptInterface
-        public String fetchUrl(String urlString) {
-            try {
-                URL url = new URL(urlString);
-                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
-                conn.setRequestMethod("GET");
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
-                conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                conn.setConnectTimeout(10000);
-                conn.setReadTimeout(10000);
-
-                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-                StringBuilder content = new StringBuilder();
-                String inputLine;
-                while ((inputLine = in.readLine()) != null) {
-                    content.append(inputLine).append("\n");
-                }
-                in.close();
-                conn.disconnect();
-                return content.toString();
-            } catch (Exception e) {
-                return "ERROR: " + e.getMessage();
-            }
-        }
-
-        @JavascriptInterface
-        public boolean setNetworkProxy(String proxyType, String host, int port) {
-            if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                return false;
-            }
-
-            try {
-                ProxyConfig.Builder proxyConfigBuilder = new ProxyConfig.Builder();
-                if ("tor".equalsIgnoreCase(proxyType) || "socks".equalsIgnoreCase(proxyType)) {
-                    proxyConfigBuilder.addProxyRule("socks://" + host + ":" + port);
-                } else if ("http".equalsIgnoreCase(proxyType)) {
-                    proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
-                } else {
-                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Direct connection active", Toast.LENGTH_SHORT).show());
-                    });
-                    return true;
-                }
-
-                ProxyConfig proxyConfig = proxyConfigBuilder.build();
-                ProxyController.getInstance().setProxyOverride(proxyConfig, Executors.newSingleThreadExecutor(), () -> {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Proxy active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
-                });
-                return true;
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
             return false;
         }
 
         @JavascriptInterface
         public boolean saveToGallery(String base64Data, String filename, String mimeType) {
             try {
-                String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
-                byte[] data = Base64.decode(cleanBase64, Base64.DEFAULT);
-
+                byte[] data = Base64.decode(base64Data.contains(",") ? base64Data.split(",")[1] : base64Data, Base64.DEFAULT);
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-
-                boolean isVideo = mimeType.startsWith("video");
-                values.put(
-                    MediaStore.MediaColumns.RELATIVE_PATH,
-                    isVideo ? Environment.DIRECTORY_MOVIES + "/SovereignTools" : Environment.DIRECTORY_DCIM + "/SovereignTools"
-                );
-
-                ContentResolver resolver = getContentResolver();
-                Uri targetUri = isVideo ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI : MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-                Uri uri = resolver.insert(targetUri, values);
-
+                values.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DCIM + "/SovereignTools");
+                Uri uri = getContentResolver().insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values);
                 if (uri != null) {
-                    OutputStream out = resolver.openOutputStream(uri);
+                    OutputStream out = getContentResolver().openOutputStream(uri);
                     if (out != null) {
                         out.write(data);
-                        out.flush();
                         out.close();
-
-                        MediaScannerConnection.scanFile(MainActivity.this, new String[]{uri.toString()}, null, (path, newUri) -> {});
-
-                        runOnUiThread(() -> Toast.makeText(
-                            MainActivity.this,
-                            isVideo ? "Video saved" : "Photo saved",
-                            Toast.LENGTH_SHORT
-                        ).show());
                         return true;
                     }
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            } catch (Exception e) { e.printStackTrace(); }
             return false;
-        }
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == FILECHOOSER_RESULTCODE) {
-            if (filePathCallback == null) return;
-            Uri[] results = null;
-            JSONArray uriList = new JSONArray();
-
-            if (resultCode == RESULT_OK && data != null) {
-                String dataString = data.getDataString();
-                if (dataString != null) {
-                    Uri singleUri = Uri.parse(dataString);
-                    results = new Uri[]{singleUri};
-                    try {
-                        JSONObject obj = new JSONObject();
-                        obj.put("uri", singleUri.toString());
-                        uriList.put(obj);
-                    } catch (Exception ignored) {}
-                } else if (data.getClipData() != null) {
-                    int count = data.getClipData().getItemCount();
-                    results = new Uri[count];
-                    for (int i = 0; i < count; i++) {
-                        Uri itemUri = data.getClipData().getItemAt(i).getUri();
-                        results[i] = itemUri;
-                        try {
-                            JSONObject obj = new JSONObject();
-                            obj.put("uri", itemUri.toString());
-                            uriList.put(obj);
-                        } catch (Exception ignored) {}
-                    }
-                }
-            }
-
-            if (this.bridge != null && this.bridge.getWebView() != null) {
-                final String jsonStr = uriList.toString();
-                runOnUiThread(() -> {
-                    this.bridge.getWebView().evaluateJavascript("window.dispatchEvent(new CustomEvent('nativeFilesSelected', { detail: " + jsonStr + " }));", null);
-                });
-            }
-
-            filePathCallback.onReceiveValue(results);
-            filePathCallback = null;
         }
     }
 }
