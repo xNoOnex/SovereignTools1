@@ -28,17 +28,21 @@ jobs:
           npx vite build
           if [ -d "public" ]; then cp -r public/* dist/ || true; fi
 
-      - name: Force Direct Copy of Web Assets to Android
+      - name: Sync Capacitor & Inject Assets
         run: |
-          # Generate android platform if missing
-          npx cap add android || true
+          # 1. Ensure android directory exists
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
 
-          # DIRECTLY copy Vite dist/ files into Android's WebView asset folder
+          # 2. Sync Capacitor state and generate required Gradle plugin files
+          npx cap sync android
+
+          # 3. Ensure assets are directly in place
           mkdir -p android/app/src/main/assets/public
-          rm -rf android/app/src/main/assets/public/*
           cp -r dist/* android/app/src/main/assets/public/
 
-          # Inject Launcher Icons via ImageMagick
+          # 4. Inject Launcher Icons via ImageMagick
           sudo apt-get update && sudo apt-get install -y imagemagick
           if [ -f "public/sovereign_logo.jpg" ]; then
             convert public/sovereign_logo.jpg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
