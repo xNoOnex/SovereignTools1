@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
@@ -21,7 +22,15 @@ import androidx.webkit.ProxyController;
 import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.FileOutputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -81,16 +90,79 @@ public class MainActivity extends BridgeActivity {
 
     public class AndroidBridge {
         
+        // Native CORS-free web request fetcher for AI search
+        @JavascriptInterface
+        public String fetchUrl(String urlString) {
+            try {
+                URL url = new URL(urlString);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SovereignTools/1.0");
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(8000);
+
+                BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                StringBuilder content = new StringBuilder();
+                String inputLine;
+                while ((inputLine = in.readLine()) != null) {
+                    content.append(inputLine).append("\n");
+                }
+                in.close();
+                conn.disconnect();
+                return content.toString();
+            } catch (Exception e) {
+                return "ERROR: " + e.getMessage();
+            }
+        }
+
+        // Physical file sector shredder & unlinker
+        @JavascriptInterface
+        public boolean shredFileByUri(String uriString) {
+            try {
+                Uri uri = Uri.parse(uriString);
+                ContentResolver resolver = getContentResolver();
+
+                // 1. Overwrite physical storage sectors with zeroes
+                try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rw")) {
+                    if (pfd != null) {
+                        FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
+                        long size = pfd.getStatSize();
+                        if (size > 0) {
+                            byte[] zeros = new byte[4096];
+                            long written = 0;
+                            while (written < size) {
+                                int toWrite = (int) Math.min(zeros.length, size - written);
+                                fos.write(zeros, 0, toWrite);
+                                written += toWrite;
+                            }
+                            fos.flush();
+                        }
+                        fos.close();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                // 2. Unlink & remove handle from Android MediaStore / Storage Provider
+                int deletedRows = resolver.delete(uri, null, null);
+                if (deletedRows > 0) {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 File Zeroed Out & Permanently Deleted", Toast.LENGTH_SHORT).show());
+                    return true;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+
         @JavascriptInterface
         public boolean setNetworkProxy(String proxyType, String host, int port) {
             if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "⚠️ Proxy override not supported on this WebKit version", Toast.LENGTH_SHORT).show());
                 return false;
             }
 
             try {
                 ProxyConfig.Builder proxyConfigBuilder = new ProxyConfig.Builder();
-                
                 if ("tor".equalsIgnoreCase(proxyType) || "socks".equalsIgnoreCase(proxyType)) {
                     proxyConfigBuilder.addProxyRule("socks://" + host + ":" + port);
                 } else if ("http".equalsIgnoreCase(proxyType)) {
@@ -118,7 +190,6 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public boolean saveToGallery(String base64Data, String filename, String mimeType) {
             try {
-                // Safe Java base64 header extraction (no regex literals)
                 String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
                 byte[] data = Base64.decode(cleanBase64, Base64.DEFAULT);
                 
@@ -155,22 +226,6 @@ public class MainActivity extends BridgeActivity {
             }
             return false;
         }
-
-        @JavascriptInterface
-        public boolean shredFileByUri(String uriString) {
-            try {
-                Uri uri = Uri.parse(uriString);
-                ContentResolver resolver = getContentResolver();
-                int deletedRows = resolver.delete(uri, null, null);
-                if (deletedRows > 0) {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Physical File Unlinked & Shredded", Toast.LENGTH_SHORT).show());
-                    return true;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return false;
-        }
     }
 
     @Override
@@ -179,18 +234,41 @@ public class MainActivity extends BridgeActivity {
         if (requestCode == FILECHOOSER_RESULTCODE) {
             if (filePathCallback == null) return;
             Uri[] results = null;
+            JSONArray uriList = new JSONArray();
+
             if (resultCode == RESULT_OK && data != null) {
                 String dataString = data.getDataString();
                 if (dataString != null) {
-                    results = new Uri[]{Uri.parse(dataString)};
+                    Uri singleUri = Uri.parse(dataString);
+                    results = new Uri[]{singleUri};
+                    try {
+                        JSONObject obj = new JSONObject();
+                        obj.put("uri", singleUri.toString());
+                        uriList.put(obj);
+                    } catch (Exception e) {}
                 } else if (data.getClipData() != null) {
                     int count = data.getClipData().getItemCount();
                     results = new Uri[count];
                     for (int i = 0; i < count; i++) {
-                        results[i] = data.getClipData().getItemAt(i).getUri();
+                        Uri itemUri = data.getClipData().getItemAt(i).getUri();
+                        results[i] = itemUri;
+                        try {
+                            JSONObject obj = new JSONObject();
+                            obj.put("uri", itemUri.toString());
+                            uriList.put(obj);
+                        } catch (Exception e) {}
                     }
                 }
             }
+
+            // Send actual Android content URIs directly to JavaScript
+            if (this.bridge != null && this.bridge.getWebView() != null) {
+                final String jsonStr = uriList.toString();
+                runOnUiThread(() -> {
+                    this.bridge.getWebView().evaluateJavascript("window.dispatchEvent(new CustomEvent('nativeFilesSelected', { detail: " + jsonStr + " }));", null);
+                });
+            }
+
             filePathCallback.onReceiveValue(results);
             filePathCallback = null;
         }

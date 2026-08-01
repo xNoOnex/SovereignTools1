@@ -37,28 +37,43 @@ export function LocalAIAssistant() {
   };
 
   const fetchPrivacyWebSearch = async (query) => {
-    try {
-      // Query DuckDuckGo HTML zero-tracker endpoint (routed over Tor/Proxy if active)
-      const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SovereignTools/1.0' }
-      });
-      const htmlText = await res.text();
-
-      // Extract raw snippet snippets from HTML
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(htmlText, 'text/html');
-      const snippets = Array.from(doc.querySelectorAll('.result__snippet'))
-        .slice(0, 3)
-        .map(el => el.textContent.trim())
-        .join('\n\n');
-
-      if (snippets) {
-        return `🌐 **Private Web Search Result (Routed via Proxy):**\n\n${snippets}`;
+    const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    
+    let htmlText = '';
+    // Use native Java fetcher to bypass browser CORS
+    if (window.AndroidNative && window.AndroidNative.fetchUrl) {
+      htmlText = window.AndroidNative.fetchUrl(url);
+    } else {
+      try {
+        const res = await fetch(url);
+        htmlText = await res.text();
+      } catch (e) {
+        htmlText = 'ERROR: ' + e.message;
       }
-    } catch (err) {
-      return `⚠️ Web Search query failed over current proxy setting: ${err.message}`;
     }
-    return null;
+
+    if (htmlText.startsWith('ERROR:')) {
+      const proxyType = localStorage.getItem('sovereign_proxy_type') || 'direct';
+      if (proxyType === 'tor') {
+        return `⚠️ **Web Search Query Failed:**\nTor proxy is active in Settings, but connection was refused. **Make sure the Orbot app is running on your phone**, or switch Settings to "Direct" mode!`;
+      }
+      return `⚠️ Web Search query failed: ${htmlText.replace('ERROR:', '')}`;
+    }
+
+    // Extract text snippets from DuckDuckGo HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlText, 'text/html');
+    const snippets = Array.from(doc.querySelectorAll('.result__snippet'))
+      .slice(0, 3)
+      .map(el => el.textContent.trim())
+      .filter(t => t.length > 0)
+      .join('\n\n');
+
+    if (snippets) {
+      return `🌐 **Live Web Search Results:**\n\n${snippets}`;
+    }
+
+    return "🌐 Query executed, but no clean search snippets were returned. Try rephrasing your search.";
   };
 
   const generateResponse = async (query) => {
@@ -72,10 +87,6 @@ export function LocalAIAssistant() {
 
     const q = query.toLowerCase();
 
-    if (q.includes('moon') || q.includes('rotate') || q.includes('orbit')) {
-      return "🌕 **Astronomy & Physics:**\nThe Moon orbits Earth due to gravitational attraction balancing outward inertia at ~238,855 miles.";
-    }
-
     if (q.includes('debloat') || q.includes('package') || q.includes('adb')) {
       return "⚡ **Debloat Assistant Guide:**\nUse the **Debloater** tab to audit bloatware packages. Disabling command:\n`adb shell pm disable-user --user 0 <package_name>`";
     }
@@ -88,7 +99,7 @@ export function LocalAIAssistant() {
       return "🧅 **Tor & Proxy Routing:**\nWhen enabled in Settings, Android WebKit ProxyController routes all network traffic through SOCKS5 127.0.0.1:9050 before leaving your physical device.";
     }
 
-    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries routed anonymously through Tor, toggle the "🌐 Tor Web Search" button above!`;
+    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries, toggle the "🌐 Search: OFF" button above to ON!`;
   };
 
   const handleSend = async (e) => {
