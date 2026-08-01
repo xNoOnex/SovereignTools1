@@ -5,6 +5,7 @@ import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
 import { PgpMessaging } from './components/PgpMessaging';
 import { AesCipherTool } from './components/AesCipherTool';
+import { FileShredder } from './components/FileShredder';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
 import { Settings } from './components/Settings';
 
@@ -59,53 +60,61 @@ export default function App() {
         {currentTab === 'debloater' && <ShizukuDebloater />}
         {currentTab === 'pgp' && <PgpMessaging />}
         {currentTab === 'aes' && <AesCipherTool />}
+        {currentTab === 'shredder' && <FileShredder />}
         {currentTab === 'ai' && <LocalAIAssistant />}
         {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
       {/* Bottom Nav Dock */}
-      <nav className="fixed bottom-0 inset-x-0 bg-zinc-900/90 border-t border-zinc-800 p-1.5 flex justify-around text-[9px] font-bold z-40 backdrop-blur-md">
+      <nav className="fixed bottom-0 inset-x-0 bg-zinc-900/90 border-t border-zinc-800 p-1 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md">
         <button
           onClick={() => setCurrentTab('camera')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
-          <span className="text-base">📷</span>
+          <span className="text-sm">📷</span>
           Camera
         </button>
         <button
           onClick={() => setCurrentTab('vault')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
-          <span className="text-base">🔐</span>
+          <span className="text-sm">🔐</span>
           Vault
         </button>
         <button
           onClick={() => setCurrentTab('debloater')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
-          <span className="text-base">⚡</span>
+          <span className="text-sm">⚡</span>
           Debloat
         </button>
         <button
           onClick={() => setCurrentTab('pgp')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
-          <span className="text-base">📡</span>
+          <span className="text-sm">📡</span>
           PGP SMS
         </button>
         <button
           onClick={() => setCurrentTab('aes')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
-          <span className="text-base">🛡️</span>
-          AES Cipher
+          <span className="text-sm">🛡️</span>
+          AES
+        </button>
+        <button
+          onClick={() => setCurrentTab('shredder')}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+        >
+          <span className="text-sm">☣️</span>
+          Shredder
         </button>
         <button
           onClick={() => setCurrentTab('ai')}
-          className={`flex flex-col items-center py-1 px-2 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
-          <span className="text-base">🤖</span>
-          Local AI
+          <span className="text-sm">🤖</span>
+          AI Engine
         </button>
       </nav>
     </div>
