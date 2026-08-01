@@ -16,6 +16,8 @@ import { LocalAIAssistant } from './components/LocalAIAssistant';
 import { PrivacyBrowser } from './components/PrivacyBrowser';
 import { Support } from './components/Support';
 import { Settings } from './components/Settings';
+import { NetSec } from './components/NetSec';
+
 
 export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
