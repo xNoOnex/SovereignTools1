@@ -5,11 +5,14 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
+import android.media.MediaScannerConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
+import android.provider.Settings;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -28,9 +31,12 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.Executor;
@@ -81,6 +87,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     private void requestAndroidPermissions() {
+        // Standard Runtime Permissions
         String[] permissions = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
@@ -88,11 +95,24 @@ public class MainActivity extends BridgeActivity {
             Manifest.permission.WRITE_EXTERNAL_STORAGE
         };
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
+
+        // Android 11+ System MANAGE_EXTERNAL_STORAGE Prompt ("All Files Access")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            if (!Environment.isExternalStorageManager()) {
+                try {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                    intent.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(intent);
+                } catch (Exception e) {
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                    startActivity(intent);
+                }
+            }
+        }
     }
 
     public class AndroidBridge {
 
-        // Scan DCIM/SovereignTools and return JSON list of persistent gallery photos
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
@@ -116,7 +136,6 @@ public class MainActivity extends BridgeActivity {
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
                         Uri imageUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
-                        // Convert image stream to base64 data URI for rendering
                         InputStream inputStream = resolver.openInputStream(imageUri);
                         ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
                         byte[] buffer = new byte[4096];
@@ -145,6 +164,53 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
+        // PHYSICAL SECTOR SHREDDER & CONTENTRESOLVER UNLINKER
+        @JavascriptInterface
+        public boolean shredFileByUri(String uriString) {
+            try {
+                Uri uri = Uri.parse(uriString);
+                ContentResolver resolver = getContentResolver();
+
+                // 1. Physical Byte-Block Zero Fill
+                try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rwt")) {
+                    if (pfd != null) {
+                        FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
+                        long size = pfd.getStatSize();
+                        if (size > 0) {
+                            byte[] zeros = new byte[8192];
+                            long written = 0;
+                            while (written < size) {
+                                int toWrite = (int) Math.min(zeros.length, size - written);
+                                fos.write(zeros, 0, toWrite);
+                                written += toWrite;
+                            }
+                            fos.flush();
+                        }
+                        fos.close();
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+
+                // 2. Remove Handle from Android ContentResolver
+                int deletedRows = resolver.delete(uri, null, null);
+
+                // 3. Force MediaStore Scanner to Purge Gallery & My Files Cache
+                MediaScannerConnection.scanFile(
+                    MainActivity.this, 
+                    new String[]{uri.getPath()}, 
+                    null, 
+                    (path, newUri) -> {}
+                );
+
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Physical Storage Zeroed & Shredded", Toast.LENGTH_SHORT).show());
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+
         @JavascriptInterface
         public String fetchUrl(String urlString) {
             try {
@@ -167,43 +233,6 @@ public class MainActivity extends BridgeActivity {
             } catch (Exception e) {
                 return "ERROR: " + e.getMessage();
             }
-        }
-
-        @JavascriptInterface
-        public boolean shredFileByUri(String uriString) {
-            try {
-                Uri uri = Uri.parse(uriString);
-                ContentResolver resolver = getContentResolver();
-
-                try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rw")) {
-                    if (pfd != null) {
-                        FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
-                        long size = pfd.getStatSize();
-                        if (size > 0) {
-                            byte[] zeros = new byte[4096];
-                            long written = 0;
-                            while (written < size) {
-                                int toWrite = (int) Math.min(zeros.length, size - written);
-                                fos.write(zeros, 0, toWrite);
-                                written += toWrite;
-                            }
-                            fos.flush();
-                        }
-                        fos.close();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-
-                int deletedRows = resolver.delete(uri, null, null);
-                if (deletedRows > 0) {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 File Zeroed Out & Permanently Deleted", Toast.LENGTH_SHORT).show());
-                    return true;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            return false;
         }
 
         @JavascriptInterface
