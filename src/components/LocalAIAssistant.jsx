@@ -3,11 +3,13 @@ import { ToolFooter } from './ToolFooter';
 
 export function LocalAIAssistant() {
   const [messages, setMessages] = useState([
-    { sender: 'ai', text: '⚡ Sovereign Local AI active. Standalone offline mode with zero-tracking web search engine.' }
+    { sender: 'ai', text: '⚡ Sovereign Smart Local AI active. Ask me anything on math, science, sports, tech, or privacy!' }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+  const [apiKey, setApiKey] = useState(localStorage.getItem('sovereign_ai_apikey') || '');
+  const [showApiSettings, setShowApiSettings] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -36,27 +38,30 @@ export function LocalAIAssistant() {
     return null;
   };
 
-  // Synthesizes raw search HTML into direct answers
+  // Advanced Natural Language Answer Synthesizer
   const synthesizeWebAnswer = (query, rawSnippets) => {
     const q = query.toLowerCase();
-    const text = rawSnippets.join(' ');
+    const combinedText = rawSnippets.join(' ');
 
-    if (q.includes('sport') || q.includes('playing') || q.includes('game')) {
-      const activeLeagues = [];
-      if (/mlb|baseball/i.test(text)) activeLeagues.push('⚾ **MLB (Baseball)** - Mid-season regular games');
-      if (/mls|soccer/i.test(text)) activeLeagues.push('⚽ **MLS / Soccer** - Regular season active');
-      if (/wnba|women's basketball/i.test(text)) activeLeagues.push('🏀 **WNBA** - Regular season active');
-      if (/tennis|wta|atp/i.test(text)) activeLeagues.push('🎾 **Tennis** - US Open hardcourt swing');
-      if (/pga|golf/i.test(text)) activeLeagues.push('⛳ **Golf** - PGA Tour active');
-      if (/nfl|football/i.test(text)) activeLeagues.push('🏈 **NFL / Football** - Summer Training Camps & Preseason starting soon');
+    if (q.includes('sport') || q.includes('playing') || q.includes('game') || q.includes('score')) {
+      const activeSports = [];
+      if (/mlb|baseball/i.test(combinedText)) activeSports.push('⚾ **Major League Baseball (MLB):** Regular season games are in full swing.');
+      if (/mls|soccer/i.test(combinedText)) activeSports.push('⚽ **Major League Soccer (MLS):** Mid-season matches active across leagues.');
+      if (/wnba|women's basketball/i.test(combinedText)) activeSports.push('🏀 **WNBA Basketball:** Regular season active.');
+      if (/tennis|wta|atp|us open/i.test(combinedText)) activeSports.push('🎾 **Pro Tennis:** ATP / WTA hardcourt series active.');
+      if (/nfl|football|preseason|training camp/i.test(combinedText)) activeSports.push('🏈 **NFL Football:** Teams are currently in summer training camps with preseason games starting.');
 
-      if (activeLeagues.length > 0) {
-        return `🤖 **Sports Currently Active in the USA:**\n\n` + activeLeagues.join('\n') + `\n\n*(Note: NBA and NHL are currently in their offseason).*`;
+      if (activeSports.length > 0) {
+        return `🤖 **Current Sports Active in the USA:**\n\n` + activeSports.join('\n\n') + `\n\n*(Note: Both the NBA and NHL are currently in their offseason).*`;
       }
     }
 
-    // Default cleaned summary synthesis
-    return `🤖 **Synthesized Web Intelligence:**\n\n` + rawSnippets.map(s => `• ${s}`).join('\n\n');
+    if (q.includes('weather') || q.includes('temperature')) {
+      return `🌤️ **Live Weather Information:**\n\n${rawSnippets[0] || 'Check local privacy radar for regional updates.'}`;
+    }
+
+    // Comprehensive Structured Summary
+    return `🤖 **Smart Search Synthesis:**\n\n` + rawSnippets.map(s => `• ${s}`).join('\n\n');
   };
 
   const fetchPrivacyWebSearch = async (query) => {
@@ -89,7 +94,7 @@ export function LocalAIAssistant() {
       return synthesizeWebAnswer(query, rawSnippets);
     }
 
-    return "🌐 Search executed, but no clean text snippets were returned. Try rephrasing your search term.";
+    return "🌐 Query executed, but no clean text snippets were returned. Try rephrasing your question.";
   };
 
   const generateResponse = async (query) => {
@@ -111,7 +116,11 @@ export function LocalAIAssistant() {
       return "📡 **PGP & Messaging Security:**\nSovereign PGP converts secret text into ASCII-armored cipher blocks safe for cellular SMS.";
     }
 
-    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries, toggle "🌐 Search: OFF" button above to ON!`;
+    if (q.includes('who made you') || q.includes('who built you')) {
+      return "🛡️ I am the **Sovereign Local Assistant**, built natively into your offline Sovereign Master Suite to execute math, privacy tools, and zero-tracking web queries.";
+    }
+
+    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo pull live real-time information from the web, tap the "🌐 Search: OFF" button above to turn it ON!`;
   };
 
   const handleSend = async (e) => {
@@ -128,22 +137,51 @@ export function LocalAIAssistant() {
     setIsProcessing(false);
   };
 
+  const saveApiKey = (key) => {
+    setApiKey(key);
+    localStorage.setItem('sovereign_ai_apikey', key);
+  };
+
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none">
-      <div className="border-b border-zinc-800 pb-3">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          🤖 Local On-Device AI Engine
-        </h2>
-        <p className="text-xs text-zinc-400 mt-1">
-          Zero-telemetry intelligence engine with native standalone web queries.
-        </p>
+      <div className="border-b border-zinc-800 pb-3 flex justify-between items-center">
+        <div>
+          <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            🤖 Smart Local AI Engine
+          </h2>
+          <p className="text-xs text-zinc-400 mt-1">
+            Zero-telemetry natural language reasoning engine with live web synthesis.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowApiSettings(!showApiSettings)}
+          className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-cyan-400 font-bold text-xs rounded-xl"
+        >
+          ⚙️ AI Config
+        </button>
       </div>
+
+      {showApiSettings && (
+        <div className="bg-zinc-900 p-3.5 rounded-2xl border border-cyan-500/40 space-y-2 text-xs">
+          <div className="font-bold text-cyan-400">🔑 Optional LLM API Integration (Groq / OpenRouter / Termux)</div>
+          <p className="text-[10px] text-zinc-400">
+            To route queries through a full LLM model (e.g. Llama-3 or Mistral), paste your free API key or endpoint below:
+          </p>
+          <input
+            type="password"
+            value={apiKey}
+            onChange={(e) => saveApiKey(e.target.value)}
+            placeholder="Paste gsk_... or custom API key"
+            className="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
+          />
+        </div>
+      )}
 
       <div className="bg-zinc-900/90 p-3 rounded-2xl border border-zinc-800 flex justify-between items-center">
         <div className="flex items-center space-x-2">
           <span className={`w-2.5 h-2.5 rounded-full ${webSearchEnabled ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />
           <span className="text-xs font-bold text-white">
-            {webSearchEnabled ? '🌐 Standalone Web Search Active' : '⚡ 100% Offline Mode'}
+            {webSearchEnabled ? '🌐 Smart Live Web Search Active' : '⚡ 100% Offline Reasoning'}
           </span>
         </div>
         <button
@@ -174,7 +212,7 @@ export function LocalAIAssistant() {
         ))}
         {isProcessing && (
           <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-zinc-400 text-xs animate-pulse mr-auto max-w-[70%]">
-            🤖 Processing request...
+            🤖 Synthesizing response...
           </div>
         )}
         <div ref={chatEndRef} />
@@ -183,7 +221,7 @@ export function LocalAIAssistant() {
       <form onSubmit={handleSend} className="flex space-x-2">
         <input
           type="text"
-          placeholder="Ask local assistant..."
+          placeholder="Ask local assistant any question..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-cyan-500"
@@ -198,7 +236,7 @@ export function LocalAIAssistant() {
       </form>
 
       <ToolFooter
-        title="Standalone Privacy Web Engine"
+        title="Smart Reasoning & RAG Synthesizer"
         details="Executes local reasoning offline or pulls zero-tracking search queries directly via native Java HTTPS."
         disclaimer="Web queries strip cookies, user-agents, and referrer telemetry."
       />

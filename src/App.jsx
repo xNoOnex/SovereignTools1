@@ -8,6 +8,7 @@ import { PgpMessaging } from './components/PgpMessaging';
 import { AesCipherTool } from './components/AesCipherTool';
 import { FileShredder } from './components/FileShredder';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
+import { PrivacyBrowser } from './components/PrivacyBrowser';
 import { Settings } from './components/Settings';
 
 export default function App() {
@@ -19,7 +20,6 @@ export default function App() {
     return <LockScreen onUnlock={() => setIsUnlocked(true)} />;
   }
 
-  // Camera Mode: Edge-to-edge native full screen view
   if (currentTab === 'camera') {
     return (
       <div className="fixed inset-0 z-50 bg-black">
@@ -35,7 +35,6 @@ export default function App() {
     >
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
-      {/* TOP HEADER */}
       <header 
         className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 36px)' }}
@@ -66,8 +65,8 @@ export default function App() {
         </div>
       </header>
 
-      {/* MAIN CONTENT AREA */}
       <main className="flex-1 pb-32 relative z-10">
+        {currentTab === 'browser' && <PrivacyBrowser />}
         {currentTab === 'gallery' && <Gallery />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
@@ -78,7 +77,6 @@ export default function App() {
         {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
-      {/* BOTTOM NAV DOCK */}
       <nav 
         className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
@@ -89,6 +87,13 @@ export default function App() {
         >
           <span className="text-sm">📷</span>
           Camera
+        </button>
+        <button
+          onClick={() => setCurrentTab('browser')}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'browser' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+        >
+          <span className="text-sm">🌐</span>
+          Browser
         </button>
         <button
           onClick={() => setCurrentTab('gallery')}
