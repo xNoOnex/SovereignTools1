@@ -111,13 +111,58 @@ public class MainActivity extends BridgeActivity {
 
     public class AndroidBridge {
 
+        // AUTOMATIC FULL-DEVICE FILE SCANNER
+        @JavascriptInterface
+        public String getAllDeviceFiles() {
+            JSONArray array = new JSONArray();
+            try {
+                ContentResolver resolver = getContentResolver();
+                Uri filesUri = MediaStore.Files.getContentUri("external");
+                String[] projection = {
+                    MediaStore.Files.FileColumns._ID,
+                    MediaStore.Files.FileColumns.DISPLAY_NAME,
+                    MediaStore.Files.FileColumns.SIZE,
+                    MediaStore.Files.FileColumns.DATA,
+                    MediaStore.Files.FileColumns.MIME_TYPE
+                };
+
+                String selection = MediaStore.Files.FileColumns.SIZE + " > 0";
+                Cursor cursor = resolver.query(filesUri, projection, selection, null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
+
+                if (cursor != null) {
+                    int count = 0;
+                    while (cursor.moveToNext() && count < 400) {
+                        long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns._ID));
+                        String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DISPLAY_NAME));
+                        long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.SIZE));
+                        String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.DATA));
+                        String mime = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Files.FileColumns.MIME_TYPE));
+
+                        if (dataPath != null && !dataPath.contains("/Android/data") && !dataPath.contains("/Android/obb")) {
+                            JSONObject obj = new JSONObject();
+                            obj.put("id", id);
+                            obj.put("name", name != null ? name : "File_" + id);
+                            obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
+                            obj.put("absolutePath", dataPath);
+                            obj.put("mimeType", mime != null ? mime : "application/octet-stream");
+                            array.put(obj);
+                            count++;
+                        }
+                    }
+                    cursor.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return array.toString();
+        }
+
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
 
-                // Scan Images
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
@@ -165,7 +210,6 @@ public class MainActivity extends BridgeActivity {
                     cursor.close();
                 }
 
-                // Scan Videos
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
@@ -238,6 +282,11 @@ public class MainActivity extends BridgeActivity {
                     getContentResolver().delete(
                         MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                         MediaStore.Video.Media.DATA + "=?",
+                        new String[]{absolutePath}
+                    );
+                    getContentResolver().delete(
+                        MediaStore.Files.getContentUri("external"),
+                        MediaStore.Files.FileColumns.DATA + "=?",
                         new String[]{absolutePath}
                     );
 
