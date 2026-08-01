@@ -6,7 +6,8 @@ import { Gallery } from './components/Gallery';
 import { DocumentManager } from './components/DocumentManager';
 import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
-import { EncryptedComms } from './components/EncryptedComms';
+import { PgpCipherTool } from './components/PgpCipherTool'; // RESTORED YOUR ORIGINAL PGP TOOL!
+import { EncryptedComms } from './components/EncryptedComms'; // NEW SEPARATE COMMS TAB
 import { AesCipherTool } from './components/AesCipherTool';
 import { FileShredder } from './components/FileShredder';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
@@ -76,7 +77,8 @@ export default function App() {
         {currentTab === 'docs' && <DocumentManager />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
-        {currentTab === 'pgp' && <EncryptedComms />}
+        {currentTab === 'pgp' && <PgpCipherTool />}
+        {currentTab === 'comms' && <EncryptedComms />}
         {currentTab === 'aes' && <AesCipherTool />}
         {currentTab === 'shredder' && <FileShredder />}
         {currentTab === 'ai' && <LocalAIAssistant />}
@@ -110,6 +112,9 @@ export default function App() {
           <span className="text-sm">⚡</span>Debloat
         </button>
         <button onClick={() => setCurrentTab('pgp')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
+          <span className="text-sm">🔑</span>PGP
+        </button>
+        <button onClick={() => setCurrentTab('comms')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'comms' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
           <span className="text-sm">📡</span>Comms
         </button>
         <button onClick={() => setCurrentTab('aes')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}>
