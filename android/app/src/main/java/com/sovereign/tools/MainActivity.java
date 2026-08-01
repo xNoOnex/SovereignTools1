@@ -29,6 +29,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.HorizontalScrollView;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.webkit.ProxyConfig;
@@ -46,6 +47,8 @@ import java.io.OutputStream;
 import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
@@ -54,9 +57,15 @@ public class MainActivity extends BridgeActivity {
     private final static int FILECHOOSER_RESULTCODE = 1001;
     private final static int PERMISSION_REQUEST_CODE = 2002;
 
+    // MULTI-TAB NATIVE BROWSER OVERLAY
     private FrameLayout nativeBrowserContainer;
-    private WebView nativeBrowserView;
+    private FrameLayout webViewHolder;
+    private LinearLayout tabStripLayout;
     private EditText nativeUrlInput;
+
+    private List<WebView> tabList = new ArrayList<>();
+    private int currentTabIndex = -1;
+    private boolean isFullscreenMode = false;
 
     private int dpToPx(int dp) {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
@@ -67,7 +76,6 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         checkAndRequestPermissions();
 
-        // Clear proxy override on init if supported
         if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
             try {
                 ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {});
@@ -131,70 +139,79 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
 
+            // TOP ACTION CONTROLS
             LinearLayout topBar = new LinearLayout(this);
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setGravity(Gravity.CENTER_VERTICAL);
-            topBar.setPadding(dpToPx(8), dpToPx(36), dpToPx(8), dpToPx(8));
+            topBar.setPadding(dpToPx(8), dpToPx(36), dpToPx(8), dpToPx(4));
             topBar.setBackgroundColor(Color.parseColor("#18181b"));
 
             Button btnExit = new Button(this);
             btnExit.setText("✕");
-            btnExit.setTextSize(14);
+            btnExit.setTextSize(12);
             btnExit.setTextColor(Color.WHITE);
             btnExit.setBackgroundColor(Color.parseColor("#27272a"));
-            LinearLayout.LayoutParams btnExitParams = new LinearLayout.LayoutParams(dpToPx(40), dpToPx(38));
-            btnExitParams.setMargins(0, 0, dpToPx(4), 0);
-            btnExit.setLayoutParams(btnExitParams);
+            LinearLayout.LayoutParams btnSmall = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(36));
+            btnSmall.setMargins(0, 0, dpToPx(3), 0);
+            btnExit.setLayoutParams(btnSmall);
             btnExit.setOnClickListener(v -> closeNativeBrowser());
+
+            Button btnHome = new Button(this);
+            btnHome.setText("🏠");
+            btnHome.setTextSize(12);
+            btnHome.setTextColor(Color.WHITE);
+            btnHome.setBackgroundColor(Color.parseColor("#27272a"));
+            btnHome.setLayoutParams(btnSmall);
+            btnHome.setOnClickListener(v -> {
+                if (currentTabIndex >= 0 && currentTabIndex < tabList.size()) {
+                    tabList.get(currentTabIndex).loadUrl("https://duckduckgo.com");
+                }
+            });
 
             Button btnBack = new Button(this);
             btnBack.setText("‹");
-            btnBack.setTextSize(16);
+            btnBack.setTextSize(14);
             btnBack.setTextColor(Color.WHITE);
             btnBack.setBackgroundColor(Color.parseColor("#27272a"));
-            LinearLayout.LayoutParams btnNavParams = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(38));
-            btnNavParams.setMargins(0, 0, dpToPx(4), 0);
-            btnBack.setLayoutParams(btnNavParams);
+            btnBack.setLayoutParams(btnSmall);
             btnBack.setOnClickListener(v -> {
-                if (nativeBrowserView != null && nativeBrowserView.canGoBack()) {
-                    nativeBrowserView.goBack();
+                if (currentTabIndex >= 0 && currentTabIndex < tabList.size() && tabList.get(currentTabIndex).canGoBack()) {
+                    tabList.get(currentTabIndex).goBack();
                 }
             });
 
             Button btnForward = new Button(this);
             btnForward.setText("›");
-            btnForward.setTextSize(16);
+            btnForward.setTextSize(14);
             btnForward.setTextColor(Color.WHITE);
             btnForward.setBackgroundColor(Color.parseColor("#27272a"));
-            btnForward.setLayoutParams(btnNavParams);
+            btnForward.setLayoutParams(btnSmall);
             btnForward.setOnClickListener(v -> {
-                if (nativeBrowserView != null && nativeBrowserView.canGoForward()) {
-                    nativeBrowserView.goForward();
+                if (currentTabIndex >= 0 && currentTabIndex < tabList.size() && tabList.get(currentTabIndex).canGoForward()) {
+                    tabList.get(currentTabIndex).goForward();
                 }
             });
 
             nativeUrlInput = new EditText(this);
             nativeUrlInput.setText("https://duckduckgo.com");
-            nativeUrlInput.setTextSize(12);
+            nativeUrlInput.setTextSize(11);
             nativeUrlInput.setTextColor(Color.WHITE);
-            nativeUrlInput.setHint("Search or enter URL...");
+            nativeUrlInput.setHint("Search or URL...");
             nativeUrlInput.setHintTextColor(Color.GRAY);
             nativeUrlInput.setSingleLine(true);
-            nativeUrlInput.setLines(1);
-            nativeUrlInput.setMaxLines(1);
             nativeUrlInput.setBackgroundColor(Color.parseColor("#27272a"));
-            nativeUrlInput.setPadding(dpToPx(10), dpToPx(6), dpToPx(10), dpToPx(6));
+            nativeUrlInput.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
 
-            LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, dpToPx(38), 1.0f);
-            urlParams.setMargins(dpToPx(4), 0, dpToPx(4), 0);
+            LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, dpToPx(36), 1.0f);
+            urlParams.setMargins(dpToPx(3), 0, dpToPx(3), 0);
             nativeUrlInput.setLayoutParams(urlParams);
 
             Button btnGo = new Button(this);
             btnGo.setText("Go");
-            btnGo.setTextSize(11);
+            btnGo.setTextSize(10);
             btnGo.setTextColor(Color.BLACK);
             btnGo.setBackgroundColor(Color.parseColor("#06b6d4"));
-            LinearLayout.LayoutParams btnGoParams = new LinearLayout.LayoutParams(dpToPx(48), dpToPx(38));
+            LinearLayout.LayoutParams btnGoParams = new LinearLayout.LayoutParams(dpToPx(42), dpToPx(36));
             btnGo.setLayoutParams(btnGoParams);
             btnGo.setOnClickListener(v -> {
                 String input = nativeUrlInput.getText().toString().trim();
@@ -206,51 +223,195 @@ public class MainActivity extends BridgeActivity {
                     }
                 }
                 nativeUrlInput.setText(input);
-                if (nativeBrowserView != null) nativeBrowserView.loadUrl(input);
+                if (currentTabIndex >= 0 && currentTabIndex < tabList.size()) {
+                    tabList.get(currentTabIndex).loadUrl(input);
+                }
             });
 
+            Button btnFullscreen = new Button(this);
+            btnFullscreen.setText("⛶");
+            btnFullscreen.setTextSize(12);
+            btnFullscreen.setTextColor(Color.WHITE);
+            btnFullscreen.setBackgroundColor(Color.parseColor("#27272a"));
+            LinearLayout.LayoutParams btnFsParams = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(36));
+            btnFsParams.setMargins(dpToPx(3), 0, 0, 0);
+            btnFullscreen.setLayoutParams(btnFsParams);
+            btnFullscreen.setOnClickListener(v -> toggleFullscreenMode(topBar));
+
             topBar.addView(btnExit);
+            topBar.addView(btnHome);
             topBar.addView(btnBack);
             topBar.addView(btnForward);
             topBar.addView(nativeUrlInput);
             topBar.addView(btnGo);
+            topBar.addView(btnFullscreen);
 
-            nativeBrowserView = new WebView(this);
-            nativeBrowserView.setLayoutParams(new LinearLayout.LayoutParams(
+            // TAB MANAGER BAR
+            LinearLayout tabControlBar = new LinearLayout(this);
+            tabControlBar.setOrientation(LinearLayout.HORIZONTAL);
+            tabControlBar.setGravity(Gravity.CENTER_VERTICAL);
+            tabControlBar.setBackgroundColor(Color.parseColor("#09090b"));
+            tabControlBar.setPadding(dpToPx(8), dpToPx(2), dpToPx(8), dpToPx(4));
+
+            Button btnNewTab = new Button(this);
+            btnNewTab.setText("+ Tab");
+            btnNewTab.setTextSize(10);
+            btnNewTab.setTextColor(Color.CYAN);
+            btnNewTab.setBackgroundColor(Color.parseColor("#18181b"));
+            btnNewTab.setLayoutParams(new LinearLayout.LayoutParams(dpToPx(60), dpToPx(28)));
+            btnNewTab.setOnClickListener(v -> createNewTab("https://duckduckgo.com"));
+
+            HorizontalScrollView tabScrollView = new HorizontalScrollView(this);
+            tabScrollView.setLayoutParams(new LinearLayout.LayoutParams(0, dpToPx(28), 1.0f));
+            tabScrollView.setHorizontalScrollBarEnabled(false);
+
+            tabStripLayout = new LinearLayout(this);
+            tabStripLayout.setOrientation(LinearLayout.HORIZONTAL);
+            tabScrollView.addView(tabStripLayout);
+
+            tabControlBar.addView(btnNewTab);
+            tabControlBar.addView(tabScrollView);
+
+            // WEBVIEW CONTAINER
+            webViewHolder = new FrameLayout(this);
+            webViewHolder.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
-            nativeBrowserView.getSettings().setJavaScriptEnabled(true);
-            nativeBrowserView.getSettings().setDomStorageEnabled(true);
-            nativeBrowserView.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-
-            nativeBrowserView.setWebViewClient(new WebViewClient() {
-                @Override
-                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-                    return false;
-                }
-
-                @Override
-                public void onPageFinished(WebView view, String url) {
-                    super.onPageFinished(view, url);
-                    if (nativeUrlInput != null) nativeUrlInput.setText(url);
-                }
-            });
 
             mainLayout.addView(topBar);
-            mainLayout.addView(nativeBrowserView);
+            mainLayout.addView(tabControlBar);
+            mainLayout.addView(webViewHolder);
 
             nativeBrowserContainer.addView(mainLayout);
             rootView.addView(nativeBrowserContainer);
+
+            // Initialize default first tab
+            createNewTab("https://duckduckgo.com");
         });
+    }
+
+    private void toggleFullscreenMode(View topBar) {
+        isFullscreenMode = !isFullscreenMode;
+        if (isFullscreenMode) {
+            getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            );
+            Toast.makeText(this, "Fullscreen Active (Tap ⛶ to Exit)", Toast.LENGTH_SHORT).show();
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        }
+    }
+
+    private void createNewTab(String url) {
+        WebView wv = new WebView(this);
+        wv.setLayoutParams(new FrameLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT,
+            ViewGroup.LayoutParams.MATCH_PARENT
+        ));
+        wv.getSettings().setJavaScriptEnabled(true);
+        wv.getSettings().setDomStorageEnabled(true);
+        wv.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+        wv.setWebViewClient(new WebViewClient() {
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                return false;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String finishedUrl) {
+                super.onPageFinished(view, finishedUrl);
+                if (tabList.indexOf(view) == currentTabIndex && nativeUrlInput != null) {
+                    nativeUrlInput.setText(finishedUrl);
+                }
+                renderTabStrip();
+            }
+        });
+
+        tabList.add(wv);
+        webViewHolder.addView(wv);
+        switchToTab(tabList.size() - 1);
+        wv.loadUrl(url);
+    }
+
+    private void switchToTab(int index) {
+        if (index < 0 || index >= tabList.size()) return;
+        currentTabIndex = index;
+        for (int i = 0; i < tabList.size(); i++) {
+            tabList.get(i).setVisibility(i == index ? View.VISIBLE : View.GONE);
+        }
+        if (nativeUrlInput != null) {
+            String url = tabList.get(index).getUrl();
+            nativeUrlInput.setText(url != null ? url : "https://duckduckgo.com");
+        }
+        renderTabStrip();
+    }
+
+    private void closeTab(int index) {
+        if (tabList.size() <= 1) return; // Keep at least one tab
+        WebView wv = tabList.remove(index);
+        webViewHolder.removeView(wv);
+        wv.destroy();
+
+        if (currentTabIndex >= tabList.size()) {
+            currentTabIndex = tabList.size() - 1;
+        }
+        switchToTab(currentTabIndex);
+    }
+
+    private void renderTabStrip() {
+        if (tabStripLayout == null) return;
+        tabStripLayout.removeAllViews();
+
+        for (int i = 0; i < tabList.size(); i++) {
+            final int tabIdx = i;
+            WebView wv = tabList.get(i);
+
+            LinearLayout tabItem = new LinearLayout(this);
+            tabItem.setOrientation(LinearLayout.HORIZONTAL);
+            tabItem.setGravity(Gravity.CENTER_VERTICAL);
+            tabItem.setPadding(dpToPx(8), 0, dpToPx(4), 0);
+            
+            boolean isActive = (i == currentTabIndex);
+            tabItem.setBackgroundColor(Color.parseColor(isActive ? "#27272a" : "#18181b"));
+
+            LinearLayout.LayoutParams itemParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            );
+            itemParams.setMargins(0, 0, dpToPx(4), 0);
+            tabItem.setLayoutParams(itemParams);
+
+            Button btnTitle = new Button(this);
+            String title = wv.getTitle();
+            btnTitle.setText((title != null && !title.isEmpty()) ? title : "Tab " + (i + 1));
+            btnTitle.setTextSize(9);
+            btnTitle.setTextColor(isActive ? Color.CYAN : Color.GRAY);
+            btnTitle.setBackgroundColor(Color.TRANSPARENT);
+            btnTitle.setOnClickListener(v -> switchToTab(tabIdx));
+
+            Button btnClose = new Button(this);
+            btnClose.setText("✕");
+            btnClose.setTextSize(8);
+            btnClose.setTextColor(Color.RED);
+            btnClose.setBackgroundColor(Color.TRANSPARENT);
+            btnClose.setOnClickListener(v -> closeTab(tabIdx));
+
+            tabItem.addView(btnTitle);
+            if (tabList.size() > 1) {
+                tabItem.addView(btnClose);
+            }
+            tabStripLayout.addView(tabItem);
+        }
     }
 
     public void openNativeBrowser(String url) {
         runOnUiThread(() -> {
             if (nativeBrowserContainer != null) {
                 nativeBrowserContainer.setVisibility(View.VISIBLE);
-                if (nativeBrowserView != null) {
-                    nativeBrowserView.loadUrl(url);
+                if (tabList.isEmpty()) {
+                    createNewTab((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com");
                 }
             }
         });
@@ -283,22 +444,6 @@ public class MainActivity extends BridgeActivity {
                 startActivity(intent);
             }
         }
-    }
-
-    private String resolveRealPathFromUri(Uri uri) {
-        String path = null;
-        try {
-            String[] proj = { MediaStore.MediaColumns.DATA };
-            Cursor cursor = getContentResolver().query(uri, proj, null, null, null);
-            if (cursor != null) {
-                if (cursor.moveToFirst()) {
-                    int colIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA);
-                    if (colIdx != -1) path = cursor.getString(colIdx);
-                }
-                cursor.close();
-            }
-        } catch (Exception ignored) {}
-        return path;
     }
 
     public class AndroidBridge {
@@ -356,13 +501,14 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
+        // SAFE MEDIASTORE CONTENT URI SCANNER
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
 
-                // Scan images
+                // Scan images using ContentResolver URIs
                 Cursor cursor = resolver.query(
                     MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                     new String[]{ MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATA, MediaStore.Images.Media.RELATIVE_PATH },
@@ -377,33 +523,32 @@ public class MainActivity extends BridgeActivity {
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
                         String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA));
                         String relPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH));
+                        Uri contentUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
-                        if (dataPath != null) {
-                            JSONObject obj = new JSONObject();
-                            obj.put("id", id);
-                            obj.put("name", name != null ? name : "Img_" + id);
-                            obj.put("size", (size / 1024) + " KB");
-                            obj.put("type", "image");
-                            obj.put("absolutePath", dataPath);
+                        JSONObject obj = new JSONObject();
+                        obj.put("id", id);
+                        obj.put("name", name != null ? name : "Img_" + id);
+                        obj.put("size", (size / 1024) + " KB");
+                        obj.put("type", "image");
+                        obj.put("absolutePath", dataPath != null ? dataPath : "");
 
-                            String folderName = "Pictures";
-                            if (relPath != null) {
-                                if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
-                                else if (relPath.contains("DCIM")) folderName = "Camera";
-                                else if (relPath.contains("Screenshots")) folderName = "Screenshots";
-                                else if (relPath.contains("Download")) folderName = "Downloads";
-                            }
-                            obj.put("folder", folderName);
-                            obj.put("cleanUrl", "file://" + dataPath);
-
-                            array.put(obj);
-                            count++;
+                        String folderName = "Pictures";
+                        if (relPath != null) {
+                            if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
+                            else if (relPath.contains("DCIM")) folderName = "Camera";
+                            else if (relPath.contains("Screenshots")) folderName = "Screenshots";
+                            else if (relPath.contains("Download")) folderName = "Downloads";
                         }
+                        obj.put("folder", folderName);
+                        obj.put("cleanUrl", contentUri.toString());
+
+                        array.put(obj);
+                        count++;
                     }
                     cursor.close();
                 }
 
-                // Scan videos
+                // Scan videos using ContentResolver URIs
                 Cursor vCursor = resolver.query(
                     MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                     new String[]{ MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATA, MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.MIME_TYPE },
@@ -419,24 +564,23 @@ public class MainActivity extends BridgeActivity {
                         String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
                         String relPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
                         String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
+                        Uri contentUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
-                        if (dataPath != null) {
-                            JSONObject obj = new JSONObject();
-                            obj.put("id", id + 10000000);
-                            obj.put("name", name != null ? name : "Vid_" + id);
-                            obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
-                            obj.put("type", "video");
-                            obj.put("absolutePath", dataPath);
+                        JSONObject obj = new JSONObject();
+                        obj.put("id", id + 10000000);
+                        obj.put("name", name != null ? name : "Vid_" + id);
+                        obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
+                        obj.put("type", "video");
+                        obj.put("absolutePath", dataPath != null ? dataPath : "");
 
-                            String folderName = "Videos";
-                            if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
-                            obj.put("folder", folderName);
-                            obj.put("cleanUrl", "file://" + dataPath);
-                            obj.put("mimeType", mime != null ? mime : "video/mp4");
+                        String folderName = "Videos";
+                        if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
+                        obj.put("folder", folderName);
+                        obj.put("cleanUrl", contentUri.toString());
+                        obj.put("mimeType", mime != null ? mime : "video/mp4");
 
-                            array.put(obj);
-                            vCount++;
-                        }
+                        array.put(obj);
+                        vCount++;
                     }
                     vCursor.close();
                 }
@@ -576,10 +720,7 @@ public class MainActivity extends BridgeActivity {
                         out.flush();
                         out.close();
 
-                        String realPath = resolveRealPathFromUri(uri);
-                        if (realPath != null) {
-                            MediaScannerConnection.scanFile(MainActivity.this, new String[]{realPath}, null, (path, newUri) -> {});
-                        }
+                        MediaScannerConnection.scanFile(MainActivity.this, new String[]{uri.toString()}, null, (path, newUri) -> {});
 
                         runOnUiThread(() -> Toast.makeText(
                             MainActivity.this,
