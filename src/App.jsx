@@ -5,9 +5,10 @@ import { ExifFreeCamera } from './components/ExifFreeCamera';
 import { Gallery } from './components/Gallery';
 import { AudioPlayer } from './components/AudioPlayer';
 import { DocumentManager } from './components/DocumentManager';
+import { Calculator } from './components/Calculator';
 import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
-import { EncryptedComms } from './components/EncryptedComms'; // Unified PGP + P2P Comms
+import { EncryptedComms } from './components/EncryptedComms';
 import { AesCipherTool } from './components/AesCipherTool';
 import { FileShredder } from './components/FileShredder';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
@@ -38,7 +39,6 @@ export default function App() {
     >
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
-      {/* TOP HEADER */}
       <header 
         className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md cursor-pointer"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 36px)' }}
@@ -52,30 +52,18 @@ export default function App() {
         </div>
 
         <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setCurrentTab('settings')}
-            className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
-              currentTab === 'settings' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-800 text-zinc-300 border-zinc-700'
-            }`}
-          >
-            ⚙️ Settings
-          </button>
-          <button
-            onClick={() => setIsUnlocked(false)}
-            className="text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg border border-zinc-700 font-medium"
-          >
-            🔒 Lock
-          </button>
+          <button onClick={() => setCurrentTab('settings')} className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium ${currentTab === 'settings' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>⚙️ Settings</button>
+          <button onClick={() => setIsUnlocked(false)} className="text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg border border-zinc-700 font-medium">🔒 Lock</button>
         </div>
       </header>
 
-      {/* MAIN CONTENT VIEWPORT */}
       <main className="flex-1 pb-32 relative z-10">
         {currentTab === 'home' && <Home onSelectTab={(tab) => setCurrentTab(tab)} />}
         {currentTab === 'browser' && <PrivacyBrowser />}
         {currentTab === 'gallery' && <Gallery />}
         {currentTab === 'audio' && <AudioPlayer />}
         {currentTab === 'docs' && <DocumentManager />}
+        {currentTab === 'calc' && <Calculator />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
         {currentTab === 'comms' && <EncryptedComms />}
@@ -85,7 +73,6 @@ export default function App() {
         {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
-      {/* BOTTOM NAVIGATION DOCK */}
       <nav 
         className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-start space-x-2 text-[8px] font-bold z-40 backdrop-blur-md overflow-x-auto no-scrollbar"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
@@ -96,6 +83,10 @@ export default function App() {
         <button onClick={() => setCurrentTab('gallery')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'gallery' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🖼️</span>Gallery</button>
         <button onClick={() => setCurrentTab('audio')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'audio' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🎧</span>Audio</button>
         <button onClick={() => setCurrentTab('docs')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'docs' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📝</span>Docs</button>
+        
+        {/* NEW CALC TAB */}
+        <button onClick={() => setCurrentTab('calc')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'calc' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🧮</span>Calc</button>
+        
         <button onClick={() => setCurrentTab('vault')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🔐</span>Vault</button>
         <button onClick={() => setCurrentTab('debloater')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">⚡</span>Debloat</button>
         <button onClick={() => setCurrentTab('comms')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'comms' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📡</span>Comms</button>
