@@ -52,7 +52,6 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         requestAndroidPermissions();
 
-        // Clear proxy override by default to ensure direct connection works out-of-the-box
         if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
             try {
                 ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {});
@@ -116,6 +115,22 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    private String resolveRealPathFromUri(Uri uri) {
+        String path = null;
+        try {
+            String[] proj = { MediaStore.MediaColumns.DATA };
+            Cursor cursor = getContentResolver().query(uri, proj, null, null, null);
+            if (cursor != null) {
+                if (cursor.moveToFirst()) {
+                    int colIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA);
+                    if (colIdx != -1) path = cursor.getString(colIdx);
+                }
+                cursor.close();
+            }
+        } catch (Exception e) {}
+        return path;
+    }
+
     public class AndroidBridge {
 
         @JavascriptInterface
@@ -163,12 +178,14 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
+        // AUTO-SCAN ALL DEVICE PHOTOS & VIDEOS
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
 
+                // 1. Scan ALL Photos on Device
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
@@ -177,12 +194,11 @@ public class MainActivity extends BridgeActivity {
                     MediaStore.Images.Media.DATA,
                     MediaStore.Images.Media.RELATIVE_PATH
                 };
-                String imageSelection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
-                String[] imageArgs = new String[]{"%DCIM/SovereignTools%", "%Pictures%"};
 
-                Cursor cursor = resolver.query(imageUri, imageProj, imageSelection, imageArgs, MediaStore.Images.Media.DATE_ADDED + " DESC");
+                Cursor cursor = resolver.query(imageUri, imageProj, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
                 if (cursor != null) {
-                    while (cursor.moveToNext()) {
+                    int count = 0;
+                    while (cursor.moveToNext() && count < 300) {
                         long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
                         String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME));
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
@@ -203,52 +219,67 @@ public class MainActivity extends BridgeActivity {
                         
                         JSONObject obj = new JSONObject();
                         obj.put("id", id);
-                        obj.put("name", name);
+                        obj.put("name", name != null ? name : "Img_" + id);
                         obj.put("size", (size / 1024) + " KB");
                         obj.put("type", "image");
                         obj.put("absolutePath", dataPath != null ? dataPath : "");
-                        obj.put("folder", (relPath != null && relPath.contains("DCIM")) ? "Camera Photos" : "Imported Photos");
+                        
+                        String folderName = "Pictures";
+                        if (relPath != null) {
+                            if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
+                            else if (relPath.contains("DCIM")) folderName = "Camera";
+                            else if (relPath.contains("Screenshots")) folderName = "Screenshots";
+                            else if (relPath.contains("Download")) folderName = "Downloads";
+                        }
+                        obj.put("folder", folderName);
                         obj.put("uri", fullUri.toString());
                         obj.put("cleanUrl", "data:image/jpeg;base64," + base64Str);
 
                         array.put(obj);
+                        count++;
                     }
                     cursor.close();
                 }
 
+                // 2. Scan ALL Videos on Device
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
                     MediaStore.Video.Media.DISPLAY_NAME,
                     MediaStore.Video.Media.SIZE,
                     MediaStore.Video.Media.DATA,
+                    MediaStore.Video.Media.RELATIVE_PATH,
                     MediaStore.Video.Media.MIME_TYPE
                 };
-                String videoSelection = MediaStore.Video.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Video.Media.RELATIVE_PATH + " LIKE ?";
-                String[] videoArgs = new String[]{"%Movies/SovereignTools%", "%DCIM/SovereignTools%"};
 
-                Cursor vCursor = resolver.query(videoUri, videoProj, videoSelection, videoArgs, MediaStore.Video.Media.DATE_ADDED + " DESC");
+                Cursor vCursor = resolver.query(videoUri, videoProj, null, null, MediaStore.Video.Media.DATE_ADDED + " DESC");
                 if (vCursor != null) {
-                    while (vCursor.moveToNext()) {
+                    int vCount = 0;
+                    while (vCursor.moveToNext() && vCount < 100) {
                         long id = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID));
                         String name = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME));
                         long size = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE));
                         String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
+                        String relPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
                         String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
                         Uri fullUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
                         JSONObject obj = new JSONObject();
-                        obj.put("id", id + 1000000);
-                        obj.put("name", name);
-                        obj.put("size", (size / 1024) + " KB");
+                        obj.put("id", id + 10000000);
+                        obj.put("name", name != null ? name : "Vid_" + id);
+                        obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
                         obj.put("type", "video");
                         obj.put("absolutePath", dataPath != null ? dataPath : "");
-                        obj.put("folder", "Camera Videos");
+                        
+                        String folderName = "Videos";
+                        if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
+                        obj.put("folder", folderName);
                         obj.put("uri", fullUri.toString());
                         obj.put("cleanUrl", fullUri.toString());
                         obj.put("mimeType", mime != null ? mime : "video/mp4");
 
                         array.put(obj);
+                        vCount++;
                     }
                     vCursor.close();
                 }
@@ -288,11 +319,6 @@ public class MainActivity extends BridgeActivity {
                     getContentResolver().delete(
                         MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
                         MediaStore.Video.Media.DATA + "=?",
-                        new String[]{absolutePath}
-                    );
-                    getContentResolver().delete(
-                        MediaStore.Files.getContentUri("external"),
-                        MediaStore.Files.FileColumns.DATA + "=?",
                         new String[]{absolutePath}
                     );
 
@@ -385,6 +411,7 @@ public class MainActivity extends BridgeActivity {
             return false;
         }
 
+        // RELIABLE INSTANT MEDIASTORE SAVING
         @JavascriptInterface
         public boolean saveToGallery(String base64Data, String filename, String mimeType) {
             try {
@@ -411,10 +438,22 @@ public class MainActivity extends BridgeActivity {
                         out.write(data);
                         out.flush();
                         out.close();
+
+                        // Force MediaScanner connection update immediately
+                        String realPath = resolveRealPathFromUri(uri);
+                        if (realPath != null) {
+                            MediaScannerConnection.scanFile(
+                                MainActivity.this, 
+                                new String[]{realPath}, 
+                                null, 
+                                (path, newUri) -> {}
+                            );
+                        }
+
                         runOnUiThread(() -> Toast.makeText(
                             MainActivity.this, 
-                            isVideo ? "🎥 Video Saved to Movies/SovereignTools" : "📸 Photo Saved to DCIM/SovereignTools", 
-                            Toast.LENGTH_LONG
+                            isVideo ? "🎥 Video Saved to Gallery" : "📸 Photo Saved to Gallery", 
+                            Toast.LENGTH_SHORT
                         ).show());
                         return true;
                     }
