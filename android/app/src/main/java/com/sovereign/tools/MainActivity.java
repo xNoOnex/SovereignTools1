@@ -209,7 +209,6 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
-        // ABSOLUTE PATH HARDWARE SECTOR ZEROING & DELETION
         @JavascriptInterface
         public boolean shredFileByAbsolutePath(String absolutePath) {
             try {
@@ -231,7 +230,6 @@ public class MainActivity extends BridgeActivity {
                     }
                     boolean deleted = file.delete();
 
-                    // Purge from MediaStore Database Cache
                     getContentResolver().delete(
                         MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
                         MediaStore.Images.Media.DATA + "=?",
@@ -313,7 +311,7 @@ public class MainActivity extends BridgeActivity {
                 } else if ("http".equalsIgnoreCase(proxyType)) {
                     proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
                 } else {
-                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () => {
+                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
                         runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Direct Mode Active", Toast.LENGTH_SHORT).show());
                     });
                     return true;
