@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ToolFooter } from './ToolFooter';
 
 export function Gallery() {
@@ -8,7 +8,23 @@ export function Gallery() {
   const [statusMsg, setStatusMsg] = useState('');
   const fileInputRef = useRef(null);
 
-  // Import photo from phone gallery to inspect & scrub
+  // Load physical photos from DCIM/SovereignTools on mount
+  const loadPhysicalGallery = () => {
+    if (window.AndroidNative && window.AndroidNative.getSovereignGalleryPhotos) {
+      try {
+        const rawJson = window.AndroidNative.getSovereignGalleryPhotos();
+        const parsed = JSON.parse(rawJson);
+        setGalleryItems(parsed);
+      } catch (err) {
+        console.error("Gallery scan error:", err);
+      }
+    }
+  };
+
+  useEffect(() => {
+    loadPhysicalGallery();
+  }, []);
+
   const handleImport = (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
@@ -19,7 +35,6 @@ export function Gallery() {
         const img = new Image();
         img.src = event.target.result;
         img.onload = () => {
-          // Process frame into HTML5 Canvas to scrub all EXIF
           const canvas = document.createElement('canvas');
           canvas.width = img.width;
           canvas.height = img.height;
@@ -27,23 +42,22 @@ export function Gallery() {
           ctx.drawImage(img, 0, 0);
 
           const cleanBase64 = canvas.toDataURL('image/jpeg', 0.95);
-          
-          const newItem = {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            originalSize: (file.size / 1024).toFixed(1) + ' KB',
-            dimensions: `${img.width}x${img.height}`,
-            cleanUrl: cleanBase64,
-            importedAt: new Date().toLocaleTimeString(),
-          };
+          const filename = `Scrubbed_${Date.now()}.jpg`;
 
-          setGalleryItems(prev => [newItem, ...prev]);
+          // Save directly to DCIM/SovereignTools physical storage
+          if (window.AndroidNative && window.AndroidNative.saveToGallery) {
+            window.AndroidNative.saveToGallery(cleanBase64, filename, 'image/jpeg');
+          }
+
+          setTimeout(() => {
+            loadPhysicalGallery();
+          }, 500);
         };
       };
       reader.readAsDataURL(file);
     });
 
-    setStatusMsg(`🖼️ Imported & Scrubbed ${files.length} Photo(s)`);
+    setStatusMsg(`🖼️ Imported, Scrubbed & Saved ${files.length} Photo(s)`);
     setTimeout(() => setStatusMsg(''), 2500);
   };
 
@@ -57,32 +71,24 @@ export function Gallery() {
     });
   };
 
-  const saveToGallery = (item) => {
-    if (window.AndroidNative && window.AndroidNative.saveToGallery) {
-      window.AndroidNative.saveToGallery(item.cleanUrl, `Scrubbed_${Date.now()}.jpg`, 'image/jpeg');
-    } else {
-      const link = document.createElement('a');
-      link.href = item.cleanUrl;
-      link.download = `Scrubbed_${Date.now()}.jpg`;
-      link.click();
+  const deleteItem = (item) => {
+    if (item.uri && window.AndroidNative && window.AndroidNative.shredFileByUri) {
+      window.AndroidNative.shredFileByUri(item.uri);
     }
-  };
-
-  const deleteItem = (id) => {
-    setGalleryItems(prev => prev.filter(item => item.id !== id));
-    if (selectedImage?.id === id) setSelectedImage(null);
+    setGalleryItems(prev => prev.filter(i => i.id !== item.id));
+    setSelectedImage(null);
+    setTimeout(() => loadPhysicalGallery(), 500);
   };
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none">
-      {/* Header */}
       <div className="border-b border-zinc-800 pb-3 flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             🖼️ Secure Gallery & Inspector
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Browse scrubbed captures or import phone photos to strip tracking metadata.
+            Persistent storage reader for DCIM/SovereignTools photos.
           </p>
         </div>
         
@@ -110,13 +116,24 @@ export function Gallery() {
         </div>
       )}
 
-      {/* GALLERY GRID */}
+      <div className="flex justify-between items-center">
+        <span className="text-xs font-bold text-zinc-400 font-mono uppercase">
+          DCIM/SovereignTools ({galleryItems.length})
+        </span>
+        <button
+          onClick={loadPhysicalGallery}
+          className="text-[10px] bg-zinc-800 text-cyan-400 border border-zinc-700 px-2 py-1 rounded-lg font-bold"
+        >
+          🔄 Refresh Gallery
+        </button>
+      </div>
+
       {galleryItems.length === 0 ? (
         <div className="bg-zinc-900/60 p-8 border-2 border-dashed border-zinc-800 rounded-2xl text-center space-y-2">
           <span className="text-3xl">🖼️</span>
           <div className="text-xs font-bold text-zinc-300">Gallery Is Currently Empty</div>
           <p className="text-[10px] text-zinc-500 max-w-xs mx-auto">
-            Photos taken with the Camera tab or imported using the "Import Photo" button above will appear here with verified EXIF-free protection.
+            Photos snapped in Camera mode or imported via "Import Photo" will be automatically saved to DCIM/SovereignTools and listed here permanently.
           </p>
         </div>
       ) : (
@@ -137,7 +154,6 @@ export function Gallery() {
         </div>
       )}
 
-      {/* METADATA INSPECTOR MODAL */}
       {selectedImage && metadataInfo && (
         <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md p-4 flex flex-col justify-between overflow-y-auto">
           <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
@@ -163,8 +179,8 @@ export function Gallery() {
                 <span className="text-white font-bold truncate max-w-[180px]">{selectedImage.name}</span>
               </div>
               <div className="flex justify-between border-b border-zinc-800 pb-1.5">
-                <span className="text-zinc-500">Dimensions:</span>
-                <span className="text-cyan-300">{selectedImage.dimensions}</span>
+                <span className="text-zinc-500">Storage Size:</span>
+                <span className="text-cyan-300">{selectedImage.size}</span>
               </div>
               <div className="flex justify-between border-b border-zinc-800 pb-1.5">
                 <span className="text-zinc-500">GPS Location:</span>
@@ -180,28 +196,20 @@ export function Gallery() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                onClick={() => saveToGallery(selectedImage)}
-                className="py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-xl shadow-lg"
-              >
-                💾 Export to Gallery
-              </button>
-              <button
-                onClick={() => deleteItem(selectedImage.id)}
-                className="py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs rounded-xl border border-red-500/40"
-              >
-                🗑️ Remove Entry
-              </button>
-            </div>
+            <button
+              onClick={() => deleteItem(selectedImage)}
+              className="w-full py-3 bg-red-500/20 hover:bg-red-500/30 text-red-400 font-bold text-xs rounded-xl border border-red-500/40"
+            >
+              🗑️ Shred & Remove from Device
+            </button>
           </div>
         </div>
       )}
 
       <ToolFooter
-        title="Sanitized Photo Gallery & EXIF Inspector"
-        details="Renders clean canvas representations stripped of Exchangeable Image File Format (EXIF) metadata headers."
-        disclaimer="Importing external photos strips location tags locally before rendering."
+        title="Persistent Storage Reader"
+        details="Reads clean media directly from the DCIM/SovereignTools device directory."
+        disclaimer="All files persist on disk with stripped EXIF headers."
       />
     </div>
   );

@@ -4,6 +4,7 @@ import android.Manifest;
 import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -26,7 +27,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
-import java.io.FileOutputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
@@ -89,8 +91,60 @@ public class MainActivity extends BridgeActivity {
     }
 
     public class AndroidBridge {
-        
-        // Native CORS-free web request fetcher for AI search
+
+        // Scan DCIM/SovereignTools and return JSON list of persistent gallery photos
+        @JavascriptInterface
+        public String getSovereignGalleryPhotos() {
+            JSONArray array = new JSONArray();
+            try {
+                ContentResolver resolver = getContentResolver();
+                Uri uri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+                String[] projection = {
+                    MediaStore.Images.Media._ID,
+                    MediaStore.Images.Media.DISPLAY_NAME,
+                    MediaStore.Images.Media.SIZE
+                };
+                
+                String selection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
+                String[] selectionArgs = new String[]{"%DCIM/SovereignTools%"};
+
+                Cursor cursor = resolver.query(uri, projection, selection, selectionArgs, MediaStore.Images.Media.DATE_ADDED + " DESC");
+                if (cursor != null) {
+                    while (cursor.moveToNext()) {
+                        long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
+                        String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME));
+                        long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
+                        Uri imageUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
+
+                        // Convert image stream to base64 data URI for rendering
+                        InputStream inputStream = resolver.openInputStream(imageUri);
+                        ByteArrayOutputStream byteBuffer = new ByteArrayOutputStream();
+                        byte[] buffer = new byte[4096];
+                        int len;
+                        while ((len = inputStream.read(buffer)) != -1) {
+                            byteBuffer.write(buffer, 0, len);
+                        }
+                        inputStream.close();
+
+                        String base64Str = Base64.encodeToString(byteBuffer.toByteArray(), Base64.NO_WRAP);
+                        
+                        JSONObject obj = new JSONObject();
+                        obj.put("id", id);
+                        obj.put("name", name);
+                        obj.put("size", (size / 1024) + " KB");
+                        obj.put("uri", imageUri.toString());
+                        obj.put("cleanUrl", "data:image/jpeg;base64," + base64Str);
+
+                        array.put(obj);
+                    }
+                    cursor.close();
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return array.toString();
+        }
+
         @JavascriptInterface
         public String fetchUrl(String urlString) {
             try {
@@ -115,14 +169,12 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
-        // Physical file sector shredder & unlinker
         @JavascriptInterface
         public boolean shredFileByUri(String uriString) {
             try {
                 Uri uri = Uri.parse(uriString);
                 ContentResolver resolver = getContentResolver();
 
-                // 1. Overwrite physical storage sectors with zeroes
                 try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rw")) {
                     if (pfd != null) {
                         FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
@@ -143,7 +195,6 @@ public class MainActivity extends BridgeActivity {
                     e.printStackTrace();
                 }
 
-                // 2. Unlink & remove handle from Android MediaStore / Storage Provider
                 int deletedRows = resolver.delete(uri, null, null);
                 if (deletedRows > 0) {
                     runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 File Zeroed Out & Permanently Deleted", Toast.LENGTH_SHORT).show());
@@ -261,7 +312,6 @@ public class MainActivity extends BridgeActivity {
                 }
             }
 
-            // Send actual Android content URIs directly to JavaScript
             if (this.bridge != null && this.bridge.getWebView() != null) {
                 final String jsonStr = uriList.toString();
                 runOnUiThread(() -> {
