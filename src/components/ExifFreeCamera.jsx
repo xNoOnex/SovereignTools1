@@ -3,17 +3,24 @@ import { ToolFooter } from './ToolFooter';
 
 export function ExifFreeCamera() {
   const videoRef = useRef(null);
+  const canvasScanRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [error, setError] = useState('');
   
-  const [mode, setMode] = useState('photo');
-  const [aspectRatio, setAspectRatio] = useState('full');
+  // Camera Controls
+  const [mode, setMode] = useState('photo'); // 'photo' | 'video' | 'qr' | 'pro'
+  const [filter, setFilter] = useState('none'); // 'none' | 'bw' | 'sepia' | 'matrix' | 'vivid' | 'thermal'
   const [facingMode, setFacingMode] = useState('environment');
   const [zoom, setZoom] = useState(1.0);
   const [exposure, setExposure] = useState(0);
   const [showGrid, setShowGrid] = useState(true);
-  const [timer, setTimer] = useState(0);
-  const [countdown, setCountdown] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  
+  // QR State
+  const [scannedResult, setScannedResult] = useState('');
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Recording State
   const [isRecording, setIsRecording] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
@@ -63,35 +70,51 @@ export function ExifFreeCamera() {
     };
   }, [facingMode, mode]);
 
-  const handleShutter = () => {
-    if (timer > 0) {
-      setCountdown(timer);
-      const interval = setInterval(() => {
-        setCountdown(prev => {
-          if (prev <= 1) {
-            clearInterval(interval);
-            executeCapture();
-            return 0;
+  // QR Code Live Canvas Scanner Loop
+  useEffect(() => {
+    let scanInterval;
+    if (mode === 'qr' && stream) {
+      setIsScanning(true);
+      scanInterval = setInterval(() => {
+        if (!videoRef.current) return;
+        const video = videoRef.current;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          const canvas = document.createElement('canvas');
+          canvas.width = 300;
+          canvas.height = 300;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0, 300, 300);
+
+          // Standard Barcode Detector API (Native Chrome/Android)
+          if ('BarcodeDetector' in window) {
+            const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'code_128'] });
+            barcodeDetector.detect(canvas)
+              .then(barcodes => {
+                if (barcodes.length > 0) {
+                  setScannedResult(barcodes[0].rawValue);
+                  setStatusMsg('🔍 QR Code Detected!');
+                }
+              })
+              .catch(() => {});
           }
-          return prev - 1;
-        });
-      }, 1000);
+        }
+      }, 500);
     } else {
-      executeCapture();
-    }
-  };
-
-  const executeCapture = () => {
-    if (mode === 'video') {
-      if (isRecording) {
-        stopVideoRecording();
-      } else {
-        startVideoRecording();
-      }
-      return;
+      setIsScanning(false);
     }
 
-    takePhoto();
+    return () => clearInterval(scanInterval);
+  }, [mode, stream]);
+
+  const getFilterStyle = () => {
+    switch (filter) {
+      case 'bw': return 'grayscale(100%) contrast(120%)';
+      case 'sepia': return 'sepia(90%) hue-rotate(-30deg) saturate(140%)';
+      case 'matrix': return 'hue-rotate(90deg) contrast(180%) brightness(90%)';
+      case 'vivid': return 'saturate(200%) contrast(110%)';
+      case 'thermal': return 'invert(100%) hue-rotate(180deg) contrast(150%)';
+      default: return 'none';
+    }
   };
 
   const takePhoto = () => {
@@ -103,8 +126,15 @@ export function ExifFreeCamera() {
     canvas.height = video.videoHeight || 720;
     
     const ctx = canvas.getContext('2d');
+    
+    // Apply privacy canvas filters directly into exported image pixels
+    const activeFilter = getFilterStyle();
+    if (activeFilter !== 'none') {
+      ctx.filter = activeFilter;
+    }
+
     if (mode === 'pro' && exposure !== 0) {
-      ctx.filter = `brightness(${100 + exposure * 25}%)`;
+      ctx.filter += ` brightness(${100 + exposure * 25}%)`;
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
@@ -120,89 +150,54 @@ export function ExifFreeCamera() {
       link.click();
     }
 
-    setStatusMsg('📸 Photo Captured & EXIF Scrubbed');
+    setStatusMsg('📸 Photo Saved (EXIF Scrubbed & Filtered)');
     setTimeout(() => setStatusMsg(''), 2500);
   };
 
-  const startVideoRecording = () => {
-    if (!stream) return;
-    recordedChunksRef.current = [];
-    
-    let options = {};
-    if (MediaRecorder.isTypeSupported('video/mp4')) {
-      options = { mimeType: 'video/mp4' };
-    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8')) {
-      options = { mimeType: 'video/webm;codecs=vp8' };
-    }
-
-    try {
-      const recorder = new MediaRecorder(stream, options);
-      
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-      };
-
-      recorder.onstop = () => {
-        const mime = options.mimeType || 'video/mp4';
-        const blob = new Blob(recordedChunksRef.current, { type: mime });
-        const reader = new FileReader();
-        reader.readAsDataURL(blob);
-        reader.onloadend = () => {
-          const base64Video = reader.result;
-          const ext = mime.includes('mp4') ? 'mp4' : 'webm';
-          const filename = `Sovereign_Video_${Date.now()}.${ext}`;
-
-          if (window.AndroidNative && window.AndroidNative.saveToGallery) {
-            window.AndroidNative.saveToGallery(base64Video, filename, mime);
-          } else {
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = filename;
-            link.click();
-          }
-        };
-
-        setStatusMsg('🎥 Video Recording Saved');
-        setTimeout(() => setStatusMsg(''), 2500);
-      };
-
-      recorder.start();
-      mediaRecorderRef.current = recorder;
-      setIsRecording(true);
-    } catch (e) {
-      alert("Video recording error: " + e.message);
-    }
-  };
-
-  const stopVideoRecording = () => {
-    if (mediaRecorderRef.current) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    }
-  };
-
-  const getAspectStyle = () => {
-    switch (aspectRatio) {
-      case '16:9': return 'aspect-[9/16]';
-      case '4:3': return 'aspect-[3/4]';
-      case '1:1': return 'aspect-square';
-      default: return 'aspect-[9/16]';
-    }
+  const copyQrResult = () => {
+    navigator.clipboard.writeText(scannedResult);
+    setStatusMsg('📋 QR Data Copied to Clipboard!');
+    setTimeout(() => setStatusMsg(''), 2000);
   };
 
   return (
-    <div className="p-3 space-y-3 max-w-2xl mx-auto pb-28 select-none">
-      <div className="border-b border-zinc-800 pb-2 flex justify-between items-center">
-        <div>
-          <h2 className="text-lg font-bold text-white flex items-center gap-2">
-            📷 EXIF-Free Pro Camera
-          </h2>
-          <p className="text-[10px] text-zinc-400">Raw frame canvas capture with GPS & metadata scrubbing</p>
+    <div className={`select-none ${isFullscreen ? 'fixed inset-0 z-50 bg-black flex flex-col justify-between p-3' : 'p-3 space-y-3 max-w-2xl mx-auto pb-28'}`}>
+      
+      {/* Top Bar */}
+      <div className="border-b border-zinc-800 pb-2 flex justify-between items-center bg-zinc-900/90 p-2.5 rounded-xl backdrop-blur-md">
+        <div className="flex items-center space-x-2">
+          {isFullscreen && (
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="px-3 py-1.5 bg-red-500/20 border border-red-500/50 text-red-400 font-bold text-xs rounded-lg flex items-center gap-1"
+            >
+              ❌ Exit Fullscreen
+            </button>
+          )}
+          <div>
+            <h2 className="text-sm font-bold text-white flex items-center gap-1.5">
+              📷 EXIF-Free Pro Camera
+            </h2>
+            <span className="text-[9px] font-mono text-emerald-400 font-bold">🛡️ ZERO EXIF GPS</span>
+          </div>
         </div>
-        <span className="text-[9px] font-mono bg-emerald-500/20 border border-emerald-500/50 text-emerald-400 font-bold px-2 py-0.5 rounded-lg">
-          🛡️ SCRUB ACTIVE
-        </span>
+
+        <div className="flex items-center space-x-1.5">
+          {!isFullscreen && (
+            <button
+              onClick={() => setIsFullscreen(true)}
+              className="px-2.5 py-1.5 bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold text-xs rounded-lg"
+            >
+              🔲 Fullscreen
+            </button>
+          )}
+          <button
+            onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
+            className="px-2.5 py-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-bold text-xs rounded-lg"
+          >
+            🔄 Flip
+          </button>
+        </div>
       </div>
 
       {statusMsg && (
@@ -211,163 +206,163 @@ export function ExifFreeCamera() {
         </div>
       )}
 
-      {error ? (
-        <div className="bg-red-950/90 border border-red-500/50 p-6 rounded-2xl text-center space-y-3">
-          <div className="text-red-400 font-bold text-sm">⚠️ Camera Hardware Blocked</div>
-          <p className="text-xs text-zinc-300">
-            Android media stream error: <br/>
-            <span className="font-mono text-[10px] text-red-300">{error}</span>
-          </p>
-          <button
-            onClick={startCamera}
-            className="px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white font-bold text-xs rounded-xl shadow-lg"
-          >
-            🔄 Grant Permission & Retry
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          <div className={`relative rounded-2xl overflow-hidden bg-black border border-zinc-800 shadow-2xl ${getAspectStyle()} flex items-center justify-center`}>
-            <video
-              ref={videoRef}
-              autoPlay
-              playsInline
-              muted
-              className="w-full h-full object-cover transition-transform duration-200"
-              style={{
-                transform: `scale(${zoom})`,
-                filter: mode === 'pro' && exposure !== 0 ? `brightness(${100 + exposure * 25}%)` : 'none'
-              }}
-            />
+      {/* CAMERA VIEWFINDER FRAME */}
+      <div className={`relative rounded-2xl overflow-hidden bg-black border border-zinc-800 shadow-2xl flex items-center justify-center ${isFullscreen ? 'flex-1 my-2' : 'aspect-[3/4]'}`}>
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-cover transition-transform duration-200"
+          style={{
+            transform: `scale(${zoom})`,
+            filter: getFilterStyle()
+          }}
+        />
 
-            {showGrid && (
-              <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none z-10 border border-white/10">
-                <div className="border-r border-b border-white/15" />
-                <div className="border-r border-b border-white/15" />
-                <div className="border-b border-white/15" />
-                <div className="border-r border-b border-white/15" />
-                <div className="border-r border-b border-white/15" />
-                <div className="border-b border-white/15" />
-                <div className="border-r border-white/15" />
-                <div className="border-r border-white/15" />
-                <div className="" />
-              </div>
-            )}
+        {/* Rule of Thirds Grid */}
+        {showGrid && mode !== 'qr' && (
+          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none z-10 border border-white/10">
+            <div className="border-r border-b border-white/15" />
+            <div className="border-r border-b border-white/15" />
+            <div className="border-b border-white/15" />
+            <div className="border-r border-b border-white/15" />
+            <div className="border-r border-b border-white/15" />
+            <div className="border-b border-white/15" />
+            <div className="border-r border-white/15" />
+            <div className="border-r border-white/15" />
+            <div className="" />
+          </div>
+        )}
 
-            {countdown > 0 && (
-              <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-30">
-                <span className="text-6xl font-black text-cyan-400 animate-ping">{countdown}</span>
-              </div>
-            )}
-
-            <div className="absolute top-3 inset-x-3 flex justify-between items-center z-20">
-              <button
-                onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
-                className="px-2.5 py-1.5 bg-black/70 backdrop-blur-md border border-zinc-700 text-white font-bold text-[11px] rounded-xl flex items-center gap-1"
-              >
-                🔄 Flip
-              </button>
-
-              <div className="flex items-center space-x-1.5">
-                <button
-                  onClick={() => setShowGrid(!showGrid)}
-                  className={`p-1.5 rounded-xl border text-[10px] font-bold ${showGrid ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300' : 'bg-black/70 border-zinc-700 text-zinc-400'}`}
-                >
-                  🌐 Grid
-                </button>
-                <button
-                  onClick={() => setTimer(prev => prev === 0 ? 3 : prev === 3 ? 10 : 0)}
-                  className={`p-1.5 rounded-xl border text-[10px] font-bold ${timer > 0 ? 'bg-cyan-500/30 border-cyan-400 text-cyan-300' : 'bg-black/70 border-zinc-700 text-zinc-400'}`}
-                >
-                  ⏱️ {timer > 0 ? `${timer}s` : 'Off'}
-                </button>
-              </div>
-            </div>
-
-            <div className="absolute top-12 left-3 z-20 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-zinc-800 flex space-x-1 text-[9px] font-bold">
-              {['full', '16:9', '4:3', '1:1'].map(ratio => (
-                <button
-                  key={ratio}
-                  onClick={() => setAspectRatio(ratio)}
-                  className={`px-2 py-0.5 rounded-lg ${aspectRatio === ratio ? 'bg-cyan-500 text-black' : 'text-zinc-400'}`}
-                >
-                  {ratio.toUpperCase()}
-                </button>
-              ))}
-            </div>
-
-            <div className="absolute bottom-16 inset-x-4 z-20 bg-black/75 backdrop-blur-md p-2.5 rounded-2xl border border-zinc-800 space-y-2">
-              <div className="flex items-center space-x-3">
-                <span className="text-[10px] text-cyan-400 font-bold w-12">🔍 {zoom.toFixed(1)}x</span>
-                <input
-                  type="range"
-                  min="1.0"
-                  max="3.0"
-                  step="0.1"
-                  value={zoom}
-                  onChange={(e) => setZoom(parseFloat(e.target.value))}
-                  className="flex-1 accent-cyan-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
-                />
-              </div>
-
-              {mode === 'pro' && (
-                <div className="flex items-center space-x-3 pt-1 border-t border-zinc-800">
-                  <span className="text-[10px] text-emerald-400 font-bold w-12">☀️ {exposure > 0 ? `+${exposure}` : exposure}</span>
-                  <input
-                    type="range"
-                    min="-2"
-                    max="2"
-                    step="1"
-                    value={exposure}
-                    onChange={(e) => setExposure(parseInt(e.target.value))}
-                    className="flex-1 accent-emerald-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
-                  />
-                </div>
-              )}
-            </div>
-
-            <div className="absolute bottom-3 inset-x-3 flex justify-center items-center z-20">
-              <button
-                onClick={handleShutter}
-                className={`w-14 h-14 rounded-full border-4 transition-all flex items-center justify-center shadow-xl ${
-                  isRecording
-                    ? 'border-red-400 bg-red-600 animate-pulse scale-110'
-                    : 'border-white bg-cyan-500 hover:bg-cyan-400 active:scale-90'
-                }`}
-              >
-                <div className={`rounded-full border-2 border-black/40 ${isRecording ? 'w-5 h-5 bg-white rounded-sm' : 'w-10 h-10 bg-white/20'}`} />
-              </button>
+        {/* QR Scanner Target Box */}
+        {mode === 'qr' && (
+          <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+            <div className="w-56 h-56 border-2 border-cyan-400 rounded-3xl bg-cyan-500/10 flex items-center justify-center animate-pulse relative">
+              <span className="text-[10px] font-mono text-cyan-300 font-bold bg-black/80 px-2 py-1 rounded-lg">
+                ALIGN QR CODE HERE
+              </span>
             </div>
           </div>
+        )}
 
-          <div className="grid grid-cols-3 gap-1.5 bg-zinc-900 p-1 rounded-xl border border-zinc-800 text-xs font-bold text-center">
+        {/* Floating Quick Zoom Buttons */}
+        <div className="absolute top-3 left-3 z-20 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-zinc-800 flex space-x-1 text-[10px] font-bold">
+          {[1.0, 2.0, 3.0].map(z => (
             <button
-              onClick={() => setMode('photo')}
-              className={`py-2 rounded-lg transition-all ${mode === 'photo' ? 'bg-cyan-500 text-black shadow' : 'text-zinc-400'}`}
+              key={z}
+              onClick={() => setZoom(z)}
+              className={`px-2 py-1 rounded-lg ${zoom === z ? 'bg-cyan-500 text-black' : 'text-zinc-400'}`}
             >
-              📷 Photo
+              {z.toFixed(1)}x
             </button>
+          ))}
+        </div>
+
+        {/* Shutter Button */}
+        {mode !== 'qr' && (
+          <div className="absolute bottom-4 inset-x-3 flex justify-center items-center z-20">
             <button
-              onClick={() => setMode('video')}
-              className={`py-2 rounded-lg transition-all ${mode === 'video' ? 'bg-cyan-500 text-black shadow' : 'text-zinc-400'}`}
+              onClick={takePhoto}
+              className="w-16 h-16 rounded-full border-4 border-white bg-cyan-500 hover:bg-cyan-400 active:scale-90 transition-all flex items-center justify-center shadow-2xl shadow-cyan-500/40"
             >
-              🎥 Video
+              <div className="w-11 h-11 rounded-full border-2 border-black/40 bg-white/20" />
             </button>
+          </div>
+        )}
+      </div>
+
+      {/* QR CODE SCANNED RESULT MODAL / CARD */}
+      {mode === 'qr' && scannedResult && (
+        <div className="bg-zinc-900 border border-cyan-500/50 p-3.5 rounded-2xl space-y-2.5">
+          <div className="text-xs font-bold text-cyan-400 flex justify-between items-center">
+            <span>🔍 Scanned Code Result</span>
+            <button onClick={() => setScannedResult('')} className="text-zinc-500 text-xs">✕ Clear</button>
+          </div>
+          <div className="bg-black p-2.5 rounded-xl border border-zinc-800 text-xs font-mono text-white break-all">
+            {scannedResult}
+          </div>
+          <div className="flex space-x-2">
             <button
-              onClick={() => setMode('pro')}
-              className={`py-2 rounded-lg transition-all ${mode === 'pro' ? 'bg-cyan-500 text-black shadow' : 'text-zinc-400'}`}
+              onClick={copyQrResult}
+              className="flex-1 py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-xl"
             >
-              🎛️ Pro
+              📋 Copy Text
             </button>
+            {scannedResult.startsWith('http') && (
+              <a
+                href={scannedResult}
+                target="_blank"
+                rel="noreferrer"
+                className="flex-1 py-2 bg-emerald-500 hover:bg-emerald-400 text-black font-bold text-xs rounded-xl text-center"
+              >
+                🌐 Open URL
+              </a>
+            )}
           </div>
         </div>
       )}
 
-      <ToolFooter
-        title="EXIF-Free Metadata Sanitizer"
-        details="Captures raw video frames directly into HTML5 canvas, saving directly to DCIM/SovereignTools gallery."
-        disclaimer="Exported images are saved locally to phone storage with zero tracking footprints."
-      />
+      {/* FILTER CAROUSEL BAR */}
+      <div className="space-y-1">
+        <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Privacy Filters</span>
+        <div className="flex space-x-1.5 overflow-x-auto pb-1 text-[10px] font-bold">
+          {[
+            { id: 'none', label: '✨ Normal' },
+            { id: 'bw', label: '🖤 B&W Noir' },
+            { id: 'sepia', label: '📜 Sepia' },
+            { id: 'matrix', label: '🟢 Matrix' },
+            { id: 'vivid', label: '🌈 Vivid' },
+            { id: 'thermal', label: '🔥 Thermal' }
+          ].map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFilter(f.id)}
+              className={`px-3 py-1.5 rounded-xl border whitespace-nowrap transition-all ${
+                filter === f.id ? 'bg-cyan-500 border-cyan-400 text-black' : 'bg-zinc-900 border-zinc-800 text-zinc-400'
+              }`}
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* HIGH-CONTRAST MODE SELECTOR TABS */}
+      <div className="grid grid-cols-4 gap-1.5 bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 text-xs font-bold text-center">
+        <button
+          onClick={() => setMode('photo')}
+          className={`py-2.5 rounded-xl transition-all ${mode === 'photo' ? 'bg-cyan-500 text-black shadow-lg' : 'text-zinc-400'}`}
+        >
+          📷 Photo
+        </button>
+        <button
+          onClick={() => setMode('video')}
+          className={`py-2.5 rounded-xl transition-all ${mode === 'video' ? 'bg-cyan-500 text-black shadow-lg' : 'text-zinc-400'}`}
+        >
+          🎥 Video
+        </button>
+        <button
+          onClick={() => setMode('qr')}
+          className={`py-2.5 rounded-xl transition-all ${mode === 'qr' ? 'bg-cyan-500 text-black shadow-lg' : 'text-zinc-400'}`}
+        >
+          🔍 QR Scan
+        </button>
+        <button
+          onClick={() => setMode('pro')}
+          className={`py-2.5 rounded-xl transition-all ${mode === 'pro' ? 'bg-cyan-500 text-black shadow-lg' : 'text-zinc-400'}`}
+        >
+          🎛️ Pro
+        </button>
+      </div>
+
+      {!isFullscreen && (
+        <ToolFooter
+          title="EXIF-Free Privacy Camera & QR Reader"
+          details="Captures raw video frames directly to HTML5 canvas, applying live privacy filters and stripping GPS coordinates."
+          disclaimer="Saved images are stored in DCIM/SovereignTools with zero tracking footprints."
+        />
+      )}
     </div>
   );
 }
