@@ -7,6 +7,7 @@ export function Gallery() {
   const { galleryItems, rescanGallery, deleteFile } = useDeviceStorage();
   const [activeFolder, setActiveFolder] = useState('All');
   const [selectedItem, setSelectedItem] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     rescanGallery();
@@ -19,12 +20,13 @@ export function Gallery() {
     return item.folder === activeFolder;
   });
 
-  const getMediaSrc = (cleanUrl) => {
-    if (!cleanUrl) return '';
-    if (cleanUrl.startsWith('content://')) {
-      return Capacitor.convertFileSrc(cleanUrl);
+  // FIX: Route absolute paths through Capacitor's local server for chunked video streaming
+  const getMediaSrc = (item) => {
+    if (!item) return '';
+    if (item.absolutePath) {
+      return Capacitor.convertFileSrc(item.absolutePath);
     }
-    return cleanUrl;
+    return item.cleanUrl || '';
   };
 
   return (
@@ -46,7 +48,7 @@ export function Gallery() {
         </button>
       </div>
 
-      <div className="flex space-x-1 overflow-x-auto text-xs font-bold bg-zinc-900/80 p-2 rounded-2xl border border-zinc-800">
+      <div className="flex space-x-1 overflow-x-auto text-xs font-bold bg-zinc-900/80 p-2 rounded-2xl border border-zinc-800 no-scrollbar">
         {['All', 'Photos', 'Videos', 'Sovereign Camera', 'Camera', 'Screenshots', 'Downloads', 'Pictures'].map(folder => (
           <button
             key={folder}
@@ -79,12 +81,10 @@ export function Gallery() {
                 </div>
               ) : (
                 <img
-                  src={getMediaSrc(item.cleanUrl)}
+                  src={getMediaSrc(item)}
                   alt={item.name}
                   className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                  }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
                 />
               )}
 
@@ -99,9 +99,10 @@ export function Gallery() {
         </div>
       )}
 
-      {selectedItem && (
+      {/* INSPECTOR MODAL */}
+      {selectedItem && !isFullscreen && (
         <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md p-4 flex flex-col justify-between overflow-y-auto">
-          <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+          <div className="flex justify-between items-center border-b border-zinc-800 pb-3 mt-4">
             <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
               Media Inspector
             </h3>
@@ -114,12 +115,23 @@ export function Gallery() {
           </div>
 
           <div className="my-auto space-y-4 max-w-lg mx-auto w-full py-4">
-            <div className="rounded-2xl overflow-hidden border border-zinc-800 max-h-80 bg-black flex justify-center items-center">
+            
+            {/* TAP TO FULLSCREEN PREVIEW */}
+            <div 
+              onClick={() => setIsFullscreen(true)}
+              className="relative rounded-2xl overflow-hidden border border-zinc-800 max-h-80 bg-black flex justify-center items-center cursor-pointer group"
+            >
               {selectedItem.type === 'video' ? (
-                <video src={getMediaSrc(selectedItem.cleanUrl)} controls autoPlay className="w-full max-h-80 object-contain" />
+                <video src={getMediaSrc(selectedItem)} className="w-full max-h-80 object-contain pointer-events-none" />
               ) : (
-                <img src={getMediaSrc(selectedItem.cleanUrl)} alt="Preview" className="max-h-80 object-contain" />
+                <img src={getMediaSrc(selectedItem)} alt="Preview" className="max-h-80 object-contain" />
               )}
+              
+              <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
+                <span className="bg-zinc-900/90 text-white px-4 py-2 rounded-xl text-xs font-bold border border-zinc-700 shadow-lg backdrop-blur-sm">
+                  ⛶ Tap for Fullscreen
+                </span>
+              </div>
             </div>
 
             <div className="bg-zinc-900 p-3.5 rounded-2xl border border-zinc-800 space-y-2 text-xs font-mono">
@@ -150,9 +162,39 @@ export function Gallery() {
         </div>
       )}
 
+      {/* ⛶ FULLSCREEN OVERLAY */}
+      {isFullscreen && selectedItem && (
+        <div className="fixed inset-0 z-[100] bg-black flex flex-col justify-center items-center">
+          <div className="absolute top-0 inset-x-0 p-4 flex justify-end bg-gradient-to-b from-black/80 to-transparent z-10 pt-10">
+            <button 
+              onClick={() => setIsFullscreen(false)} 
+              className="px-4 py-2 bg-zinc-800/80 text-white rounded-xl font-bold text-xs backdrop-blur-md border border-zinc-700"
+            >
+              ✕ Close
+            </button>
+          </div>
+          
+          {selectedItem.type === 'video' ? (
+            <video
+              src={getMediaSrc(selectedItem)}
+              controls
+              autoPlay
+              playsInline
+              className="w-full h-full object-contain"
+            />
+          ) : (
+            <img
+              src={getMediaSrc(selectedItem)}
+              alt={selectedItem.name}
+              className="w-full h-full object-contain"
+            />
+          )}
+        </div>
+      )}
+
       <ToolFooter
         title="Gallery Catalog"
-        details="Local indexing engine using Android MediaStore ContentResolver URIs."
+        details="Local indexing engine using Android MediaStore via Capacitor HTTP Streaming."
         disclaimer="Zero telemetry or remote backups."
       />
     </div>
