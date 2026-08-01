@@ -9,7 +9,6 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         
-        // Enable media playback without strict user gestures and allow background processing
         if (this.bridge != null && this.bridge.getWebView() != null) {
             WebView webView = this.bridge.getWebView();
             webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
@@ -17,16 +16,10 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onPause() {
+    public void onPause() {
         super.onPause();
-        // Prevent WebView from pausing media playback when app goes to background
         if (this.bridge != null && this.bridge.getWebView() != null) {
             this.bridge.getWebView().onResume();
         }
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
     }
 }
