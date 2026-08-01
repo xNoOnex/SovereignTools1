@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem } from '@capacitor/filesystem';
 import { ToolFooter } from './ToolFooter';
 
 export function SovereignAudio() {
@@ -9,33 +9,22 @@ export function SovereignAudio() {
   const scanAudio = async () => {
     setLoading(true);
     let found = [];
-    const targetFolders = ['Music', 'Download', 'DCIM'];
+    const targetFolders = ['/storage/emulated/0/Music', '/storage/emulated/0/Download', '/storage/emulated/0/DCIM'];
 
     for (const folder of targetFolders) {
       try {
-        const res = await Filesystem.readdir({
-          path: folder,
-          directory: Directory.ExternalStorage
-        });
-
+        const res = await Filesystem.readdir({ path: folder });
         const audioFiles = res.files
           .filter(f => f.name.match(/\.(mp3|wav|flac|aac|m4a|ogg)$/i))
           .map(f => ({ name: f.name, path: `${folder}/${f.name}` }));
-
         found = [...found, ...audioFiles];
-      } catch (err) {
-        // Folder inaccessible or empty
-      }
+      } catch (err) {}
     }
-
     setTracks(found);
     setLoading(false);
   };
 
-  // AUTOMATIC SCAN ON MOUNT
-  useEffect(() => {
-    scanAudio();
-  }, []);
+  useEffect(() => { scanAudio(); }, []);
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none">
@@ -48,36 +37,27 @@ export function SovereignAudio() {
           {loading ? 'Scanning...' : 'Rescan'}
         </button>
       </div>
-
       <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 min-h-[220px]">
-        <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-3">
-          Local Tracks ({tracks.length})
-        </h3>
-
+        <h3 className="text-xs font-bold text-zinc-300 uppercase tracking-wider mb-3">Local Tracks ({tracks.length})</h3>
         {loading ? (
-          <div className="text-center py-12 text-xs text-cyan-400 animate-pulse font-mono">
-            🎧 Automatically scanning audio files in Music & Downloads...
-          </div>
+          <div className="text-center py-12 text-xs text-cyan-400 animate-pulse font-mono">🎧 Scanning physical audio sectors...</div>
         ) : tracks.length === 0 ? (
-          <div className="text-center py-12 text-xs text-zinc-500 font-mono">
-            No audio tracks found. Add MP3 or WAV files to your device.
-          </div>
+          <div className="text-center py-12 text-xs text-zinc-500 font-mono">No audio tracks found. Add MP3/WAV to root folders.</div>
         ) : (
           <div className="space-y-2 max-h-96 overflow-y-auto">
             {tracks.map((t, idx) => (
               <div key={idx} className="bg-black/60 border border-zinc-800 p-3 rounded-2xl flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-bold text-white truncate max-w-[200px]">{t.name}</p>
-                  <p className="text-[9px] text-zinc-400 font-mono">{t.path}</p>
+                <div className="overflow-hidden">
+                  <p className="text-xs font-bold text-white truncate">{t.name}</p>
+                  <p className="text-[9px] text-zinc-400 font-mono truncate">{t.path}</p>
                 </div>
-                <span className="text-xs text-cyan-400">▶️</span>
+                <span className="text-xs text-cyan-400 ml-2">▶️</span>
               </div>
             ))}
           </div>
         )}
       </div>
-
-      <ToolFooter title="Audio Engine" details="Indexes local audio files automatically." disclaimer="Zero cloud sync telemetry." />
+      <ToolFooter title="Audio Engine" details="Indexes absolute local paths." disclaimer="Zero cloud sync telemetry." />
     </div>
   );
 }
