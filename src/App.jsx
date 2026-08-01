@@ -1,105 +1,56 @@
 import React, { useState } from 'react';
-import { LockScreen } from './components/LockScreen';
 import { Home } from './components/Home';
-import { ExifFreeCamera } from './components/ExifFreeCamera';
-import { Gallery } from './components/Gallery';
-import { AudioPlayer } from './components/AudioPlayer';
-import { DocumentManager } from './components/DocumentManager';
-import { Calculator } from './components/Calculator';
-import { CalendarManager } from './components/CalendarManager';
-import { PasswordManager } from './components/PasswordManager';
-import { ShizukuDebloater } from './components/ShizukuDebloater';
-import { EncryptedComms } from './components/EncryptedComms';
-import { AesCipherTool } from './components/AesCipherTool';
-import { FileShredder } from './components/FileShredder';
-import { LocalAIAssistant } from './components/LocalAIAssistant';
 import { PrivacyBrowser } from './components/PrivacyBrowser';
-import { Support } from './components/Support';
-import { Settings } from './components/Settings';
+import { SecureGallery } from './components/SecureGallery';
+import { SovereignAudio } from './components/SovereignAudio';
+import { FileShredder } from './components/FileShredder';
 import { NetSec } from './components/NetSec';
 
-
 export default function App() {
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [currentTab, setCurrentTab] = useState('home');
-  const appMode = localStorage.getItem('sovereign_mode') || 'expert';
+  const [activeTab, setActiveTab] = useState('browser');
 
-  if (!isUnlocked) {
-    return <LockScreen onUnlock={() => setIsUnlocked(true)} />;
-  }
-
-  if (currentTab === 'camera') {
-    return (
-      <div className="fixed inset-0 z-50 bg-black">
-        <ExifFreeCamera onClose={() => setCurrentTab('gallery')} />
-      </div>
-    );
-  }
+  const navItems = [
+    { id: 'home', label: 'Home', icon: '🏠' },
+    { id: 'browser', label: 'Browser', icon: '🌐' },
+    { id: 'gallery', label: 'Gallery', icon: '🖼️' },
+    { id: 'audio', label: 'Audio', icon: '🎧' },
+    { id: 'shred', label: 'Shred', icon: '☣️' },
+    { id: 'netsec', label: 'NetSec', icon: '🛡️' }
+  ];
 
   return (
-    <div 
-      className="min-h-screen text-white font-sans flex flex-col justify-between bg-cover bg-center bg-fixed relative select-none"
-      style={{ backgroundImage: `url('./sovereign_logo.jpg')` }}
-    >
-      <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
-
-      <header 
-        className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md cursor-pointer"
-        style={{ paddingTop: 'max(env(safe-area-inset-top), 36px)' }}
-      >
-        <div onClick={() => setCurrentTab('home')} className="flex items-center space-x-3">
-          <img src="./sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-          <div>
-            <h1 className="font-bold text-sm text-white tracking-wide">SOVEREIGN TOOLS</h1>
-            <span className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">{appMode} mode</span>
-          </div>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <button onClick={() => setCurrentTab('settings')} className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium ${currentTab === 'settings' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-800 text-zinc-300 border-zinc-700'}`}>⚙️ Settings</button>
-          <button onClick={() => setIsUnlocked(false)} className="text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg border border-zinc-700 font-medium">🔒 Lock</button>
-        </div>
-      </header>
-
-      <main className="flex-1 pb-32 relative z-10">
-        {currentTab === 'home' && <Home onSelectTab={(tab) => setCurrentTab(tab)} />}
-        {currentTab === 'browser' && <PrivacyBrowser />}
-        {currentTab === 'gallery' && <Gallery />}
-        {currentTab === 'audio' && <AudioPlayer />}
-        {currentTab === 'docs' && <DocumentManager />}
-        {currentTab === 'calc' && <Calculator />}
-        {currentTab === 'calendar' && <CalendarManager />}
-        {currentTab === 'vault' && <PasswordManager />}
-        {currentTab === 'debloater' && <ShizukuDebloater />}
-        {currentTab === 'comms' && <EncryptedComms />}
-        {currentTab === 'aes' && <AesCipherTool />}
-        {currentTab === 'shredder' && <FileShredder />}
-        {currentTab === 'ai' && <LocalAIAssistant />}
-        {currentTab === 'support' && <Support />}
-        {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
+    <div className="min-h-screen bg-black text-white flex flex-col justify-between font-sans">
+      {/* MAIN CONTENT VIEWPORT */}
+      <main className="flex-1 overflow-y-auto">
+        {activeTab === 'home' && <Home />}
+        {activeTab === 'browser' && <PrivacyBrowser />}
+        {activeTab === 'gallery' && <SecureGallery />}
+        {activeTab === 'audio' && <SovereignAudio />}
+        {activeTab === 'shred' && <FileShredder />}
+        {activeTab === 'netsec' && <NetSec />}
       </main>
 
-      <nav 
-        className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-start space-x-2 text-[8px] font-bold z-40 backdrop-blur-md overflow-x-auto no-scrollbar"
-        style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
-      >
-        <button onClick={() => setCurrentTab('home')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'home' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🏠</span>Home</button>
-        <button onClick={() => setCurrentTab('camera')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📷</span>Camera</button>
-        <button onClick={() => setCurrentTab('browser')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'browser' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🌐</span>Browser</button>
-        <button onClick={() => setCurrentTab('gallery')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'gallery' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🖼️</span>Gallery</button>
-        <button onClick={() => setCurrentTab('audio')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'audio' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🎧</span>Audio</button>
-        <button onClick={() => setCurrentTab('docs')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'docs' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📝</span>Docs</button>
-        <button onClick={() => setCurrentTab('calc')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'calc' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🧮</span>Calc</button>
-        <button onClick={() => setCurrentTab('calendar')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'calendar' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📅</span>Calendar</button>
-        <button onClick={() => setCurrentTab('vault')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🔐</span>Vault</button>
-        <button onClick={() => setCurrentTab('debloater')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">⚡</span>Debloat</button>
-        <button onClick={() => setCurrentTab('comms')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'comms' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📡</span>Comms</button>
-        <button onClick={() => setCurrentTab('aes')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🛡️</span>AES</button>
-        <button onClick={() => setCurrentTab('shredder')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">☣️</span>Shred</button>
-        <button onClick={() => setCurrentTab('ai')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🤖</span>AI</button>
-        
-        {/* NEW SUPPORT TAB */}
-        <button onClick={() => setCurrentTab('support')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'support' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">☕</span>Support</button>
+      {/* BOTTOM NAVIGATION BAR */}
+      <nav className="fixed bottom-0 left-0 right-0 bg-zinc-950/95 backdrop-blur-md border-t border-zinc-800 z-50 px-2 py-1.5">
+        <div className="flex items-center justify-around max-w-2xl mx-auto overflow-x-auto no-scrollbar gap-1">
+          {navItems.map((item) => {
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`flex flex-col items-center justify-center px-3 py-1.5 rounded-xl transition-all min-w-[60px] ${
+                  isActive
+                    ? 'bg-zinc-800/80 text-cyan-400 font-bold scale-105 border border-cyan-500/30'
+                    : 'text-zinc-500 hover:text-zinc-300'
+                }`}
+              >
+                <span className="text-base mb-0.5">{item.icon}</span>
+                <span className="text-[10px] tracking-tight">{item.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );
