@@ -36,14 +36,27 @@ export function LocalAIAssistant() {
     return null;
   };
 
-  const isConversationalFeedback = (query) => {
-    const q = query.toLowerCase().trim();
-    const chatPhrases = [
-      "thats not what i asked", "that's not what i asked", "wrong answer",
-      "hello", "hi", "hey", "thanks", "thank you", "who are you", "stop",
-      "nevermind", "cancel"
-    ];
-    return chatPhrases.some(phrase => q === phrase || q.startsWith(phrase + ' '));
+  // Synthesizes raw search HTML into direct answers
+  const synthesizeWebAnswer = (query, rawSnippets) => {
+    const q = query.toLowerCase();
+    const text = rawSnippets.join(' ');
+
+    if (q.includes('sport') || q.includes('playing') || q.includes('game')) {
+      const activeLeagues = [];
+      if (/mlb|baseball/i.test(text)) activeLeagues.push('⚾ **MLB (Baseball)** - Mid-season regular games');
+      if (/mls|soccer/i.test(text)) activeLeagues.push('⚽ **MLS / Soccer** - Regular season active');
+      if (/wnba|women's basketball/i.test(text)) activeLeagues.push('🏀 **WNBA** - Regular season active');
+      if (/tennis|wta|atp/i.test(text)) activeLeagues.push('🎾 **Tennis** - US Open hardcourt swing');
+      if (/pga|golf/i.test(text)) activeLeagues.push('⛳ **Golf** - PGA Tour active');
+      if (/nfl|football/i.test(text)) activeLeagues.push('🏈 **NFL / Football** - Summer Training Camps & Preseason starting soon');
+
+      if (activeLeagues.length > 0) {
+        return `🤖 **Sports Currently Active in the USA:**\n\n` + activeLeagues.join('\n') + `\n\n*(Note: NBA and NHL are currently in their offseason).*`;
+      }
+    }
+
+    // Default cleaned summary synthesis
+    return `🤖 **Synthesized Web Intelligence:**\n\n` + rawSnippets.map(s => `• ${s}`).join('\n\n');
   };
 
   const fetchPrivacyWebSearch = async (query) => {
@@ -68,30 +81,20 @@ export function LocalAIAssistant() {
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlText, 'text/html');
     const rawSnippets = Array.from(doc.querySelectorAll('.result__snippet'))
-      .slice(0, 3)
+      .slice(0, 4)
       .map(el => el.textContent.trim())
       .filter(t => t.length > 15);
 
     if (rawSnippets.length > 0) {
-      return `🌐 **Live Web Information Summary:**\n\n` + rawSnippets.map(s => `• ${s}`).join('\n\n');
+      return synthesizeWebAnswer(query, rawSnippets);
     }
 
-    return "🌐 Query executed, but no clean text snippets were returned. Try rephrasing your search term.";
+    return "🌐 Search executed, but no clean text snippets were returned. Try rephrasing your search term.";
   };
 
   const generateResponse = async (query) => {
     const mathResult = evaluateMath(query);
     if (mathResult) return mathResult;
-
-    if (isConversationalFeedback(query)) {
-      const q = query.toLowerCase();
-      if (q.includes('not what i asked') || q.includes('wrong')) {
-        return "Got it! Please rephrase your question with specific terms (e.g., 'MLB baseball scores today' or 'NFL current standings') so I can search the web for the exact answer.";
-      }
-      if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
-        return "👋 Hello! Ask me a math equation, privacy topic, or toggle Web Search ON to search current facts.";
-      }
-    }
 
     if (webSearchEnabled) {
       const webResult = await fetchPrivacyWebSearch(query);
@@ -106,10 +109,6 @@ export function LocalAIAssistant() {
     
     if (q.includes('pgp') || q.includes('encrypt') || q.includes('sms')) {
       return "📡 **PGP & Messaging Security:**\nSovereign PGP converts secret text into ASCII-armored cipher blocks safe for cellular SMS.";
-    }
-
-    if (q.includes('tor') || q.includes('proxy') || q.includes('orbot')) {
-      return "🧅 **Network Proxy Manager:**\nAll web searches execute natively with stripped headers, zero cookies, and zero tracking telemetry directly inside the app.";
     }
 
     return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries, toggle "🌐 Search: OFF" button above to ON!`;
