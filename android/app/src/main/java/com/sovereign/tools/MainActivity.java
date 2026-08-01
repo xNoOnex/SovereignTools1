@@ -5,6 +5,7 @@ import android.content.ContentResolver;
 import android.content.ContentValues;
 import android.content.Intent;
 import android.database.Cursor;
+import android.graphics.Color;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
@@ -14,11 +15,21 @@ import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Base64;
+import android.util.TypedValue;
+import android.view.Gravity;
+import android.view.View;
+import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
+import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
 import androidx.webkit.ProxyConfig;
@@ -46,6 +57,11 @@ public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> filePathCallback;
     private final static int FILECHOOSER_RESULTCODE = 1001;
     private final static int PERMISSION_REQUEST_CODE = 2002;
+
+    // NATIVE FULLSCREEN BROWSER OVERLAY LAYOUT
+    private FrameLayout nativeBrowserContainer;
+    private WebView nativeBrowserView;
+    private EditText nativeUrlInput;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -90,6 +106,147 @@ public class MainActivity extends BridgeActivity {
                 }
             });
         }
+
+        setupNativeBrowserOverlay();
+    }
+
+    private void setupNativeBrowserOverlay() {
+        runOnUiThread(() -> {
+            ViewGroup rootView = findViewById(android.R.id.content);
+
+            nativeBrowserContainer = new FrameLayout(this);
+            nativeBrowserContainer.setLayoutParams(new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
+            nativeBrowserContainer.setBackgroundColor(Color.parseColor("#09090b"));
+            nativeBrowserContainer.setVisibility(View.GONE);
+
+            LinearLayout mainLayout = new LinearLayout(this);
+            mainLayout.setOrientation(LinearLayout.VERTICAL);
+            mainLayout.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
+
+            // TOP NAVIGATION CONTROL BAR
+            LinearLayout topBar = new LinearLayout(this);
+            topBar.setOrientation(LinearLayout.HORIZONTAL);
+            topBar.setGravity(Gravity.CENTER_VERTICAL);
+            topBar.setPadding(16, 48, 16, 16);
+            topBar.setBackgroundColor(Color.parseColor("#18181b"));
+
+            Button btnExit = new Button(this);
+            btnExit.setText("❌ Suite");
+            btnExit.setTextSize(10);
+            btnExit.setTextColor(Color.WHITE);
+            btnExit.setBackgroundColor(Color.parseColor("#27272a"));
+            btnExit.setOnClickListener(v -> closeNativeBrowser());
+
+            Button btnBack = new Button(this);
+            btnBack.setText("◀");
+            btnBack.setTextSize(12);
+            btnBack.setTextColor(Color.WHITE);
+            btnBack.setBackgroundColor(Color.parseColor("#27272a"));
+            btnBack.setOnClickListener(v -> {
+                if (nativeBrowserView != null && nativeBrowserView.canGoBack()) {
+                    nativeBrowserView.goBack();
+                }
+            });
+
+            Button btnForward = new Button(this);
+            btnForward.setText("▶");
+            btnForward.setTextSize(12);
+            btnForward.setTextColor(Color.WHITE);
+            btnForward.setBackgroundColor(Color.parseColor("#27272a"));
+            btnForward.setOnClickListener(v -> {
+                if (nativeBrowserView != null && nativeBrowserView.canGoForward()) {
+                    nativeBrowserView.goForward();
+                }
+            });
+
+            nativeUrlInput = new EditText(this);
+            nativeUrlInput.setText("https://duckduckgo.com");
+            nativeUrlInput.setTextSize(11);
+            nativeUrlInput.setTextColor(Color.CYAN);
+            nativeUrlInput.setBackgroundColor(Color.parseColor("#000000"));
+            nativeUrlInput.setPadding(20, 15, 20, 15);
+            LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
+            urlParams.setMargins(10, 0, 10, 0);
+            nativeUrlInput.setLayoutParams(urlParams);
+
+            Button btnGo = new Button(this);
+            btnGo.setText("GO");
+            btnGo.setTextSize(10);
+            btnGo.setTextColor(Color.BLACK);
+            btnGo.setBackgroundColor(Color.parseColor("#06b6d4"));
+            btnGo.setOnClickListener(v -> {
+                String input = nativeUrlInput.getText().toString().trim();
+                if (!input.startsWith("http://") && !input.startsWith("https://")) {
+                    if (input.contains(".") && !input.contains(" ")) {
+                        input = "https://" + input;
+                    } else {
+                        input = "https://duckduckgo.com/?q=" + Uri.encode(input);
+                    }
+                }
+                nativeUrlInput.setText(input);
+                if (nativeBrowserView != null) nativeBrowserView.loadUrl(input);
+            });
+
+            topBar.addView(btnExit);
+            topBar.addView(btnBack);
+            topBar.addView(btnForward);
+            topBar.addView(nativeUrlInput);
+            topBar.addView(btnGo);
+
+            // NATIVE WEBVIEW CONTAINER
+            nativeBrowserView = new WebView(this);
+            nativeBrowserView.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            ));
+            nativeBrowserView.getSettings().setJavaScriptEnabled(true);
+            nativeBrowserView.getSettings().setDomStorageEnabled(true);
+            nativeBrowserView.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+            nativeBrowserView.setWebViewClient(new WebViewClient() {
+                @Override
+                public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+                    return false;
+                }
+
+                @Override
+                public void onPageFinished(WebView view, String url) {
+                    super.onPageFinished(view, url);
+                    if (nativeUrlInput != null) nativeUrlInput.setText(url);
+                }
+            });
+
+            mainLayout.addView(topBar);
+            mainLayout.addView(nativeBrowserView);
+
+            nativeBrowserContainer.addView(mainLayout);
+            rootView.addView(nativeBrowserContainer);
+        });
+    }
+
+    public void openNativeBrowser(String url) {
+        runOnUiThread(() -> {
+            if (nativeBrowserContainer != null) {
+                nativeBrowserContainer.setVisibility(View.VISIBLE);
+                if (nativeBrowserView != null) {
+                    nativeBrowserView.loadUrl(url);
+                }
+            }
+        });
+    }
+
+    public void closeNativeBrowser() {
+        runOnUiThread(() -> {
+            if (nativeBrowserContainer != null) {
+                nativeBrowserContainer.setVisibility(View.GONE);
+            }
+        });
     }
 
     private void requestAndroidPermissions() {
@@ -132,6 +289,16 @@ public class MainActivity extends BridgeActivity {
     }
 
     public class AndroidBridge {
+
+        @JavascriptInterface
+        public void launchNativeBrowser(String url) {
+            openNativeBrowser((url != null && !url.isEmpty()) ? url : "https://duckduckgo.com");
+        }
+
+        @JavascriptInterface
+        public void exitNativeBrowser() {
+            closeNativeBrowser();
+        }
 
         @JavascriptInterface
         public String getAllDeviceFiles() {
@@ -178,14 +345,12 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
-        // AUTO-SCAN ALL DEVICE PHOTOS & VIDEOS
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
 
-                // 1. Scan ALL Photos on Device
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
@@ -241,7 +406,6 @@ public class MainActivity extends BridgeActivity {
                     cursor.close();
                 }
 
-                // 2. Scan ALL Videos on Device
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
@@ -411,7 +575,6 @@ public class MainActivity extends BridgeActivity {
             return false;
         }
 
-        // RELIABLE INSTANT MEDIASTORE SAVING
         @JavascriptInterface
         public boolean saveToGallery(String base64Data, String filename, String mimeType) {
             try {
@@ -439,7 +602,6 @@ public class MainActivity extends BridgeActivity {
                         out.flush();
                         out.close();
 
-                        // Force MediaScanner connection update immediately
                         String realPath = resolveRealPathFromUri(uri);
                         if (realPath != null) {
                             MediaScannerConnection.scanFile(

@@ -7,6 +7,10 @@ export function Settings({ onLock }) {
   const [confirmPin, setConfirmPin] = useState('');
   const [appMode, setAppMode] = useState(localStorage.getItem('sovereign_mode') || 'expert');
   const [proxyType, setProxyType] = useState(localStorage.getItem('sovereign_proxy_type') || 'direct');
+  
+  const [proxyHost, setProxyHost] = useState(localStorage.getItem('sovereign_proxy_host') || '127.0.0.1');
+  const [proxyPort, setProxyPort] = useState(localStorage.getItem('sovereign_proxy_port') || '9050');
+  
   const [statusMsg, setStatusMsg] = useState('');
 
   const handlePinUpdate = (e) => {
@@ -35,19 +39,21 @@ export function Settings({ onLock }) {
     setTimeout(() => setStatusMsg(''), 2000);
   };
 
-  const handleNetworkChange = (type) => {
+  const applyNetworkProxy = (type, host, port) => {
     setProxyType(type);
     localStorage.setItem('sovereign_proxy_type', type);
+    localStorage.setItem('sovereign_proxy_host', host);
+    localStorage.setItem('sovereign_proxy_port', port);
 
     if (window.AndroidNative && window.AndroidNative.setNetworkProxy) {
-      if (type === 'tor') {
-        window.AndroidNative.setNetworkProxy('socks', '127.0.0.1', 9050);
+      if (type === 'tor' || type === 'socks') {
+        window.AndroidNative.setNetworkProxy('socks', host, parseInt(port) || 9050);
       } else {
         window.AndroidNative.setNetworkProxy('direct', '', 0);
       }
     }
 
-    setStatusMsg(type === 'direct' ? '⚡ Native Zero-Telemetry Mode Active (No Setup Needed)' : '🧅 Custom SOCKS5 Tor Proxy Active');
+    setStatusMsg(type === 'direct' ? '⚡ Native Zero-Telemetry Mode Active' : `🧅 Custom SOCKS5 Tunnel Active: ${host}:${port}`);
     setTimeout(() => setStatusMsg(''), 2500);
   };
 
@@ -59,7 +65,7 @@ export function Settings({ onLock }) {
             ⚙️ App Settings & Security
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            Configure lock PIN, user interface modes, and network privacy engine.
+            Configure lock PIN, UI complexity, and custom network proxies.
           </p>
         </div>
       </div>
@@ -70,7 +76,7 @@ export function Settings({ onLock }) {
         </div>
       )}
 
-      {/* AUTOMATIC NETWORK PRIVACY CONFIGURATION */}
+      {/* NETWORK PRIVACY ENGINE WITH CUSTOM SOCKS CONFIGURATION */}
       <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
         <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
           <span>🌐 Network Privacy Engine</span>
@@ -78,29 +84,64 @@ export function Settings({ onLock }) {
         
         <div className="grid grid-cols-2 gap-2 text-xs font-bold">
           <button
-            onClick={() => handleNetworkChange('direct')}
+            onClick={() => applyNetworkProxy('direct', '', 0)}
             className={`p-3 rounded-xl border transition-all text-left space-y-1 ${
               proxyType === 'direct' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-black border-zinc-800 text-zinc-400'
             }`}
           >
             <div className="text-sm font-black">⚡ Automatic Built-In</div>
             <div className="text-[9px] text-zinc-400 font-sans font-normal">
-              100% Plug & Play. Strips user-agents, referrer headers, and cookies natively with zero external apps.
+              100% Plug & Play. Strips headers natively with zero setup.
             </div>
           </button>
 
           <button
-            onClick={() => handleNetworkChange('tor')}
+            onClick={() => applyNetworkProxy('socks', proxyHost, proxyPort)}
             className={`p-3 rounded-xl border transition-all text-left space-y-1 ${
-              proxyType === 'tor' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-black border-zinc-800 text-zinc-400'
+              proxyType !== 'direct' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-black border-zinc-800 text-zinc-400'
             }`}
           >
             <div className="text-sm font-black">🧅 Custom SOCKS5 Proxy</div>
             <div className="text-[9px] text-zinc-400 font-sans font-normal">
-              Optional manual proxy tunnel for power users running local SOCKS5 or Tor daemons.
+              Manual proxy tunnel for power users running local SOCKS5 daemons.
             </div>
           </button>
         </div>
+
+        {/* CUSTOM PROXY INPUT FORM */}
+        {proxyType !== 'direct' && (
+          <div className="bg-black p-3 rounded-xl border border-cyan-500/30 space-y-3 font-mono text-xs mt-2">
+            <div className="text-cyan-400 font-bold text-[10px] uppercase">🛠️ SOCKS5 Tunnel Configuration</div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[9px] text-zinc-400">PROXY HOST / IP</label>
+                <input
+                  type="text"
+                  value={proxyHost}
+                  onChange={e => setProxyHost(e.target.value)}
+                  placeholder="127.0.0.1"
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white p-2 rounded-lg text-xs mt-1 font-mono focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] text-zinc-400">PROXY PORT</label>
+                <input
+                  type="text"
+                  value={proxyPort}
+                  onChange={e => setProxyPort(e.target.value)}
+                  placeholder="9050"
+                  className="w-full bg-zinc-900 border border-zinc-800 text-white p-2 rounded-lg text-xs mt-1 font-mono focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+            </div>
+            <button
+              onClick={() => applyNetworkProxy('socks', proxyHost, proxyPort)}
+              className="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-lg"
+            >
+              Apply Custom Proxy Configuration
+            </button>
+          </div>
+        )}
       </div>
 
       {/* SECURITY PIN MANAGEMENT */}
