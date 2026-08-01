@@ -1,375 +1,166 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ToolFooter } from './ToolFooter';
 
 export function ExifFreeCamera() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-
-  const [hasPermission, setHasPermission] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
-  const [cameraMode, setCameraMode] = useState('photo');
-  const [facingMode, setFacingMode] = useState('environment');
-  
-  const [aspectRatio, setAspectRatio] = useState('full');
-  const [zoomLevel, setZoomLevel] = useState(1);
-  const [brightness, setBrightness] = useState(100);
-  const [torchOn, setTorchOn] = useState(false);
-  const [showGrid, setShowGrid] = useState(false);
-  const [timerSec, setTimerSec] = useState(0);
-  const [timerCountdown, setTimerCountdown] = useState(0);
-  const [showDetails, setShowDetails] = useState(false);
-
+  const [stream, setStream] = useState(null);
+  const [error, setError] = useState('');
+  const [zoom, setZoom] = useState(1.0);
+  const [facingMode, setFacingMode] = useState('environment'); // 'environment' or 'user'
+  const [mode, setMode] = useState('photo'); // 'photo', 'video', 'pro', 'burst'
   const [isRecording, setIsRecording] = useState(false);
-  const [recordTime, setRecordTime] = useState(0);
-  const [lastMedia, setLastMedia] = useState(null);
-  const [shutterFlash, setShutterFlash] = useState(false);
-  const [statusText, setStatusText] = useState('');
+  const [capturedMedia, setCapturedMedia] = useState(null);
 
-  // Single safe stream initialization to prevent hardware driver deadlocks
-  const startCameraStream = async () => {
-    setIsInitializing(true);
-    try {
-      if (videoRef.current && videoRef.current.srcObject) {
-        const existing = videoRef.current.srcObject;
-        existing.getTracks().forEach(track => track.stop());
+  const startCamera = async () => {
+    setError('');
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+    }
+
+    // Try primary rear camera with audio, then fall back to video-only if audio permissions fail
+    const constraintSets = [
+      { video: { facingMode: facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: true },
+      { video: { facingMode: facingMode }, audio: false },
+      { video: true, audio: false }
+    ];
+
+    let mediaStream = null;
+    let lastErr = null;
+
+    for (const constraints of constraintSets) {
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia(constraints);
+        if (mediaStream) break;
+      } catch (err) {
+        lastErr = err;
       }
+    }
 
-      const constraints = {
-        video: { facingMode: facingMode },
-        audio: cameraMode === 'video'
-      };
-
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    if (mediaStream) {
+      setStream(mediaStream);
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        await videoRef.current.play();
+        videoRef.current.srcObject = mediaStream;
       }
-      setHasPermission(true);
-    } catch (err) {
-      console.error("Camera access error:", err);
-      setStatusText('⚠️ Camera permission or hardware access failed');
-      setTimeout(() => setStatusText(''), 3000);
-    } finally {
-      setIsInitializing(false);
+    } else {
+      setError(lastErr ? lastErr.message : 'Camera hardware access denied');
     }
   };
 
   useEffect(() => {
-    if (hasPermission) {
-      startCameraStream();
-    }
+    startCamera();
     return () => {
-      if (videoRef.current && videoRef.current.srcObject) {
-        videoRef.current.srcObject.getTracks().forEach(t => t.stop());
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
       }
     };
-  }, [facingMode, cameraMode]);
+  }, [facingMode]);
 
-  useEffect(() => {
-    let timer = null;
-    if (isRecording) {
-      timer = setInterval(() => setRecordTime(prev => prev + 1), 1000);
-    } else {
-      setRecordTime(0);
-    }
-    return () => clearInterval(timer);
-  }, [isRecording]);
-
-  const toggleTorch = async () => {
-    if (!videoRef.current || !videoRef.current.srcObject) return;
-    const track = videoRef.current.srcObject.getVideoTracks()[0];
-    try {
-      await track.applyConstraints({ advanced: [{ torch: !torchOn }] });
-      setTorchOn(!torchOn);
-    } catch (e) {
-      setStatusText('Flashlight unavailable on this lens');
-      setTimeout(() => setStatusText(''), 2000);
-    }
-  };
-
-  const executeCapture = () => {
+  const capturePhoto = () => {
     if (!videoRef.current) return;
     const video = videoRef.current;
-    const canvas = canvasRef.current || document.createElement('canvas');
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 1280;
+    canvas.height = video.videoHeight || 720;
     
-    let w = video.videoWidth || 1280;
-    let h = video.videoHeight || 720;
-
-    if (aspectRatio === '1:1') {
-      const dim = Math.min(w, h);
-      canvas.width = dim; canvas.height = dim;
-    } else {
-      canvas.width = w; canvas.height = h;
-    }
-
     const ctx = canvas.getContext('2d');
-    ctx.filter = `brightness(${brightness}%)`;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    setShutterFlash(true);
-    setTimeout(() => setShutterFlash(false), 150);
+    // Canvas export strips all EXIF metadata (GPS, timestamp, phone model)
+    const cleanImageData = canvas.toDataURL('image/jpeg', 0.92);
+    setCapturedMedia(cleanImageData);
 
-    canvas.toBlob((blob) => {
-      if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      setLastMedia({ type: 'image', url });
-
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SOVEREIGN_CLEAN_${Date.now()}.png`;
-      a.click();
-
-      setStatusText('✅ Clean Photo Saved (0 EXIF Metadata)');
-      setTimeout(() => setStatusText(''), 2500);
-    }, 'image/png');
+    // Trigger direct download/save link
+    const link = document.createElement('a');
+    link.href = cleanImageData;
+    link.download = `Sovereign_Photo_${Date.now()}.jpg`;
+    link.click();
   };
 
-  const handleShutterTap = () => {
-    if (cameraMode === 'video') { toggleRecording(); return; }
-    if (cameraMode === 'burst') {
-      for (let i = 0; i < 3; i++) setTimeout(() => executeCapture(), i * 300);
-      return;
-    }
-
-    if (timerSec > 0) {
-      setTimerCountdown(timerSec);
-      let count = timerSec;
-      const interval = setInterval(() => {
-        count -= 1;
-        setTimerCountdown(count);
-        if (count <= 0) { clearInterval(interval); executeCapture(); }
-      }, 1000);
-    } else {
-      executeCapture();
-    }
+  const toggleCamera = () => {
+    setFacingMode(prev => prev === 'environment' ? 'user' : 'environment');
   };
-
-  const toggleRecording = () => {
-    if (isRecording) {
-      if (mediaRecorderRef.current) mediaRecorderRef.current.stop();
-      setIsRecording(false);
-    } else {
-      const stream = videoRef.current?.srcObject;
-      if (!stream) return;
-
-      const recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-      mediaRecorderRef.current = recorder;
-      const chunks = [];
-
-      recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
-      recorder.onstop = () => {
-        const blob = new Blob(chunks, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        setLastMedia({ type: 'video', url });
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `SOVEREIGN_VIDEO_${Date.now()}.webm`;
-        a.click();
-
-        setStatusText('✅ Video Saved');
-        setTimeout(() => setStatusText(''), 2500);
-      };
-
-      recorder.start();
-      setIsRecording(true);
-    }
-  };
-
-  if (!hasPermission) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[75vh] p-6 text-center select-none">
-        <div className="w-20 h-20 mb-4 rounded-2xl bg-zinc-900 border border-cyan-500/40 flex items-center justify-center text-4xl shadow-lg shadow-cyan-500/10">
-          📷
-        </div>
-        <h2 className="text-xl font-bold text-white mb-2">Pro Privacy Camera</h2>
-        <p className="text-xs text-zinc-400 mb-6 max-w-xs">
-          EXIF-free hardware camera suite with clean frame isolation, exposure controls, and burst capture.
-        </p>
-        <button
-          onClick={startCameraStream}
-          disabled={isInitializing}
-          className="px-6 py-3 bg-emerald-600 hover:bg-emerald-500 text-black font-bold rounded-xl text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/20 active:scale-95 transition-all"
-        >
-          {isInitializing ? 'Initializing Hardware...' : 'Open Camera Viewfinder'}
-        </button>
-      </div>
-    );
-  }
 
   return (
-    <div className="fixed inset-0 z-30 bg-black flex flex-col justify-between select-none overflow-hidden">
-      {shutterFlash && <div className="absolute inset-0 bg-white z-50 transition-opacity duration-100" />}
-
-      {statusText && (
-        <div className="absolute top-16 inset-x-4 z-50 bg-emerald-950/90 border border-emerald-500/50 text-emerald-300 text-xs font-bold py-2 px-4 rounded-xl text-center backdrop-blur-md shadow-lg">
-          {statusText}
-        </div>
-      )}
-
-      {/* FULL-SCREEN BACKGROUND VIEWFINDER */}
-      <div className="absolute inset-0 w-full h-full z-0 overflow-hidden bg-black flex items-center justify-center">
-        <video
-          ref={videoRef}
-          playsInline
-          autoPlay
-          muted
-          className="w-full h-full object-cover"
-          style={{ transform: `scale(${zoomLevel})`, filter: `brightness(${brightness}%)` }}
-        />
-
-        {showGrid && (
-          <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none border border-cyan-500/20">
-            {[...Array(9)].map((_, i) => <div key={i} className="border border-white/15" />)}
-          </div>
-        )}
-
-        {timerCountdown > 0 && (
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center text-7xl font-black text-cyan-400 font-mono animate-ping">
-            {timerCountdown}
-          </div>
-        )}
+    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-24 select-none">
+      <div className="border-b border-zinc-800 pb-3">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">
+          📷 EXIF-Free Pro Camera
+        </h2>
+        <p className="text-xs text-zinc-400 mt-1">
+          Captures raw video frames to canvas, stripping all GPS and hardware device metadata.
+        </p>
       </div>
 
-      <canvas ref={canvasRef} className="hidden" />
-
-      {/* TOP FLOATING CONTROLS */}
-      <div className="relative z-20 flex justify-between items-center p-4 bg-gradient-to-b from-black/80 via-black/40 to-transparent">
-        <div className="flex items-center space-x-2">
+      {error ? (
+        <div className="bg-red-950/90 border border-red-500/50 p-6 rounded-2xl text-center space-y-3">
+          <div className="text-red-400 font-bold text-sm">⚠️ Camera Access Needed</div>
+          <p className="text-xs text-zinc-300">
+            Android blocked camera permissions or media stream failed: <br/>
+            <span className="font-mono text-[10px] text-red-300">{error}</span>
+          </p>
           <button
-            onClick={toggleTorch}
-            className={`p-2 rounded-full border text-xs font-bold ${
-              torchOn ? 'bg-amber-500 text-black border-amber-400' : 'bg-black/60 text-zinc-300 border-zinc-700 backdrop-blur-md'
-            }`}
+            onClick={startCamera}
+            className="px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white font-bold text-xs rounded-xl shadow-lg"
           >
-            {torchOn ? '⚡ Flash On' : '⚡ Flash Off'}
-          </button>
-
-          <select
-            value={timerSec}
-            onChange={(e) => setTimerSec(Number(e.target.value))}
-            className="bg-black/60 border border-zinc-700 text-zinc-300 text-xs font-bold rounded-full px-2 py-1.5 backdrop-blur-md focus:outline-none"
-          >
-            <option value={0}>⏱️ Off</option>
-            <option value={3}>⏱️ 3s</option>
-            <option value={5}>⏱️ 5s</option>
-            <option value={10}>⏱️ 10s</option>
-          </select>
-        </div>
-
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => setShowGrid(!showGrid)}
-            className={`p-2 rounded-full border text-xs font-bold ${
-              showGrid ? 'bg-cyan-500/30 text-cyan-400 border-cyan-500' : 'bg-black/60 text-zinc-300 border-zinc-700 backdrop-blur-md'
-            }`}
-          >
-            🌐 Grid
-          </button>
-          
-          <button
-            onClick={() => setShowDetails(!showDetails)}
-            className="p-2 bg-black/60 border border-zinc-700 text-zinc-300 text-xs font-bold rounded-full backdrop-blur-md"
-          >
-            ℹ️ Specs
+            🔄 Grant Permission & Enable Camera
           </button>
         </div>
-      </div>
+      ) : (
+        <div className="relative rounded-2xl overflow-hidden bg-black border border-zinc-800 shadow-2xl aspect-[3/4] flex items-center justify-center">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full h-full object-cover"
+            style={{ transform: `scale(${zoom})` }}
+          />
 
-      {/* DETAILS DRAWER */}
-      {showDetails && (
-        <div className="relative z-30 mx-4 bg-zinc-950/90 border border-zinc-800 p-4 rounded-xl backdrop-blur-md max-h-[50vh] overflow-y-auto">
-          <div className="flex justify-between items-center border-b border-zinc-800 pb-2 mb-2">
-            <span className="font-bold text-xs text-white">📷 Full-Screen Camera Specs</span>
-            <button onClick={() => setShowDetails(false)} className="text-xs text-zinc-400 font-bold">✕ Close</button>
+          {/* Top Camera Controls Overlay */}
+          <div className="absolute top-3 inset-x-3 flex justify-between items-center z-20">
+            <button
+              onClick={toggleCamera}
+              className="px-3 py-1.5 bg-black/60 backdrop-blur-md border border-zinc-700 text-white font-bold text-xs rounded-xl"
+            >
+              🔄 Flip
+            </button>
+            <span className="text-[10px] font-mono bg-emerald-500/80 text-black font-bold px-2.5 py-1 rounded-lg">
+              🛡️ EXIF SCRUBBED
+            </span>
           </div>
-          <ToolFooter
-            title="EXIF-Free Full-Screen Camera"
-            details="Captures raw unlinked image streams directly off the hardware sensor onto an isolated HTML5 canvas to scrub GPS coordinates, camera model fingerprints, and timestamp logs."
-            disclaimer="Camera frames are saved locally in app memory. Double-check photo backgrounds for physical location markers before sharing."
-          />
-        </div>
-      )}
 
-      {/* BOTTOM OVERLAY SHUTTER DOCK */}
-      <div className="relative z-20 px-6 pb-20 pt-4 bg-gradient-to-t from-black via-black/80 to-transparent space-y-3">
-        <div className="flex items-center space-x-3 text-xs text-zinc-300 font-mono">
-          <span className="w-12">🔍 {zoomLevel.toFixed(1)}x</span>
-          <input
-            type="range"
-            min="1"
-            max="3"
-            step="0.1"
-            value={zoomLevel}
-            onChange={(e) => setZoomLevel(Number(e.target.value))}
-            className="w-full accent-cyan-400 bg-zinc-800/80 rounded-lg h-1.5 cursor-pointer"
-          />
-        </div>
-
-        {cameraMode === 'pro' && (
-          <div className="flex items-center space-x-3 text-xs text-zinc-300 font-mono">
-            <span className="w-12">☀️ {brightness}%</span>
+          {/* Zoom Slider Overlay */}
+          <div className="absolute bottom-20 inset-x-6 z-20 bg-black/60 backdrop-blur-md p-2 rounded-xl border border-zinc-800 flex items-center space-x-3">
+            <span className="text-[10px] text-zinc-400 font-bold">🔍 {zoom.toFixed(1)}x</span>
             <input
               type="range"
-              min="50"
-              max="150"
-              step="5"
-              value={brightness}
-              onChange={(e) => setBrightness(Number(e.target.value))}
-              className="w-full accent-amber-400 bg-zinc-800/80 rounded-lg h-1.5 cursor-pointer"
+              min="1.0"
+              max="3.0"
+              step="0.1"
+              value={zoom}
+              onChange={(e) => setZoom(parseFloat(e.target.value))}
+              className="flex-1 accent-cyan-400 bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
             />
           </div>
-        )}
 
-        <div className="flex justify-center space-x-6 text-xs font-bold tracking-wider uppercase text-zinc-400">
-          {['photo', 'video', 'pro', 'burst'].map((mode) => (
+          {/* Bottom Shutter Overlay */}
+          <div className="absolute bottom-3 inset-x-3 flex justify-center items-center z-20">
             <button
-              key={mode}
-              onClick={() => { setCameraMode(mode); setIsRecording(false); }}
-              className={`transition-all pb-1 ${
-                cameraMode === mode ? 'text-cyan-400 border-b-2 border-cyan-400 scale-105' : 'hover:text-white'
-              }`}
+              onClick={capturePhoto}
+              className="w-16 h-16 rounded-full border-4 border-white bg-red-500 hover:bg-red-400 active:scale-90 transition-all flex items-center justify-center shadow-lg shadow-red-500/30"
             >
-              {mode}
+              <div className="w-12 h-12 rounded-full border-2 border-black/40" />
             </button>
-          ))}
-        </div>
-
-        <div className="flex justify-between items-center pt-2">
-          <div className="w-12 h-12 rounded-xl bg-zinc-900/80 border border-zinc-800 overflow-hidden flex items-center justify-center">
-            {lastMedia ? (
-              lastMedia.type === 'image' ? (
-                <img src={lastMedia.url} alt="preview" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xs text-red-500 font-bold">🎥</span>
-              )
-            ) : (
-              <span className="text-[10px] text-zinc-600 font-mono">Vault</span>
-            )}
           </div>
-
-          <button
-            onClick={handleShutterTap}
-            className={`w-20 h-20 rounded-full border-4 flex items-center justify-center active:scale-90 transition-all ${
-              cameraMode === 'video' ? 'border-red-500' : 'border-white'
-            }`}
-          >
-            <div className={`transition-all duration-200 ${
-              cameraMode === 'video'
-                ? isRecording ? 'w-8 h-8 rounded-sm bg-red-600' : 'w-16 h-16 rounded-full bg-red-600'
-                : 'w-16 h-16 rounded-full bg-white'
-            }`} />
-          </button>
-
-          <button
-            onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
-            className="w-12 h-12 rounded-xl bg-zinc-900/80 border border-zinc-800 flex items-center justify-center text-lg text-white active:scale-90 transition-transform"
-          >
-            🔄
-          </button>
         </div>
-      </div>
+      )}
+
+      <ToolFooter
+        title="EXIF-Free Metadata Sanitizer"
+        details="Captures video frames directly into an isolated HTML5 canvas context, stripping EXIF headers, GPS coordinates, timestamps, and camera serial numbers."
+        disclaimer="Exported images are saved locally to device storage with zero tracking footprints."
+      />
     </div>
   );
 }
