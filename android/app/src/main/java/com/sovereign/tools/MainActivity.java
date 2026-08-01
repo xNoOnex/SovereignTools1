@@ -58,10 +58,13 @@ public class MainActivity extends BridgeActivity {
     private final static int FILECHOOSER_RESULTCODE = 1001;
     private final static int PERMISSION_REQUEST_CODE = 2002;
 
-    // NATIVE FULLSCREEN BROWSER OVERLAY LAYOUT
     private FrameLayout nativeBrowserContainer;
     private WebView nativeBrowserView;
     private EditText nativeUrlInput;
+
+    private int dpToPx(int dp) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, getResources().getDisplayMetrics());
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -129,18 +132,21 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
 
-            // TOP NAVIGATION CONTROL BAR
+            // CLEAN HORIZONTAL TOP CONTROL BAR
             LinearLayout topBar = new LinearLayout(this);
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setGravity(Gravity.CENTER_VERTICAL);
-            topBar.setPadding(16, 48, 16, 16);
+            topBar.setPadding(dpToPx(8), dpToPx(36), dpToPx(8), dpToPx(8));
             topBar.setBackgroundColor(Color.parseColor("#18181b"));
 
             Button btnExit = new Button(this);
-            btnExit.setText("❌ Suite");
-            btnExit.setTextSize(10);
+            btnExit.setText("❌");
+            btnExit.setTextSize(12);
             btnExit.setTextColor(Color.WHITE);
             btnExit.setBackgroundColor(Color.parseColor("#27272a"));
+            LinearLayout.LayoutParams btnExitParams = new LinearLayout.LayoutParams(dpToPx(42), dpToPx(38));
+            btnExitParams.setMargins(0, 0, dpToPx(4), 0);
+            btnExit.setLayoutParams(btnExitParams);
             btnExit.setOnClickListener(v -> closeNativeBrowser());
 
             Button btnBack = new Button(this);
@@ -148,6 +154,9 @@ public class MainActivity extends BridgeActivity {
             btnBack.setTextSize(12);
             btnBack.setTextColor(Color.WHITE);
             btnBack.setBackgroundColor(Color.parseColor("#27272a"));
+            LinearLayout.LayoutParams btnNavParams = new LinearLayout.LayoutParams(dpToPx(38), dpToPx(38));
+            btnNavParams.setMargins(0, 0, dpToPx(4), 0);
+            btnBack.setLayoutParams(btnNavParams);
             btnBack.setOnClickListener(v -> {
                 if (nativeBrowserView != null && nativeBrowserView.canGoBack()) {
                     nativeBrowserView.goBack();
@@ -159,6 +168,7 @@ public class MainActivity extends BridgeActivity {
             btnForward.setTextSize(12);
             btnForward.setTextColor(Color.WHITE);
             btnForward.setBackgroundColor(Color.parseColor("#27272a"));
+            btnForward.setLayoutParams(btnNavParams);
             btnForward.setOnClickListener(v -> {
                 if (nativeBrowserView != null && nativeBrowserView.canGoForward()) {
                     nativeBrowserView.goForward();
@@ -167,19 +177,27 @@ public class MainActivity extends BridgeActivity {
 
             nativeUrlInput = new EditText(this);
             nativeUrlInput.setText("https://duckduckgo.com");
-            nativeUrlInput.setTextSize(11);
-            nativeUrlInput.setTextColor(Color.CYAN);
-            nativeUrlInput.setBackgroundColor(Color.parseColor("#000000"));
-            nativeUrlInput.setPadding(20, 15, 20, 15);
-            LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1.0f);
-            urlParams.setMargins(10, 0, 10, 0);
+            nativeUrlInput.setTextSize(12);
+            nativeUrlInput.setTextColor(Color.WHITE);
+            nativeUrlInput.setHint("Search or enter URL...");
+            nativeUrlInput.setHintTextColor(Color.GRAY);
+            nativeUrlInput.setSingleLine(true);
+            nativeUrlInput.setLines(1);
+            nativeUrlInput.setMaxLines(1);
+            nativeUrlInput.setBackgroundColor(Color.parseColor("#27272a"));
+            nativeUrlInput.setPadding(dpToPx(10), dpToPx(6), dpToPx(10), dpToPx(6));
+            
+            LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, dpToPx(38), 1.0f);
+            urlParams.setMargins(dpToPx(4), 0, dpToPx(4), 0);
             nativeUrlInput.setLayoutParams(urlParams);
 
             Button btnGo = new Button(this);
             btnGo.setText("GO");
-            btnGo.setTextSize(10);
+            btnGo.setTextSize(11);
             btnGo.setTextColor(Color.BLACK);
             btnGo.setBackgroundColor(Color.parseColor("#06b6d4"));
+            LinearLayout.LayoutParams btnGoParams = new LinearLayout.LayoutParams(dpToPx(48), dpToPx(38));
+            btnGo.setLayoutParams(btnGoParams);
             btnGo.setOnClickListener(v -> {
                 String input = nativeUrlInput.getText().toString().trim();
                 if (!input.startsWith("http://") && !input.startsWith("https://")) {
@@ -199,7 +217,6 @@ public class MainActivity extends BridgeActivity {
             topBar.addView(nativeUrlInput);
             topBar.addView(btnGo);
 
-            // NATIVE WEBVIEW CONTAINER
             nativeBrowserView = new WebView(this);
             nativeBrowserView.setLayoutParams(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
