@@ -2,44 +2,63 @@ import React, { useState } from 'react';
 
 export function PrivacyBrowser() {
   const [tabs, setTabs] = useState([
-    { id: 1, url: 'https://www.google.com/webhp?igu=1', title: 'New Tab' }
+    { id: 1, url: 'https://yewtu.be', title: 'YouTube (Ad-Free)' }
   ]);
   const [activeTabId, setActiveTabId] = useState(1);
   const [inputUrl, setInputUrl] = useState('');
+  const [useProxy, setUseProxy] = useState(true);
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [invidiousRedirect, setInvidiousRedirect] = useState(true);
 
   const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
 
-  const handleNavigate = (e) => {
-    e.preventDefault();
-    if (!inputUrl.trim()) return;
+  const formatTargetUrl = (rawInput) => {
+    let target = rawInput.trim();
+    if (!target) return activeTab.url;
 
-    let target = inputUrl.trim();
+    // 1. Handle YouTube explicitly via Invidious (Ad-free & frame-enabled)
+    if (target.includes('youtube.com') || target.includes('youtu.be')) {
+      const videoIdMatch = target.match(/(?:v=|\/)([\w-]{11})/);
+      if (videoIdMatch && videoIdMatch[1]) {
+        return `https://yewtu.be/watch?v=${videoIdMatch[1]}`;
+      }
+      return 'https://yewtu.be';
+    }
+
+    // 2. Format standard URLs vs Search Queries
     if (!target.startsWith('http://') && !target.startsWith('https://')) {
       if (target.includes('.') && !target.includes(' ')) {
         target = 'https://' + target;
       } else {
-        target = 'https://www.google.com/search?igu=1&q=' + encodeURIComponent(target);
+        target = 'https://duckduckgo.com/?q=' + encodeURIComponent(target);
       }
     }
 
-    if (invidiousRedirect && (target.includes('youtube.com') || target.includes('youtu.be'))) {
-      target = target.replace(/youtube\.com|youtu\.be/g, 'vid.puffyan.us');
+    // 3. Route through Proxy to strip X-Frame-Options if Proxy Mode is active
+    if (useProxy && !target.includes('yewtu.be') && !target.includes('croxyproxy')) {
+      return `https://www.croxyproxy.com/proxy?url=${encodeURIComponent(target)}`;
     }
 
-    // Update Active Tab
-    setTabs(tabs.map(t => t.id === activeTabId ? { ...t, url: target, title: target.replace('https://', '').split('/')[0] } : t));
-    
-    // Append to History
-    setHistory(prev => [{ url: target, time: new Date().toLocaleTimeString() }, ...prev]);
+    return target;
+  };
+
+  const handleNavigate = (e) => {
+    e.preventDefault();
+    const finalUrl = formatTargetUrl(inputUrl);
+
+    setTabs(tabs.map(t => t.id === activeTabId ? { 
+      ...t, 
+      url: finalUrl, 
+      title: inputUrl.trim().replace('https://', '').split('/')[0] || 'Web' 
+    } : t));
+
+    setHistory(prev => [{ url: finalUrl, display: inputUrl || finalUrl, time: new Date().toLocaleTimeString() }, ...prev]);
     setInputUrl('');
   };
 
   const addTab = () => {
     const newId = Date.now();
-    const newTab = { id: newId, url: 'https://www.google.com/webhp?igu=1', title: 'New Tab' };
+    const newTab = { id: newId, url: 'https://yewtu.be', title: 'New Tab' };
     setTabs([...tabs, newTab]);
     setActiveTabId(newId);
   };
@@ -54,14 +73,8 @@ export function PrivacyBrowser() {
 
   const handleRipMedia = () => {
     let target = activeTab.url;
-    if (target.includes('youtube.com') || target.includes('youtu.be') || target.includes('vid.puffyan.us')) {
-      const originalYtUrl = target.replace('vid.puffyan.us', 'youtube.com');
-      const ripperUrl = `https://loader.to/?link=${encodeURIComponent(originalYtUrl)}`;
-      setTabs(tabs.map(t => t.id === activeTabId ? { ...t, url: ripperUrl } : t));
-    } else {
-      const fallbackCobalt = 'https://cobalt.peputico.gay';
-      setTabs(tabs.map(t => t.id === activeTabId ? { ...t, url: fallbackCobalt } : t));
-    }
+    const ripperUrl = `https://loader.to/?link=${encodeURIComponent(target)}`;
+    setTabs(tabs.map(t => t.id === activeTabId ? { ...t, url: ripperUrl, title: 'Media Ripper' } : t));
   };
 
   return (
@@ -72,7 +85,7 @@ export function PrivacyBrowser() {
           <div
             key={tab.id}
             onClick={() => setActiveTabId(tab.id)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-t-xl text-xs font-mono max-w-[140px] border-t border-x cursor-pointer transition-all ${
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-t-xl text-xs font-mono max-w-[150px] border-t border-x cursor-pointer transition-all ${
               tab.id === activeTabId 
                 ? 'bg-zinc-900 border-zinc-700 text-cyan-400 font-bold' 
                 : 'bg-zinc-950 border-zinc-800 text-zinc-500 hover:text-zinc-300'
@@ -87,18 +100,30 @@ export function PrivacyBrowser() {
         <button onClick={addTab} className="px-2.5 py-1 text-cyan-400 font-bold text-base hover:bg-zinc-900 rounded-lg">+</button>
       </div>
 
-      {/* NAVIGATION BAR & CONTROLS */}
+      {/* TOOLBAR CONTROLS */}
       <div className="p-2 bg-zinc-900 border-b border-zinc-800 flex items-center gap-2 shrink-0">
         <form onSubmit={handleNavigate} className="flex-1 flex items-center bg-black border border-zinc-700 rounded-xl px-2 py-1">
           <input
             type="text"
             value={inputUrl}
             onChange={(e) => setInputUrl(e.target.value)}
-            placeholder={activeTab.url}
-            className="w-full bg-transparent text-xs text-white font-mono focus:outline-none px-1"
+            placeholder="Search or enter URL (e.g. youtube.com)..."
+            className="w-full bg-transparent text-xs text-white font-mono focus:outline-none px-1 placeholder-zinc-600"
           />
           <button type="submit" className="text-xs text-cyan-400 font-bold px-2">Go</button>
         </form>
+
+        {/* PROXY TOGGLE BUTTON */}
+        <button
+          onClick={() => setUseProxy(!useProxy)}
+          className={`text-[9px] font-bold px-2 py-1.5 rounded-xl border transition-all ${
+            useProxy 
+              ? 'bg-cyan-950 text-cyan-400 border-cyan-500/50' 
+              : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+          }`}
+        >
+          {useProxy ? '🛡️ Proxy: ON' : '🌐 Direct'}
+        </button>
 
         <button onClick={handleRipMedia} className="bg-purple-600 hover:bg-purple-500 text-white text-[10px] font-bold px-2.5 py-1.5 rounded-xl border border-purple-400">
           Rip
@@ -109,20 +134,20 @@ export function PrivacyBrowser() {
         </button>
       </div>
 
-      {/* HISTORY DRAWER OVERLAY */}
+      {/* HISTORY DRAWER */}
       {showHistory && (
         <div className="bg-zinc-950 border-b border-zinc-800 p-3 max-h-48 overflow-y-auto shrink-0 z-20">
           <div className="flex justify-between items-center mb-2">
             <span className="text-xs font-bold text-cyan-400 uppercase">Browsing History</span>
-            <button onClick={() => setHistory([])} className="text-[10px] text-red-400 font-bold">Clear All</button>
+            <button onClick={() => setHistory([])} className="text-[10px] text-red-400 font-bold">Clear</button>
           </div>
           {history.length === 0 ? (
-            <p className="text-[10px] text-zinc-600 font-mono">No history recorded yet.</p>
+            <p className="text-[10px] text-zinc-600 font-mono">No history recorded.</p>
           ) : (
             <div className="space-y-1.5">
               {history.map((h, i) => (
                 <div key={i} onClick={() => { setTabs(tabs.map(t => t.id === activeTabId ? { ...t, url: h.url } : t)); setShowHistory(false); }} className="text-[10px] font-mono text-zinc-300 hover:text-cyan-400 truncate cursor-pointer flex justify-between">
-                  <span className="truncate">{h.url}</span>
+                  <span className="truncate">{h.display}</span>
                   <span className="text-zinc-600 ml-2">{h.time}</span>
                 </div>
               ))}
@@ -131,7 +156,7 @@ export function PrivacyBrowser() {
         </div>
       )}
 
-      {/* FULLSCREEN IFRAME VIEWPORT */}
+      {/* FULLSCREEN VIEWPORT */}
       <div className="flex-1 w-full bg-white relative">
         <iframe
           src={activeTab.url}
