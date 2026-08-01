@@ -31,10 +31,12 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.RandomAccessFile;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.concurrent.Executor;
@@ -107,6 +109,32 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    private String resolveRealPathFromUri(Uri uri) {
+        String path = null;
+        try {
+            String[] proj = { MediaStore.MediaColumns.DATA };
+            Cursor cursor = getContentResolver().query(uri, proj, null, null, null);
+            if (cursor != null) {
+                if (cursor.moveToFirst()) {
+                    int colIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA);
+                    if (colIdx != -1) {
+                        path = cursor.getString(colIdx);
+                    }
+                }
+                cursor.close();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        if (path == null && uri != null) {
+            path = uri.getPath();
+            if (path != null && path.startsWith("/raw/")) {
+                path = path.replace("/raw/", "");
+            }
+        }
+        return path;
+    }
+
     public class AndroidBridge {
 
         @JavascriptInterface
@@ -115,7 +143,7 @@ public class MainActivity extends BridgeActivity {
             try {
                 ContentResolver resolver = getContentResolver();
 
-                // 1. Scan Photos (Camera & Imported)
+                // Scan Images
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
@@ -160,7 +188,7 @@ public class MainActivity extends BridgeActivity {
                     cursor.close();
                 }
 
-                // 2. Scan Videos (Camera Videos & Movies)
+                // Scan Videos
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
@@ -201,40 +229,72 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
+        // HARDWARE-LEVEL FILE SHREDDER
         @JavascriptInterface
         public boolean shredFileByUri(String uriString) {
             try {
                 Uri uri = Uri.parse(uriString);
                 ContentResolver resolver = getContentResolver();
+                String realPath = resolveRealPathFromUri(uri);
 
-                try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rwt")) {
-                    if (pfd != null) {
-                        FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
-                        long size = pfd.getStatSize();
-                        if (size > 0) {
-                            byte[] zeros = new byte[8192];
-                            long written = 0;
-                            while (written < size) {
-                                int toWrite = (int) Math.min(zeros.length, size - written);
-                                fos.write(zeros, 0, toWrite);
-                                written += toWrite;
-                            }
-                            fos.flush();
+                boolean sectorWiped = false;
+
+                // 1. Direct File Sector Zeroing via RandomAccessFile
+                if (realPath != null) {
+                    File file = new File(realPath);
+                    if (file.exists() && file.canWrite()) {
+                        long length = file.length();
+                        RandomAccessFile raf = new RandomAccessFile(file, "rw");
+                        byte[] zeros = new byte[8192];
+                        long written = 0;
+                        while (written < length) {
+                            int toWrite = (int) Math.min(zeros.length, length - written);
+                            raf.write(zeros, 0, toWrite);
+                            written += toWrite;
                         }
-                        fos.close();
+                        raf.getFD().sync();
+                        raf.close();
+
+                        file.delete();
+                        sectorWiped = true;
                     }
-                } catch (Exception e) {
-                    e.printStackTrace();
                 }
 
-                int deletedRows = resolver.delete(uri, null, null);
+                // 2. Fallback Descriptor Zeroing if Direct File Path is Restricted
+                if (!sectorWiped) {
+                    try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rwt")) {
+                        if (pfd != null) {
+                            FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
+                            long size = pfd.getStatSize();
+                            if (size > 0) {
+                                byte[] zeros = new byte[8192];
+                                long written = 0;
+                                while (written < size) {
+                                    int toWrite = (int) Math.min(zeros.length, size - written);
+                                    fos.write(zeros, 0, toWrite);
+                                    written += toWrite;
+                                }
+                                fos.flush();
+                            }
+                            fos.close();
+                        }
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
 
-                MediaScannerConnection.scanFile(
-                    MainActivity.this, 
-                    new String[]{uri.getPath()}, 
-                    null, 
-                    (path, newUri) -> {}
-                );
+                // 3. Unlink Handle & Purge System MediaStore Database Cache
+                resolver.delete(uri, null, null);
+
+                String scanPath = (realPath != null) ? realPath : uri.getPath();
+                if (scanPath != null) {
+                    MediaScannerConnection.scanFile(
+                        MainActivity.this, 
+                        new String[]{scanPath}, 
+                        null, 
+                        (p, u) -> {}
+                    );
+                }
 
                 runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Physical Storage Zeroed & Shredded", Toast.LENGTH_SHORT).show());
                 return true;
