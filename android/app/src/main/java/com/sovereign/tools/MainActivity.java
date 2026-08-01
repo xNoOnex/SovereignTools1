@@ -109,32 +109,6 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private String resolveRealPathFromUri(Uri uri) {
-        String path = null;
-        try {
-            String[] proj = { MediaStore.MediaColumns.DATA };
-            Cursor cursor = getContentResolver().query(uri, proj, null, null, null);
-            if (cursor != null) {
-                if (cursor.moveToFirst()) {
-                    int colIdx = cursor.getColumnIndex(MediaStore.MediaColumns.DATA);
-                    if (colIdx != -1) {
-                        path = cursor.getString(colIdx);
-                    }
-                }
-                cursor.close();
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        if (path == null && uri != null) {
-            path = uri.getPath();
-            if (path != null && path.startsWith("/raw/")) {
-                path = path.replace("/raw/", "");
-            }
-        }
-        return path;
-    }
-
     public class AndroidBridge {
 
         @JavascriptInterface
@@ -143,11 +117,13 @@ public class MainActivity extends BridgeActivity {
             try {
                 ContentResolver resolver = getContentResolver();
 
+                // Scan Images
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
                     MediaStore.Images.Media.DISPLAY_NAME,
                     MediaStore.Images.Media.SIZE,
+                    MediaStore.Images.Media.DATA,
                     MediaStore.Images.Media.RELATIVE_PATH
                 };
                 String imageSelection = MediaStore.Images.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Images.Media.RELATIVE_PATH + " LIKE ?";
@@ -159,6 +135,7 @@ public class MainActivity extends BridgeActivity {
                         long id = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media._ID));
                         String name = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DISPLAY_NAME));
                         long size = cursor.getLong(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.SIZE));
+                        String dataPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATA));
                         String relPath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Images.Media.RELATIVE_PATH));
                         Uri fullUri = Uri.withAppendedPath(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
@@ -178,6 +155,7 @@ public class MainActivity extends BridgeActivity {
                         obj.put("name", name);
                         obj.put("size", (size / 1024) + " KB");
                         obj.put("type", "image");
+                        obj.put("absolutePath", dataPath != null ? dataPath : "");
                         obj.put("folder", (relPath != null && relPath.contains("DCIM")) ? "Camera Photos" : "Imported Photos");
                         obj.put("uri", fullUri.toString());
                         obj.put("cleanUrl", "data:image/jpeg;base64," + base64Str);
@@ -187,11 +165,13 @@ public class MainActivity extends BridgeActivity {
                     cursor.close();
                 }
 
+                // Scan Videos
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
                     MediaStore.Video.Media.DISPLAY_NAME,
                     MediaStore.Video.Media.SIZE,
+                    MediaStore.Video.Media.DATA,
                     MediaStore.Video.Media.MIME_TYPE
                 };
                 String videoSelection = MediaStore.Video.Media.RELATIVE_PATH + " LIKE ? OR " + MediaStore.Video.Media.RELATIVE_PATH + " LIKE ?";
@@ -203,6 +183,7 @@ public class MainActivity extends BridgeActivity {
                         long id = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media._ID));
                         String name = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME));
                         long size = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE));
+                        String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
                         String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
                         Uri fullUri = Uri.withAppendedPath(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, String.valueOf(id));
 
@@ -211,6 +192,7 @@ public class MainActivity extends BridgeActivity {
                         obj.put("name", name);
                         obj.put("size", (size / 1024) + " KB");
                         obj.put("type", "video");
+                        obj.put("absolutePath", dataPath != null ? dataPath : "");
                         obj.put("folder", "Camera Videos");
                         obj.put("uri", fullUri.toString());
                         obj.put("cleanUrl", fullUri.toString());
@@ -227,19 +209,15 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
+        // ABSOLUTE PATH HARDWARE SECTOR ZEROING & DELETION
         @JavascriptInterface
-        public boolean shredFileByUri(String uriString) {
+        public boolean shredFileByAbsolutePath(String absolutePath) {
             try {
-                Uri uri = Uri.parse(uriString);
-                ContentResolver resolver = getContentResolver();
-                String realPath = resolveRealPathFromUri(uri);
-
-                boolean sectorWiped = false;
-
-                if (realPath != null) {
-                    File file = new File(realPath);
-                    if (file.exists() && file.canWrite()) {
-                        long length = file.length();
+                if (absolutePath == null || absolutePath.isEmpty()) return false;
+                File file = new File(absolutePath);
+                if (file.exists()) {
+                    long length = file.length();
+                    if (length > 0) {
                         RandomAccessFile raf = new RandomAccessFile(file, "rw");
                         byte[] zeros = new byte[8192];
                         long written = 0;
@@ -250,47 +228,44 @@ public class MainActivity extends BridgeActivity {
                         }
                         raf.getFD().sync();
                         raf.close();
-
-                        file.delete();
-                        sectorWiped = true;
                     }
-                }
+                    boolean deleted = file.delete();
 
-                if (!sectorWiped) {
-                    try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rwt")) {
-                        if (pfd != null) {
-                            FileOutputStream fos = new FileOutputStream(pfd.getFileDescriptor());
-                            long size = pfd.getStatSize();
-                            if (size > 0) {
-                                byte[] zeros = new byte[8192];
-                                long written = 0;
-                                while (written < size) {
-                                    int toWrite = (int) Math.min(zeros.length, size - written);
-                                    fos.write(zeros, 0, toWrite);
-                                    written += toWrite;
-                                }
-                                fos.flush();
-                            }
-                            fos.close();
-                        }
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
-                }
+                    // Purge from MediaStore Database Cache
+                    getContentResolver().delete(
+                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                        MediaStore.Images.Media.DATA + "=?",
+                        new String[]{absolutePath}
+                    );
+                    getContentResolver().delete(
+                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                        MediaStore.Video.Media.DATA + "=?",
+                        new String[]{absolutePath}
+                    );
 
-                resolver.delete(uri, null, null);
-
-                String scanPath = (realPath != null) ? realPath : uri.getPath();
-                if (scanPath != null) {
                     MediaScannerConnection.scanFile(
                         MainActivity.this, 
-                        new String[]{scanPath}, 
+                        new String[]{absolutePath}, 
                         null, 
                         (p, u) -> {}
                     );
-                }
 
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Physical Storage Zeroed & Shredded", Toast.LENGTH_SHORT).show());
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Hardware Sectors Zeroed & File Destroyed", Toast.LENGTH_SHORT).show());
+                    return deleted;
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+
+        @JavascriptInterface
+        public boolean shredFileByUri(String uriString) {
+            try {
+                Uri uri = Uri.parse(uriString);
+                ContentResolver resolver = getContentResolver();
+                resolver.delete(uri, null, null);
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Handle Shredded", Toast.LENGTH_SHORT).show());
                 return true;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -298,14 +273,12 @@ public class MainActivity extends BridgeActivity {
             return false;
         }
 
-        // STANDALONE NATIVE PRIVACY HTTP ENGINE (NO EXTERNAL APPS NEEDED)
         @JavascriptInterface
         public String fetchUrl(String urlString) {
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                // Sanitized headers to strip device fingerprinting & referrer leaks
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
                 conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
                 conn.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
@@ -340,7 +313,7 @@ public class MainActivity extends BridgeActivity {
                 } else if ("http".equalsIgnoreCase(proxyType)) {
                     proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
                 } else {
-                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
+                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () => {
                         runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Direct Mode Active", Toast.LENGTH_SHORT).show());
                     });
                     return true;
