@@ -14,6 +14,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.provider.AlarmClock;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Base64;
@@ -328,11 +329,7 @@ public class MainActivity extends BridgeActivity {
         wv.getSettings().setJavaScriptEnabled(true);
         wv.getSettings().setDomStorageEnabled(true); 
         wv.getSettings().setDatabaseEnabled(true);
-        
-        // Spoof Mobile Chrome User-Agent to pass Cloudflare bot detection
         wv.getSettings().setUserAgentString("Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36");
-        
-        // Essential for Cloudflare Turnstile clearance cookies
         CookieManager.getInstance().setAcceptThirdPartyCookies(wv, true);
 
         wv.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimetype, contentLength) -> {
@@ -352,44 +349,10 @@ public class MainActivity extends BridgeActivity {
                 DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
                 dm.enqueue(request);
                 Toast.makeText(getApplicationContext(), "📥 Downloading: " + fileName, Toast.LENGTH_LONG).show();
-            } catch (Exception e) {
-                Toast.makeText(getApplicationContext(), "Download Failed: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        wv.setOnLongClickListener(v -> {
-            WebView.HitTestResult result = wv.getHitTestResult();
-            if (result != null) {
-                int type = result.getType();
-                if (type == WebView.HitTestResult.IMAGE_TYPE || type == WebView.HitTestResult.SRC_IMAGE_ANCHOR_TYPE) {
-                    String mediaUrl = result.getExtra();
-                    if (mediaUrl != null && (mediaUrl.startsWith("http"))) {
-                        new AlertDialog.Builder(MainActivity.this)
-                            .setTitle("Download Media")
-                            .setMessage("Save this image/video directly to your device?")
-                            .setPositiveButton("Download", (dialog, which) -> {
-                                try {
-                                    DownloadManager.Request request = new DownloadManager.Request(Uri.parse(mediaUrl));
-                                    request.allowScanningByMediaScanner();
-                                    request.setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED);
-                                    String fileName = URLUtil.guessFileName(mediaUrl, null, null);
-                                    request.setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName);
-                                    DownloadManager dm = (DownloadManager) getSystemService(Context.DOWNLOAD_SERVICE);
-                                    dm.enqueue(request);
-                                    Toast.makeText(getApplicationContext(), "📥 Ripping media...", Toast.LENGTH_SHORT).show();
-                                } catch (Exception e) {}
-                            })
-                            .setNegativeButton("Cancel", null)
-                            .show();
-                        return true;
-                    }
-                }
-            }
-            return false;
+            } catch (Exception e) {}
         });
 
         wv.setWebViewClient(new WebViewClient() {
-            // NATIVE ADBLOCKER HOSTS LIST
             private final String[] AD_HOSTS = {
                 "doubleclick.net", "googlesyndication.com", "googleadservices.com",
                 "adnxs.com", "popads.net", "taboola.com", "outbrain.com",
@@ -401,7 +364,6 @@ public class MainActivity extends BridgeActivity {
                 String requestUrl = request.getUrl().toString().toLowerCase();
                 for (String adHost : AD_HOSTS) {
                     if (requestUrl.contains(adHost)) {
-                        // Kill the request silently by returning an empty string
                         return new WebResourceResponse("text/plain", "UTF-8", null);
                     }
                 }
@@ -522,6 +484,22 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void exitNativeBrowser() { closeNativeBrowser(); }
 
+        // NEW: DISPATCH SYSTEM ALARM INTENT FROM CALENDAR
+        @JavascriptInterface
+        public void setSystemAlarm(String message, int hour, int minutes) {
+            try {
+                Intent intent = new Intent(AlarmClock.ACTION_SET_ALARM)
+                    .putExtra(AlarmClock.EXTRA_MESSAGE, message)
+                    .putExtra(AlarmClock.EXTRA_HOUR, hour)
+                    .putExtra(AlarmClock.EXTRA_MINUTES, minutes)
+                    .putExtra(AlarmClock.EXTRA_SKIP_UI, true);
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+
         @JavascriptInterface
         public String getAllDeviceFiles() {
             JSONArray array = new JSONArray();
@@ -583,7 +561,7 @@ public class MainActivity extends BridgeActivity {
                         String name = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DISPLAY_NAME));
                         long size = vCursor.getLong(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.SIZE));
                         String dataPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.DATA));
-                        String relPath = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
+                        String relPath = vCursor.getString(cursor.getColumnIndexOrThrow(MediaStore.Video.Media.RELATIVE_PATH));
                         String mime = vCursor.getString(vCursor.getColumnIndexOrThrow(MediaStore.Video.Media.MIME_TYPE));
                         if (dataPath != null) {
                             JSONObject obj = new JSONObject();

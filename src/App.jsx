@@ -6,6 +6,7 @@ import { Gallery } from './components/Gallery';
 import { AudioPlayer } from './components/AudioPlayer';
 import { DocumentManager } from './components/DocumentManager';
 import { Calculator } from './components/Calculator';
+import { CalendarManager } from './components/CalendarManager';
 import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
 import { EncryptedComms } from './components/EncryptedComms';
@@ -64,6 +65,7 @@ export default function App() {
         {currentTab === 'audio' && <AudioPlayer />}
         {currentTab === 'docs' && <DocumentManager />}
         {currentTab === 'calc' && <Calculator />}
+        {currentTab === 'calendar' && <CalendarManager />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
         {currentTab === 'comms' && <EncryptedComms />}
@@ -83,15 +85,16 @@ export default function App() {
         <button onClick={() => setCurrentTab('gallery')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'gallery' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🖼️</span>Gallery</button>
         <button onClick={() => setCurrentTab('audio')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'audio' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🎧</span>Audio</button>
         <button onClick={() => setCurrentTab('docs')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'docs' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📝</span>Docs</button>
-        
-        {/* NEW CALC TAB */}
         <button onClick={() => setCurrentTab('calc')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'calc' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🧮</span>Calc</button>
+        
+        {/* NEW CALENDAR TAB */}
+        <button onClick={() => setCurrentTab('calendar')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'calendar' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📅</span>Calendar</button>
         
         <button onClick={() => setCurrentTab('vault')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'vault' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🔐</span>Vault</button>
         <button onClick={() => setCurrentTab('debloater')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'debloater' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">⚡</span>Debloat</button>
         <button onClick={() => setCurrentTab('comms')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'comms' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">📡</span>Comms</button>
         <button onClick={() => setCurrentTab('aes')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'aes' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🛡️</span>AES</button>
-        <button onClick={() => setCurrentTab('shredder')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">☣️</span>Shred</button>
+        <button onClick={() => setCurrentTab('shredder')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab => currentTab === 'shredder' ? 'text-red-400 bg-zinc-800/90' : 'text-red-400'}`}><span className="text-sm">☣️</span>Shred</button>
         <button onClick={() => setCurrentTab('ai')} className={`flex-shrink-0 flex flex-col items-center py-1 px-3 rounded-lg ${currentTab === 'ai' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}><span className="text-sm">🤖</span>AI</button>
       </nav>
     </div>
