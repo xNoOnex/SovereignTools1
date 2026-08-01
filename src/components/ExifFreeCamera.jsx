@@ -6,18 +6,15 @@ export function ExifFreeCamera() {
   const [stream, setStream] = useState(null);
   const [error, setError] = useState('');
   
-  // Pro Camera States
-  const [mode, setMode] = useState('photo'); // 'photo' | 'video' | 'pro' | 'burst'
-  const [aspectRatio, setAspectRatio] = useState('full'); // 'full' | '16:9' | '4:3' | '1:1'
+  const [mode, setMode] = useState('photo');
+  const [aspectRatio, setAspectRatio] = useState('full');
   const [facingMode, setFacingMode] = useState('environment');
   const [zoom, setZoom] = useState(1.0);
   const [exposure, setExposure] = useState(0);
   const [showGrid, setShowGrid] = useState(true);
-  const [flash, setFlash] = useState(false);
-  const [timer, setTimer] = useState(0); // 0 | 3 | 10
+  const [timer, setTimer] = useState(0);
   const [countdown, setCountdown] = useState(0);
   const [isRecording, setIsRecording] = useState(false);
-  const [capturedMedia, setCapturedMedia] = useState([]);
   const [statusMsg, setStatusMsg] = useState('');
 
   const mediaRecorderRef = useRef(null);
@@ -94,16 +91,6 @@ export function ExifFreeCamera() {
       return;
     }
 
-    if (mode === 'burst') {
-      let count = 0;
-      const burstInterval = setInterval(() => {
-        takePhoto();
-        count++;
-        if (count >= 5) clearInterval(burstInterval);
-      }, 250);
-      return;
-    }
-
     takePhoto();
   };
 
@@ -115,26 +102,26 @@ export function ExifFreeCamera() {
     canvas.height = video.videoHeight || 720;
     
     const ctx = canvas.getContext('2d');
-    
-    // Apply exposure simulation filter if in Pro mode
     if (mode === 'pro' && exposure !== 0) {
       ctx.filter = `brightness(${100 + exposure * 25}%)`;
     }
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    // Canvas export strips EXIF metadata (GPS, serials, timestamps)
     const cleanImageData = canvas.toDataURL('image/jpeg', 0.95);
-    
-    setCapturedMedia(prev => [cleanImageData, ...prev.slice(0, 5)]);
+    const filename = `Sovereign_${Date.now()}.jpg`;
 
-    const link = document.createElement('a');
-    link.href = cleanImageData;
-    link.download = `Sovereign_Photo_${Date.now()}.jpg`;
-    link.click();
+    // Save directly to Native Android Gallery
+    if (window.AndroidNative && window.AndroidNative.saveToGallery) {
+      window.AndroidNative.saveToGallery(cleanImageData, filename, 'image/jpeg');
+    } else {
+      const link = document.createElement('a');
+      link.href = cleanImageData;
+      link.download = filename;
+      link.click();
+    }
 
-    setStatusMsg('📸 Photo Saved (EXIF Scrubbed)');
-    setTimeout(() => setStatusMsg(''), 2000);
+    setStatusMsg('📸 Photo Saved to Gallery (EXIF Scrubbed)');
+    setTimeout(() => setStatusMsg(''), 2500);
   };
 
   const startVideoRecording = () => {
@@ -146,15 +133,27 @@ export function ExifFreeCamera() {
       if (e.data.size > 0) recordedChunksRef.current.push(e.data);
     };
 
-    recorder.onstop = () => {
+    recorder.onstop = async () => {
       const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `Sovereign_Video_${Date.now()}.webm`;
-      link.click();
-      setStatusMsg('🎥 Video Recording Saved');
-      setTimeout(() => setStatusMsg(''), 2000);
+      const reader = new FileReader();
+      reader.readAsDataURL(blob);
+      reader.onloadend = () => {
+        const base64Video = reader.result;
+        const filename = `Sovereign_Video_${Date.now()}.webm`;
+
+        if (window.AndroidNative && window.AndroidNative.saveToGallery) {
+          window.AndroidNative.saveToGallery(base64Video, filename, 'video/webm');
+        } else {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          link.click();
+        }
+      };
+
+      setStatusMsg('🎥 Video Recording Saved to Gallery');
+      setTimeout(() => setStatusMsg(''), 2500);
     };
 
     recorder.start();
@@ -174,13 +173,12 @@ export function ExifFreeCamera() {
       case '16:9': return 'aspect-[9/16]';
       case '4:3': return 'aspect-[3/4]';
       case '1:1': return 'aspect-square';
-      default: return 'aspect-[9/16]'; // Full viewport
+      default: return 'aspect-[9/16]';
     }
   };
 
   return (
     <div className="p-3 space-y-3 max-w-2xl mx-auto pb-24 select-none">
-      {/* Header */}
       <div className="border-b border-zinc-800 pb-2 flex justify-between items-center">
         <div>
           <h2 className="text-lg font-bold text-white flex items-center gap-2">
@@ -210,12 +208,11 @@ export function ExifFreeCamera() {
             onClick={startCamera}
             className="px-6 py-2.5 bg-red-500 hover:bg-red-400 text-white font-bold text-xs rounded-xl shadow-lg"
           >
-            🔄 Grant Permission & Retry Camera
+            🔄 Grant Permission & Retry
           </button>
         </div>
       ) : (
         <div className="space-y-3">
-          {/* CAMERA VIEWFINDER FRAME */}
           <div className={`relative rounded-2xl overflow-hidden bg-black border border-zinc-800 shadow-2xl ${getAspectStyle()} flex items-center justify-center`}>
             <video
               ref={videoRef}
@@ -229,7 +226,6 @@ export function ExifFreeCamera() {
               }}
             />
 
-            {/* Rule of Thirds Grid */}
             {showGrid && (
               <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none z-10 border border-white/10">
                 <div className="border-r border-b border-white/15" />
@@ -244,14 +240,12 @@ export function ExifFreeCamera() {
               </div>
             )}
 
-            {/* Countdown Overlay */}
             {countdown > 0 && (
               <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-30">
                 <span className="text-6xl font-black text-cyan-400 animate-ping">{countdown}</span>
               </div>
             )}
 
-            {/* Top Toolbar Overlay */}
             <div className="absolute top-3 inset-x-3 flex justify-between items-center z-20">
               <button
                 onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')}
@@ -276,7 +270,6 @@ export function ExifFreeCamera() {
               </div>
             </div>
 
-            {/* Aspect Ratio Floating Controls */}
             <div className="absolute top-12 left-3 z-20 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-zinc-800 flex space-x-1 text-[9px] font-bold">
               {['full', '16:9', '4:3', '1:1'].map(ratio => (
                 <button
@@ -289,7 +282,6 @@ export function ExifFreeCamera() {
               ))}
             </div>
 
-            {/* Zoom & Exposure Sliders (Pro Mode) */}
             <div className="absolute bottom-16 inset-x-4 z-20 bg-black/75 backdrop-blur-md p-2.5 rounded-2xl border border-zinc-800 space-y-2">
               <div className="flex items-center space-x-3">
                 <span className="text-[10px] text-cyan-400 font-bold w-12">🔍 {zoom.toFixed(1)}x</span>
@@ -320,7 +312,6 @@ export function ExifFreeCamera() {
               )}
             </div>
 
-            {/* Shutter Button */}
             <div className="absolute bottom-3 inset-x-3 flex justify-center items-center z-20">
               <button
                 onClick={handleShutter}
@@ -335,8 +326,7 @@ export function ExifFreeCamera() {
             </div>
           </div>
 
-          {/* MODE SELECTOR TABS */}
-          <div className="grid grid-cols-4 gap-1.5 bg-zinc-900 p-1 rounded-xl border border-zinc-800 text-xs font-bold text-center">
+          <div className="grid grid-cols-3 gap-1.5 bg-zinc-900 p-1 rounded-xl border border-zinc-800 text-xs font-bold text-center">
             <button
               onClick={() => setMode('photo')}
               className={`py-2 rounded-lg transition-all ${mode === 'photo' ? 'bg-cyan-500 text-black shadow' : 'text-zinc-400'}`}
@@ -355,19 +345,13 @@ export function ExifFreeCamera() {
             >
               🎛️ Pro
             </button>
-            <button
-              onClick={() => setMode('burst')}
-              className={`py-2 rounded-lg transition-all ${mode === 'burst' ? 'bg-cyan-500 text-black shadow' : 'text-zinc-400'}`}
-            >
-              💥 Burst
-            </button>
           </div>
         </div>
       )}
 
       <ToolFooter
         title="EXIF-Free Metadata Sanitizer"
-        details="Captures raw video frames directly to an HTML5 canvas context, stripping EXIF headers, GPS coordinates, timestamps, and device serial numbers."
+        details="Captures raw video frames directly into HTML5 canvas, saving directly to DCIM/SovereignTools gallery."
         disclaimer="Exported images are saved locally to phone storage with zero tracking footprints."
       />
     </div>

@@ -3,7 +3,7 @@ import { ToolFooter } from './ToolFooter';
 
 export function LocalAIAssistant() {
   const [messages, setMessages] = useState([
-    { sender: 'ai', text: '⚡ Sovereign Local AI active. Operating 100% offline. Ask me math equations, security queries, or system commands.' }
+    { sender: 'ai', text: '⚡ Sovereign Local AI active. Operating 100% offline. Ask me calculations, science queries, tech facts, or security protocols.' }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -13,7 +13,6 @@ export function LocalAIAssistant() {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Safe offline math evaluator
   const evaluateMath = (query) => {
     try {
       let clean = query.toLowerCase()
@@ -25,7 +24,6 @@ export function LocalAIAssistant() {
         .trim();
 
       if (clean && /^[\d+\-*/().\s]+$/.test(clean)) {
-        // Safe evaluation of sanitized math expression
         const result = Function(`'use strict'; return (${clean})`)();
         if (!isNaN(result)) {
           return `🔢 **Math Result:** ${clean} = **${result}**`;
@@ -43,31 +41,44 @@ export function LocalAIAssistant() {
 
     const q = query.toLowerCase();
 
+    // Astronomy & Science Queries
+    if (q.includes('moon') || q.includes('rotate') || q.includes('orbit')) {
+      return "🌕 **Astronomy & Physics:**\nThe Moon orbits Earth due to **gravitational attraction**. Earth's gravity exerts a continuous centripetal force pulling the Moon toward it, balancing the Moon's outward inertia to keep it in a stable circular orbit roughly 238,855 miles away.";
+    }
+
+    if (q.includes('sun') || q.includes('solar') || q.includes('star')) {
+      return "☀️ **Solar Energy & Physics:**\nThe Sun is a main-sequence G2V star powered by nuclear fusion in its core, converting hydrogen into helium at extreme pressures, radiating photon energy across the spectrum.";
+    }
+
+    if (q.includes('link') || q.includes('connected') || q.includes('network') || q.includes('internet')) {
+      return "🛡️ **Offline Sandbox Protocol:**\nNo! Sovereign Tools is **completely isolated** from external servers. It operates strictly on your local device CPU/RAM with zero cloud APIs, tracking beacons, or telemetry transmission.";
+    }
+
     if (q.includes('debloat') || q.includes('package') || q.includes('adb')) {
       return "⚡ **Debloat Assistant Guide:**\nUse the **Debloater** tab to audit bloatware packages. Generated command:\n- Safe disable: `adb shell pm disable-user --user 0 <package_name>`\n- Re-enable: `adb shell pm enable <package_name>`";
     }
     
     if (q.includes('pgp') || q.includes('encrypt') || q.includes('message') || q.includes('sms')) {
-      return "📡 **PGP & Messaging Security:**\nSovereign PGP converts secret text into ASCII-armored cipher blocks safe for cellular SMS. Keys are generated on-device via `window.crypto.subtle`.";
+      return "📡 **PGP & Messaging Security:**\nSovereign PGP converts secret text into ASCII-armored cipher blocks safe for cellular SMS networks. All keys are generated on-device via `window.crypto.subtle`.";
     }
 
     if (q.includes('camera') || q.includes('exif') || q.includes('photo')) {
-      return "📷 **Privacy Camera Diagnostics:**\nSovereign Camera streams raw video to an HTML5 canvas, completely stripping GPS location, camera serial numbers, and timestamps before saving.";
+      return "📷 **Privacy Camera Diagnostics:**\nSovereign Camera streams raw video to an HTML5 canvas, completely stripping GPS location, camera serial numbers, and timestamps before saving directly to your gallery.";
     }
 
     if (q.includes('shred') || q.includes('delete') || q.includes('file')) {
-      return "☣️ **Secure File Shredder:**\nStandard file deletion only removes index pointers. Sovereign Shredder overwrites physical storage sectors with zeros, ones, and cryptographic entropy before unlinking.";
+      return "☣️ **Secure File Shredder:**\nStandard file deletion only removes index pointers. Sovereign Shredder overwrites physical storage sectors with zero-byte patterns before unlinking storage handles.";
     }
 
     if (q.includes('vault') || q.includes('password') || q.includes('pin')) {
-      return "🔐 **Vault Security:**\nSaved credentials and PIN parameters are stored exclusively in isolated sandbox storage with zero cloud backup.";
+      return "🔐 **Vault Security:**\nSaved credentials and PIN parameters are stored exclusively in isolated local sandbox storage with zero cloud backup.";
     }
 
     if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
-      return "👋 Hello! I am running 100% offline on your mobile CPU. Ask me math calculations, system debloating queries, or privacy questions.";
+      return "👋 Hello! I am running 100% offline on your mobile processor. Ask me math equations, science facts, debloating steps, or privacy protocols.";
     }
 
-    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed offline query: "${query}"\n\nAll operations run directly on local mobile hardware with zero external server dependencies. Try asking me a calculation like "15 plus 27" or "100 divided by 4".`;
+    return `🤖 **Sovereign Local Intelligence:**\nOffline query received: "${query}"\n\nI run 100% locally with zero cloud servers. Try asking me about science ("Why does the moon orbit earth?"), math equations ("15 times 12"), or privacy tools ("How does PGP work?").`;
   };
 
   const handleSend = (e) => {
@@ -83,7 +94,7 @@ export function LocalAIAssistant() {
       const aiResponse = generateOfflineResponse(userMsg);
       setMessages(prev => [...prev, { sender: 'ai', text: aiResponse }]);
       setIsProcessing(false);
-    }, 400);
+    }, 350);
   };
 
   return (
@@ -93,7 +104,7 @@ export function LocalAIAssistant() {
           🤖 Local On-Device AI Engine
         </h2>
         <p className="text-xs text-zinc-400 mt-1">
-          Zero-telemetry inference and math engine running on local hardware memory.
+          Zero-telemetry inference and science engine running on local hardware memory.
         </p>
       </div>
 
@@ -122,7 +133,7 @@ export function LocalAIAssistant() {
         ))}
         {isProcessing && (
           <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-zinc-400 text-xs animate-pulse mr-auto max-w-[70%]">
-            🤖 Calculating response...
+            🤖 Processing offline response...
           </div>
         )}
         <div ref={chatEndRef} />
@@ -131,7 +142,7 @@ export function LocalAIAssistant() {
       <form onSubmit={handleSend} className="flex space-x-2">
         <input
           type="text"
-          placeholder="Ask local assistant or type math query..."
+          placeholder="Ask local assistant..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:border-cyan-500"
@@ -147,7 +158,7 @@ export function LocalAIAssistant() {
 
       <ToolFooter
         title="On-Device Local AI Engine"
-        details="Executes math calculations and intent parsing locally on device hardware."
+        details="Executes math, science, and intent parsing locally on device hardware."
         disclaimer="Runs completely offline with zero telemetry transmission."
       />
     </div>

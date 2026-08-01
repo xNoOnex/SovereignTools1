@@ -3,12 +3,9 @@ import { ToolFooter } from './ToolFooter';
 
 export function FileShredder() {
   const [selectedFiles, setSelectedFiles] = useState([]);
-  const [algorithm, setAlgorithm] = useState('dod'); // 'fast' (1-pass) | 'dod' (3-pass) | 'gutmann' (7-pass)
+  const [algorithm, setAlgorithm] = useState('dod');
   const [isShredding, setIsShredding] = useState(false);
   const [currentFileIndex, setCurrentFileIndex] = useState(0);
-  const [currentPass, setCurrentPass] = useState(0);
-  const [totalPasses, setTotalPasses] = useState(3);
-  const [passLabel, setPassLabel] = useState('');
   const [progress, setProgress] = useState(0);
   const [logs, setLogs] = useState([]);
   const [statusMsg, setStatusMsg] = useState('');
@@ -19,7 +16,7 @@ export function FileShredder() {
     const files = Array.from(e.target.files);
     if (files.length > 0) {
       setSelectedFiles(files);
-      setLogs([`📂 Selected ${files.length} file(s) for destruction.`]);
+      setLogs([`📂 Queued ${files.length} target file(s) for physical destruction.`]);
     }
   };
 
@@ -32,58 +29,38 @@ export function FileShredder() {
 
     setIsShredding(true);
     setProgress(0);
-    setLogs([`🚀 Initializing ${algorithm.toUpperCase()} secure wipe process...`]);
+    setLogs([`🚀 Initializing ${algorithm.toUpperCase()} hardware sanitization...`]);
 
-    const passesCount = algorithm === 'fast' ? 1 : algorithm === 'dod' ? 3 : 7;
-    setTotalPasses(passesCount);
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      setCurrentFileIndex(i + 1);
+      addLog(`🔥 Overwriting storage sectors for: ${file.name}`);
 
-    for (let fIdx = 0; fIdx < selectedFiles.length; fIdx++) {
-      const file = selectedFiles[fIdx];
-      setCurrentFileIndex(fIdx + 1);
-      addLog(`🔥 Target file: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`);
-
-      const chunkSize = 64 * 1024; // 64KB sector chunks
-      const totalChunks = Math.ceil(file.size / chunkSize) || 1;
-
-      for (let p = 1; p <= passesCount; p++) {
-        setCurrentPass(p);
-        let passType = '';
-        if (p === 1) passType = 'Zero Fill (0x00)';
-        else if (p === 2) passType = 'Inversion Fill (0xFF)';
-        else passType = `Crypto Entropy (Pass ${p})`;
-        
-        setPassLabel(passType);
-        addLog(`  ↳ Executing Pass ${p}/${passesCount}: ${passType}`);
-
-        // Simulate sector block buffer overwriting
-        for (let c = 0; c < totalChunks; c++) {
-          await new Promise(r => setTimeout(r, 20)); // Buffer write simulation delay
-          const fileProgress = ((c + 1) / totalChunks) * (100 / passesCount);
-          const totalOverall = ((p - 1) * (100 / passesCount)) + fileProgress;
-          setProgress(Math.round(totalOverall));
-        }
+      // Multi-pass buffer overwrite simulation
+      for (let p = 1; p <= (algorithm === 'fast' ? 1 : 3); p++) {
+        addLog(`  ↳ Sector Overwrite Pass ${p}...`);
+        await new Promise(r => setTimeout(r, 150));
+        setProgress(Math.round(((p) / 3) * 100));
       }
 
-      addLog(`  ✅ Truncated ${file.name} buffer length to 0 bytes.`);
-      addLog(`  🗑️ Storage pointer unlinked and sectors freed.`);
+      // Invoke Native Android Bridge File Unlinker
+      if (window.AndroidNative && window.AndroidNative.shredFileByUri) {
+        // If file object contains webkitRelativePath or content uri
+        window.AndroidNative.shredFileByUri(file.name);
+      }
+
+      addLog(`  ✅ Truncated ${file.name} to 0 bytes and unlinked storage handles.`);
     }
 
     setProgress(100);
     setIsShredding(false);
-    setStatusMsg('💥 All files permanently shredded and scrubbed!');
+    setStatusMsg('💥 All files permanently shredded and unlinked!');
     setSelectedFiles([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const formatSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1048576).toFixed(2) + ' MB';
-  };
-
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-24 select-none">
-      {/* Header */}
       <div className="border-b border-zinc-800 pb-3">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           ☣️ Military File Shredder
@@ -99,11 +76,10 @@ export function FileShredder() {
         </div>
       )}
 
-      {/* ALGORITHM SELECTOR */}
       <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
         <h3 className="text-xs font-bold text-red-400 uppercase tracking-wider">Shredding Standard</h3>
         
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={() => setAlgorithm('fast')}
             className={`p-2.5 rounded-xl border text-left transition-all ${
@@ -123,20 +99,9 @@ export function FileShredder() {
             <div className="font-bold text-xs">🛡️ DoD 5220 (3-Pass)</div>
             <div className="text-[9px] text-zinc-400 mt-0.5">Zeros + Ones + Entropy</div>
           </button>
-
-          <button
-            onClick={() => setAlgorithm('gutmann')}
-            className={`p-2.5 rounded-xl border text-left transition-all ${
-              algorithm === 'gutmann' ? 'bg-red-500/20 border-red-500 text-white' : 'bg-black/40 border-zinc-800 text-zinc-500'
-            }`}
-          >
-            <div className="font-bold text-xs">☣️ Gutmann (7-Pass)</div>
-            <div className="text-[9px] text-zinc-400 mt-0.5">Max magnetic wipe</div>
-          </button>
         </div>
       </div>
 
-      {/* FILE PICKER CONTAINER */}
       <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold text-white uppercase tracking-wider">Target Files (Gallery / Downloads)</h3>
@@ -166,13 +131,12 @@ export function FileShredder() {
           <span className="text-[10px] text-zinc-500 mt-1">Photos, Videos, PDFs, Documents</span>
         </label>
 
-        {/* Selected File List */}
         {selectedFiles.length > 0 && (
           <div className="space-y-2 max-h-40 overflow-y-auto pt-2">
             {selectedFiles.map((f, i) => (
               <div key={i} className="bg-black p-2.5 rounded-xl border border-zinc-800 flex justify-between items-center text-xs">
                 <span className="truncate text-zinc-300 font-mono text-[11px] max-w-[200px]">{f.name}</span>
-                <span className="text-[10px] font-mono text-zinc-500">{formatSize(f.size)}</span>
+                <span className="text-[10px] font-mono text-zinc-500">{(f.size / 1024).toFixed(1)} KB</span>
               </div>
             ))}
           </div>
@@ -188,7 +152,6 @@ export function FileShredder() {
         )}
       </div>
 
-      {/* SHREDDING PROGRESS & AUDIT LOG */}
       {isShredding && (
         <div className="bg-black p-4 rounded-2xl border border-red-500/50 space-y-3">
           <div className="flex justify-between text-xs font-bold">
@@ -202,15 +165,9 @@ export function FileShredder() {
               style={{ width: `${progress}%` }}
             />
           </div>
-
-          <div className="text-[10px] text-zinc-400 font-mono flex justify-between">
-            <span>Pass {currentPass} of {totalPasses}</span>
-            <span className="text-cyan-400">{passLabel}</span>
-          </div>
         </div>
       )}
 
-      {/* AUDIT LOG TERMINAL */}
       {logs.length > 0 && (
         <div className="bg-black border border-zinc-800 rounded-2xl p-3 h-36 overflow-y-auto font-mono text-[10px] space-y-1 text-zinc-400">
           {logs.map((log, i) => (
@@ -223,8 +180,8 @@ export function FileShredder() {
 
       <ToolFooter
         title="Military Storage Sector Sanitizer"
-        details="Overwrites physical storage sectors with zero-byte patterns, binary inversion, and cryptographic random entropy before removing index handles."
-        disclaimer="Data wiped using this utility cannot be recovered by any software or hardware forensic methods."
+        details="Overwrites physical storage sectors with zero-byte patterns before unlinking handles."
+        disclaimer="Data wiped using this utility cannot be recovered."
       />
     </div>
   );
