@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LockScreen } from './components/LockScreen';
+import { Home } from './components/Home';
 import { ExifFreeCamera } from './components/ExifFreeCamera';
 import { Gallery } from './components/Gallery';
 import { PasswordManager } from './components/PasswordManager';
@@ -13,7 +14,7 @@ import { Settings } from './components/Settings';
 
 export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
-  const [currentTab, setCurrentTab] = useState('camera');
+  const [currentTab, setCurrentTab] = useState('home');
   const appMode = localStorage.getItem('sovereign_mode') || 'expert';
 
   if (!isUnlocked) {
@@ -35,11 +36,12 @@ export default function App() {
     >
       <div className="fixed inset-0 bg-black/85 backdrop-blur-xs z-0 pointer-events-none" />
 
+      {/* TOP HEADER */}
       <header 
-        className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md"
+        className="bg-zinc-900/95 border-b border-zinc-800 px-4 pb-3 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md cursor-pointer"
         style={{ paddingTop: 'max(env(safe-area-inset-top), 36px)' }}
       >
-        <div className="flex items-center space-x-3">
+        <div onClick={() => setCurrentTab('home')} className="flex items-center space-x-3">
           <img src="./sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
           <div>
             <h1 className="font-bold text-sm text-white tracking-wide">SOVEREIGN TOOLS</h1>
@@ -65,7 +67,9 @@ export default function App() {
         </div>
       </header>
 
+      {/* MAIN CONTENT VIEWPORT */}
       <main className="flex-1 pb-32 relative z-10">
+        {currentTab === 'home' && <Home onSelectTab={(tab) => setCurrentTab(tab)} />}
         {currentTab === 'browser' && <PrivacyBrowser />}
         {currentTab === 'gallery' && <Gallery />}
         {currentTab === 'vault' && <PasswordManager />}
@@ -77,10 +81,18 @@ export default function App() {
         {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
+      {/* BOTTOM NAVIGATION DOCK */}
       <nav 
-        className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md"
+        className="fixed bottom-0 inset-x-0 bg-zinc-900/95 border-t border-zinc-800 px-1 pt-1.5 flex justify-around text-[8px] font-bold z-40 backdrop-blur-md overflow-x-auto"
         style={{ paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}
       >
+        <button
+          onClick={() => setCurrentTab('home')}
+          className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'home' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
+        >
+          <span className="text-sm">🏠</span>
+          Home
+        </button>
         <button
           onClick={() => setCurrentTab('camera')}
           className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'camera' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
