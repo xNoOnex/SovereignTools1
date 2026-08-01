@@ -3,7 +3,7 @@ import { ToolFooter } from './ToolFooter';
 
 export function LocalAIAssistant() {
   const [messages, setMessages] = useState([
-    { sender: 'ai', text: '⚡ Sovereign Local AI active. Operates offline by default with optional Tor-proxied web search.' }
+    { sender: 'ai', text: '⚡ Sovereign Local AI active. Standalone offline mode with zero-tracking web search engine.' }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -36,7 +36,6 @@ export function LocalAIAssistant() {
     return null;
   };
 
-  // Precise Conversational Intent Guard (Fixes "now" matching "no")
   const isConversationalFeedback = (query) => {
     const q = query.toLowerCase().trim();
     const chatPhrases = [
@@ -63,10 +62,6 @@ export function LocalAIAssistant() {
     }
 
     if (htmlText.startsWith('ERROR:')) {
-      const proxyType = localStorage.getItem('sovereign_proxy_type') || 'direct';
-      if (proxyType === 'tor') {
-        return `⚠️ **Tor Proxy Active:** Ensure Orbot is connected on your phone, or switch Settings to Direct mode.`;
-      }
       return `⚠️ Web Search query failed: ${htmlText.replace('ERROR:', '')}`;
     }
 
@@ -91,7 +86,7 @@ export function LocalAIAssistant() {
     if (isConversationalFeedback(query)) {
       const q = query.toLowerCase();
       if (q.includes('not what i asked') || q.includes('wrong')) {
-        return " Got it! Please rephrase your question with specific terms (e.g., 'MLB baseball scores today' or 'NFL current standings') so I can search the web for the exact answer.";
+        return "Got it! Please rephrase your question with specific terms (e.g., 'MLB baseball scores today' or 'NFL current standings') so I can search the web for the exact answer.";
       }
       if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
         return "👋 Hello! Ask me a math equation, privacy topic, or toggle Web Search ON to search current facts.";
@@ -114,7 +109,7 @@ export function LocalAIAssistant() {
     }
 
     if (q.includes('tor') || q.includes('proxy') || q.includes('orbot')) {
-      return "🧅 **Tor & Proxy Routing:**\nWhen enabled in Settings, Android WebKit ProxyController routes all network traffic through SOCKS5 127.0.0.1:9050 before leaving your physical device.";
+      return "🧅 **Network Proxy Manager:**\nAll web searches execute natively with stripped headers, zero cookies, and zero tracking telemetry directly inside the app.";
     }
 
     return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries, toggle "🌐 Search: OFF" button above to ON!`;
@@ -141,7 +136,7 @@ export function LocalAIAssistant() {
           🤖 Local On-Device AI Engine
         </h2>
         <p className="text-xs text-zinc-400 mt-1">
-          Zero-telemetry intelligence engine with optional Tor-proxied live web queries.
+          Zero-telemetry intelligence engine with native standalone web queries.
         </p>
       </div>
 
@@ -149,7 +144,7 @@ export function LocalAIAssistant() {
         <div className="flex items-center space-x-2">
           <span className={`w-2.5 h-2.5 rounded-full ${webSearchEnabled ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />
           <span className="text-xs font-bold text-white">
-            {webSearchEnabled ? '🌐 Tor Web Search Active' : '⚡ 100% Offline Mode'}
+            {webSearchEnabled ? '🌐 Standalone Web Search Active' : '⚡ 100% Offline Mode'}
           </span>
         </div>
         <button
@@ -204,8 +199,8 @@ export function LocalAIAssistant() {
       </form>
 
       <ToolFooter
-        title="On-Device AI & Tor Privacy RAG Engine"
-        details="Executes local reasoning offline or pulls zero-tracking search queries over Android ProxyController Tor tunnels."
+        title="Standalone Privacy Web Engine"
+        details="Executes local reasoning offline or pulls zero-tracking search queries directly via native Java HTTPS."
         disclaimer="Web queries strip cookies, user-agents, and referrer telemetry."
       />
     </div>

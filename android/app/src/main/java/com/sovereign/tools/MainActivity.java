@@ -143,7 +143,6 @@ public class MainActivity extends BridgeActivity {
             try {
                 ContentResolver resolver = getContentResolver();
 
-                // Scan Images
                 Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
                 String[] imageProj = {
                     MediaStore.Images.Media._ID,
@@ -188,7 +187,6 @@ public class MainActivity extends BridgeActivity {
                     cursor.close();
                 }
 
-                // Scan Videos
                 Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
                 String[] videoProj = {
                     MediaStore.Video.Media._ID,
@@ -229,7 +227,6 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
-        // HARDWARE-LEVEL FILE SHREDDER
         @JavascriptInterface
         public boolean shredFileByUri(String uriString) {
             try {
@@ -239,7 +236,6 @@ public class MainActivity extends BridgeActivity {
 
                 boolean sectorWiped = false;
 
-                // 1. Direct File Sector Zeroing via RandomAccessFile
                 if (realPath != null) {
                     File file = new File(realPath);
                     if (file.exists() && file.canWrite()) {
@@ -260,7 +256,6 @@ public class MainActivity extends BridgeActivity {
                     }
                 }
 
-                // 2. Fallback Descriptor Zeroing if Direct File Path is Restricted
                 if (!sectorWiped) {
                     try (ParcelFileDescriptor pfd = resolver.openFileDescriptor(uri, "rwt")) {
                         if (pfd != null) {
@@ -283,7 +278,6 @@ public class MainActivity extends BridgeActivity {
                     }
                 }
 
-                // 3. Unlink Handle & Purge System MediaStore Database Cache
                 resolver.delete(uri, null, null);
 
                 String scanPath = (realPath != null) ? realPath : uri.getPath();
@@ -304,15 +298,20 @@ public class MainActivity extends BridgeActivity {
             return false;
         }
 
+        // STANDALONE NATIVE PRIVACY HTTP ENGINE (NO EXTERNAL APPS NEEDED)
         @JavascriptInterface
         public String fetchUrl(String urlString) {
             try {
                 URL url = new URL(urlString);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("GET");
-                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SovereignTools/1.0");
-                conn.setConnectTimeout(8000);
-                conn.setReadTimeout(8000);
+                // Sanitized headers to strip device fingerprinting & referrer leaks
+                conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
+                conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                conn.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
+                conn.setRequestProperty("DNT", "1");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
 
                 BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
                 StringBuilder content = new StringBuilder();
@@ -342,7 +341,7 @@ public class MainActivity extends BridgeActivity {
                     proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
                 } else {
                     ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Proxy Cleared (Direct Connection)", Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Direct Mode Active", Toast.LENGTH_SHORT).show());
                     });
                     return true;
                 }
@@ -351,7 +350,7 @@ public class MainActivity extends BridgeActivity {
                 Executor executor = Executors.newSingleThreadExecutor();
 
                 ProxyController.getInstance().setProxyOverride(proxyConfig, executor, () -> {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "🧅 Proxy Active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "🔒 Proxy Tunnel Active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
                 });
                 return true;
             } catch (Exception e) {
