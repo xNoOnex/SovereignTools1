@@ -143,6 +143,7 @@ public class MainActivity extends BridgeActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT
             ));
 
+            // TOP NAVIGATION BAR
             LinearLayout topBar = new LinearLayout(this);
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -204,7 +205,6 @@ public class MainActivity extends BridgeActivity {
             nativeUrlInput.setSingleLine(true);
             nativeUrlInput.setBackgroundColor(Color.parseColor("#27272a"));
             nativeUrlInput.setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4));
-
             LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, dpToPx(36), 1.0f);
             urlParams.setMargins(dpToPx(3), 0, dpToPx(3), 0);
             nativeUrlInput.setLayoutParams(urlParams);
@@ -219,15 +219,31 @@ public class MainActivity extends BridgeActivity {
             btnGo.setOnClickListener(v -> {
                 String input = nativeUrlInput.getText().toString().trim();
                 if (!input.startsWith("http://") && !input.startsWith("https://")) {
-                    if (input.contains(".") && !input.contains(" ")) {
-                        input = "https://" + input;
-                    } else {
-                        input = "https://duckduckgo.com/?q=" + Uri.encode(input);
-                    }
+                    if (input.contains(".") && !input.contains(" ")) input = "https://" + input;
+                    else input = "https://duckduckgo.com/?q=" + Uri.encode(input);
                 }
                 nativeUrlInput.setText(input);
                 if (currentTabIndex >= 0 && currentTabIndex < tabList.size()) {
                     tabList.get(currentTabIndex).loadUrl(input);
+                }
+            });
+
+            // NEW: DEDICATED MEDIA RIP BUTTON
+            Button btnRip = new Button(this);
+            btnRip.setText("⬇️");
+            btnRip.setTextSize(12);
+            btnRip.setTextColor(Color.WHITE);
+            btnRip.setBackgroundColor(Color.parseColor("#27272a"));
+            LinearLayout.LayoutParams btnRipParams = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(36));
+            btnRipParams.setMargins(dpToPx(3), 0, 0, 0);
+            btnRip.setLayoutParams(btnRipParams);
+            btnRip.setOnClickListener(v -> {
+                if (currentTabIndex >= 0 && currentTabIndex < tabList.size()) {
+                    String currentUrl = tabList.get(currentTabIndex).getUrl();
+                    if (currentUrl != null && !currentUrl.isEmpty()) {
+                        Toast.makeText(MainActivity.this, "Ripping media via Cobalt...", Toast.LENGTH_SHORT).show();
+                        createNewTab("https://cobalt.tools/?u=" + Uri.encode(currentUrl));
+                    }
                 }
             });
 
@@ -247,6 +263,7 @@ public class MainActivity extends BridgeActivity {
             topBar.addView(btnForward);
             topBar.addView(nativeUrlInput);
             topBar.addView(btnGo);
+            topBar.addView(btnRip); // Added the Rip Button
             topBar.addView(btnFullscreen);
 
             LinearLayout tabControlBar = new LinearLayout(this);
@@ -312,6 +329,7 @@ public class MainActivity extends BridgeActivity {
         wv.getSettings().setDomStorageEnabled(true);
         wv.getSettings().setUserAgentString("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
+        // DOWNLOAD LISTENER (Catches all direct file requests, including those handed back from Cobalt)
         wv.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimetype, contentLength) -> {
             try {
                 DownloadManager.Request request = new DownloadManager.Request(Uri.parse(downloadUrl));
@@ -334,6 +352,7 @@ public class MainActivity extends BridgeActivity {
             }
         });
 
+        // STANDARD LONG-PRESS SNIFFER (Still useful for simple images/memes on blogs)
         wv.setOnLongClickListener(v -> {
             WebView.HitTestResult result = wv.getHitTestResult();
             if (result != null) {
@@ -562,19 +581,11 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
-        // NEW: MASSIVE AUDIO MEDIASTORE SCANNER
         @JavascriptInterface
         public String getAllAudioFiles() {
             JSONArray array = new JSONArray();
             try {
-                String[] projection = {
-                    MediaStore.Audio.Media._ID,
-                    MediaStore.Audio.Media.TITLE,
-                    MediaStore.Audio.Media.ARTIST,
-                    MediaStore.Audio.Media.ALBUM,
-                    MediaStore.Audio.Media.DURATION,
-                    MediaStore.Audio.Media.DATA
-                };
+                String[] projection = { MediaStore.Audio.Media._ID, MediaStore.Audio.Media.TITLE, MediaStore.Audio.Media.ARTIST, MediaStore.Audio.Media.ALBUM, MediaStore.Audio.Media.DURATION, MediaStore.Audio.Media.DATA };
                 Cursor cursor = getContentResolver().query(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, projection, null, null, MediaStore.Audio.Media.TITLE + " ASC");
                 if (cursor != null) {
                     while (cursor.moveToNext()) {
@@ -596,7 +607,7 @@ public class MainActivity extends BridgeActivity {
                     }
                     cursor.close();
                 }
-            } catch (Exception e) { e.printStackTrace(); }
+            } catch (Exception e) {}
             return array.toString();
         }
 
