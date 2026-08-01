@@ -1,10 +1,23 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.2.1'
+        classpath 'com.google.gms:google-services:4.4.0'
+    }
+}
+
 allprojects {
     repositories {
         google()
         mavenCentral()
+        // Embedded Tor Daemon Repository
         maven { url "https://raw.githubusercontent.com/guardianproject/gpmaven/master" }
     }
 }
-tasks.withType(JavaCompile) {
-    options.compilerArgs << "-Xlint:-deprecation" << "-Xlint:unchecked"
+
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
