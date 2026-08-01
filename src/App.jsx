@@ -5,7 +5,7 @@ import { ExifFreeCamera } from './components/ExifFreeCamera';
 import { Gallery } from './components/Gallery';
 import { PasswordManager } from './components/PasswordManager';
 import { ShizukuDebloater } from './components/ShizukuDebloater';
-import { PgpMessaging } from './components/PgpMessaging';
+import { EncryptedComms } from './components/EncryptedComms';
 import { AesCipherTool } from './components/AesCipherTool';
 import { FileShredder } from './components/FileShredder';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
@@ -74,7 +74,7 @@ export default function App() {
         {currentTab === 'gallery' && <Gallery />}
         {currentTab === 'vault' && <PasswordManager />}
         {currentTab === 'debloater' && <ShizukuDebloater />}
-        {currentTab === 'pgp' && <PgpMessaging />}
+        {currentTab === 'pgp' && <EncryptedComms />}
         {currentTab === 'aes' && <AesCipherTool />}
         {currentTab === 'shredder' && <FileShredder />}
         {currentTab === 'ai' && <LocalAIAssistant />}
@@ -133,7 +133,7 @@ export default function App() {
           className={`flex flex-col items-center py-1 px-1 rounded-lg ${currentTab === 'pgp' ? 'text-emerald-400 bg-zinc-800/90' : 'text-zinc-400'}`}
         >
           <span className="text-sm">📡</span>
-          PGP
+          Comms
         </button>
         <button
           onClick={() => setCurrentTab('aes')}
