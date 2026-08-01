@@ -20,6 +20,7 @@ export function PrivacyBrowser() {
       }
     }
 
+    // Invidious YouTube Redirection
     if (invidiousRedirect && (target.includes('youtube.com') || target.includes('youtu.be'))) {
       target = target.replace(/youtube\.com|youtu\.be/g, 'vid.puffyan.us');
       setStatusMsg('⚡ Routed via Invidious (Ad-Free Player)');
@@ -30,9 +31,8 @@ export function PrivacyBrowser() {
     setInputUrl(target);
   };
 
-  // The New Ripper Function: Bypasses cobalt.tools entirely
   const handleRipMedia = () => {
-    // We use Loader.to as the fallback since it reliably parses YT without Cobalt's main server restrictions
+    // Fixed Ripper Bypass
     if (url.includes('youtube.com') || url.includes('youtu.be') || url.includes('vid.puffyan.us')) {
       const originalYtUrl = url.replace('vid.puffyan.us', 'youtube.com');
       const ripperUrl = `https://loader.to/?link=${encodeURIComponent(originalYtUrl)}`;
@@ -40,7 +40,6 @@ export function PrivacyBrowser() {
       setInputUrl(ripperUrl);
       setStatusMsg('⬇️ Redirected to Alternative Ripper (Loader.to)');
     } else {
-      // For non-YT links, use a community cobalt instance that hasn't disabled features
       const fallbackCobalt = 'https://cobalt.peputico.gay';
       setUrl(fallbackCobalt);
       setInputUrl(fallbackCobalt);
