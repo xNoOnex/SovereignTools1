@@ -11,7 +11,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
-import android.os.ParcelFileDescriptor;
 import android.provider.MediaStore;
 import android.provider.Settings;
 import android.util.Base64;
@@ -42,7 +41,6 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.RandomAccessFile;
@@ -67,12 +65,13 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        requestAndroidPermissions();
+        checkAndRequestPermissions();
 
+        // Clear proxy override on init if supported
         if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
             try {
                 ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {});
-            } catch (Exception e) {}
+            } catch (Exception ignored) {}
         }
 
         if (this.bridge != null && this.bridge.getWebView() != null) {
@@ -82,7 +81,7 @@ public class MainActivity extends BridgeActivity {
             webView.getSettings().setJavaScriptEnabled(true);
             webView.getSettings().setAllowFileAccessFromFileURLs(true);
             webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
-            
+
             webView.addJavascriptInterface(new AndroidBridge(), "AndroidNative");
 
             webView.setWebChromeClient(new WebChromeClient() {
@@ -110,10 +109,10 @@ public class MainActivity extends BridgeActivity {
             });
         }
 
-        setupNativeBrowserOverlay();
+        initBrowserOverlay();
     }
 
-    private void setupNativeBrowserOverlay() {
+    private void initBrowserOverlay() {
         runOnUiThread(() -> {
             ViewGroup rootView = findViewById(android.R.id.content);
 
@@ -139,21 +138,21 @@ public class MainActivity extends BridgeActivity {
             topBar.setBackgroundColor(Color.parseColor("#18181b"));
 
             Button btnExit = new Button(this);
-            btnExit.setText("❌");
-            btnExit.setTextSize(12);
+            btnExit.setText("✕");
+            btnExit.setTextSize(14);
             btnExit.setTextColor(Color.WHITE);
             btnExit.setBackgroundColor(Color.parseColor("#27272a"));
-            LinearLayout.LayoutParams btnExitParams = new LinearLayout.LayoutParams(dpToPx(42), dpToPx(38));
+            LinearLayout.LayoutParams btnExitParams = new LinearLayout.LayoutParams(dpToPx(40), dpToPx(38));
             btnExitParams.setMargins(0, 0, dpToPx(4), 0);
             btnExit.setLayoutParams(btnExitParams);
             btnExit.setOnClickListener(v -> closeNativeBrowser());
 
             Button btnBack = new Button(this);
-            btnBack.setText("◀");
-            btnBack.setTextSize(12);
+            btnBack.setText("‹");
+            btnBack.setTextSize(16);
             btnBack.setTextColor(Color.WHITE);
             btnBack.setBackgroundColor(Color.parseColor("#27272a"));
-            LinearLayout.LayoutParams btnNavParams = new LinearLayout.LayoutParams(dpToPx(38), dpToPx(38));
+            LinearLayout.LayoutParams btnNavParams = new LinearLayout.LayoutParams(dpToPx(36), dpToPx(38));
             btnNavParams.setMargins(0, 0, dpToPx(4), 0);
             btnBack.setLayoutParams(btnNavParams);
             btnBack.setOnClickListener(v -> {
@@ -163,8 +162,8 @@ public class MainActivity extends BridgeActivity {
             });
 
             Button btnForward = new Button(this);
-            btnForward.setText("▶");
-            btnForward.setTextSize(12);
+            btnForward.setText("›");
+            btnForward.setTextSize(16);
             btnForward.setTextColor(Color.WHITE);
             btnForward.setBackgroundColor(Color.parseColor("#27272a"));
             btnForward.setLayoutParams(btnNavParams);
@@ -185,13 +184,13 @@ public class MainActivity extends BridgeActivity {
             nativeUrlInput.setMaxLines(1);
             nativeUrlInput.setBackgroundColor(Color.parseColor("#27272a"));
             nativeUrlInput.setPadding(dpToPx(10), dpToPx(6), dpToPx(10), dpToPx(6));
-            
+
             LinearLayout.LayoutParams urlParams = new LinearLayout.LayoutParams(0, dpToPx(38), 1.0f);
             urlParams.setMargins(dpToPx(4), 0, dpToPx(4), 0);
             nativeUrlInput.setLayoutParams(urlParams);
 
             Button btnGo = new Button(this);
-            btnGo.setText("GO");
+            btnGo.setText("Go");
             btnGo.setTextSize(11);
             btnGo.setTextColor(Color.BLACK);
             btnGo.setBackgroundColor(Color.parseColor("#06b6d4"));
@@ -265,7 +264,7 @@ public class MainActivity extends BridgeActivity {
         });
     }
 
-    private void requestAndroidPermissions() {
+    private void checkAndRequestPermissions() {
         String[] permissions = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
@@ -274,16 +273,14 @@ public class MainActivity extends BridgeActivity {
         };
         ActivityCompat.requestPermissions(this, permissions, PERMISSION_REQUEST_CODE);
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
-                } catch (Exception e) {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                    startActivity(intent);
-                }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+            try {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+                intent.setData(Uri.parse("package:" + getPackageName()));
+                startActivity(intent);
+            } catch (Exception e) {
+                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
+                startActivity(intent);
             }
         }
     }
@@ -300,7 +297,7 @@ public class MainActivity extends BridgeActivity {
                 }
                 cursor.close();
             }
-        } catch (Exception e) {}
+        } catch (Exception ignored) {}
         return path;
     }
 
@@ -330,9 +327,7 @@ public class MainActivity extends BridgeActivity {
                     MediaStore.Files.FileColumns.MIME_TYPE
                 };
 
-                String selection = MediaStore.Files.FileColumns.SIZE + " > 0";
-                Cursor cursor = resolver.query(filesUri, projection, selection, null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
-
+                Cursor cursor = resolver.query(filesUri, projection, MediaStore.Files.FileColumns.SIZE + " > 0", null, MediaStore.Files.FileColumns.DATE_MODIFIED + " DESC");
                 if (cursor != null) {
                     int count = 0;
                     while (cursor.moveToNext() && count < 400) {
@@ -361,24 +356,19 @@ public class MainActivity extends BridgeActivity {
             return array.toString();
         }
 
-        // LIGHTWEIGHT LIGHT-SPEED GALLERY MEDIA INDEXING (NO BASE64 RAM OVERLOAD)
         @JavascriptInterface
         public String getSovereignGalleryPhotos() {
             JSONArray array = new JSONArray();
             try {
                 ContentResolver resolver = getContentResolver();
 
-                // 1. Scan Photos
-                Uri imageUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
-                String[] imageProj = {
-                    MediaStore.Images.Media._ID,
-                    MediaStore.Images.Media.DISPLAY_NAME,
-                    MediaStore.Images.Media.SIZE,
-                    MediaStore.Images.Media.DATA,
-                    MediaStore.Images.Media.RELATIVE_PATH
-                };
+                // Scan images
+                Cursor cursor = resolver.query(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    new String[]{ MediaStore.Images.Media._ID, MediaStore.Images.Media.DISPLAY_NAME, MediaStore.Images.Media.SIZE, MediaStore.Images.Media.DATA, MediaStore.Images.Media.RELATIVE_PATH },
+                    null, null, MediaStore.Images.Media.DATE_ADDED + " DESC"
+                );
 
-                Cursor cursor = resolver.query(imageUri, imageProj, null, null, MediaStore.Images.Media.DATE_ADDED + " DESC");
                 if (cursor != null) {
                     int count = 0;
                     while (cursor.moveToNext() && count < 300) {
@@ -395,7 +385,7 @@ public class MainActivity extends BridgeActivity {
                             obj.put("size", (size / 1024) + " KB");
                             obj.put("type", "image");
                             obj.put("absolutePath", dataPath);
-                            
+
                             String folderName = "Pictures";
                             if (relPath != null) {
                                 if (relPath.contains("DCIM/SovereignTools")) folderName = "Sovereign Camera";
@@ -413,18 +403,13 @@ public class MainActivity extends BridgeActivity {
                     cursor.close();
                 }
 
-                // 2. Scan Videos
-                Uri videoUri = MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
-                String[] videoProj = {
-                    MediaStore.Video.Media._ID,
-                    MediaStore.Video.Media.DISPLAY_NAME,
-                    MediaStore.Video.Media.SIZE,
-                    MediaStore.Video.Media.DATA,
-                    MediaStore.Video.Media.RELATIVE_PATH,
-                    MediaStore.Video.Media.MIME_TYPE
-                };
+                // Scan videos
+                Cursor vCursor = resolver.query(
+                    MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
+                    new String[]{ MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME, MediaStore.Video.Media.SIZE, MediaStore.Video.Media.DATA, MediaStore.Video.Media.RELATIVE_PATH, MediaStore.Video.Media.MIME_TYPE },
+                    null, null, MediaStore.Video.Media.DATE_ADDED + " DESC"
+                );
 
-                Cursor vCursor = resolver.query(videoUri, videoProj, null, null, MediaStore.Video.Media.DATE_ADDED + " DESC");
                 if (vCursor != null) {
                     int vCount = 0;
                     while (vCursor.moveToNext() && vCount < 100) {
@@ -442,7 +427,7 @@ public class MainActivity extends BridgeActivity {
                             obj.put("size", (size / (1024 * 1024) > 0) ? (size / (1024 * 1024)) + " MB" : (size / 1024) + " KB");
                             obj.put("type", "video");
                             obj.put("absolutePath", dataPath);
-                            
+
                             String folderName = "Videos";
                             if (relPath != null && relPath.contains("SovereignTools")) folderName = "Sovereign Videos";
                             obj.put("folder", folderName);
@@ -483,25 +468,11 @@ public class MainActivity extends BridgeActivity {
                     }
                     boolean deleted = file.delete();
 
-                    getContentResolver().delete(
-                        MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                        MediaStore.Images.Media.DATA + "=?",
-                        new String[]{absolutePath}
-                    );
-                    getContentResolver().delete(
-                        MediaStore.Video.Media.EXTERNAL_CONTENT_URI,
-                        MediaStore.Video.Media.DATA + "=?",
-                        new String[]{absolutePath}
-                    );
+                    getContentResolver().delete(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, MediaStore.Images.Media.DATA + "=?", new String[]{absolutePath});
+                    getContentResolver().delete(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, MediaStore.Video.Media.DATA + "=?", new String[]{absolutePath});
 
-                    MediaScannerConnection.scanFile(
-                        MainActivity.this, 
-                        new String[]{absolutePath}, 
-                        null, 
-                        (p, u) -> {}
-                    );
-
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Hardware Sectors Zeroed & File Destroyed", Toast.LENGTH_SHORT).show());
+                    MediaScannerConnection.scanFile(MainActivity.this, new String[]{absolutePath}, null, (p, u) -> {});
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "File deleted", Toast.LENGTH_SHORT).show());
                     return deleted;
                 }
             } catch (Exception e) {
@@ -514,9 +485,8 @@ public class MainActivity extends BridgeActivity {
         public boolean shredFileByUri(String uriString) {
             try {
                 Uri uri = Uri.parse(uriString);
-                ContentResolver resolver = getContentResolver();
-                resolver.delete(uri, null, null);
-                runOnUiThread(() -> Toast.makeText(MainActivity.this, "💥 Handle Shredded", Toast.LENGTH_SHORT).show());
+                getContentResolver().delete(uri, null, null);
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "Deleted", Toast.LENGTH_SHORT).show());
                 return true;
             } catch (Exception e) {
                 e.printStackTrace();
@@ -532,8 +502,6 @@ public class MainActivity extends BridgeActivity {
                 conn.setRequestMethod("GET");
                 conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0");
                 conn.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                conn.setRequestProperty("Accept-Language", "en-US,en;q=0.5");
-                conn.setRequestProperty("DNT", "1");
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(10000);
 
@@ -565,16 +533,14 @@ public class MainActivity extends BridgeActivity {
                     proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
                 } else {
                     ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
-                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Direct Mode Active", Toast.LENGTH_SHORT).show());
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "Direct connection active", Toast.LENGTH_SHORT).show());
                     });
                     return true;
                 }
 
                 ProxyConfig proxyConfig = proxyConfigBuilder.build();
-                Executor executor = Executors.newSingleThreadExecutor();
-
-                ProxyController.getInstance().setProxyOverride(proxyConfig, executor, () -> {
-                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "🔒 Proxy Tunnel Active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
+                ProxyController.getInstance().setProxyOverride(proxyConfig, Executors.newSingleThreadExecutor(), () -> {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "Proxy active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
                 });
                 return true;
             } catch (Exception e) {
@@ -588,14 +554,14 @@ public class MainActivity extends BridgeActivity {
             try {
                 String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
                 byte[] data = Base64.decode(cleanBase64, Base64.DEFAULT);
-                
+
                 ContentValues values = new ContentValues();
                 values.put(MediaStore.MediaColumns.DISPLAY_NAME, filename);
                 values.put(MediaStore.MediaColumns.MIME_TYPE, mimeType);
-                
+
                 boolean isVideo = mimeType.startsWith("video");
                 values.put(
-                    MediaStore.MediaColumns.RELATIVE_PATH, 
+                    MediaStore.MediaColumns.RELATIVE_PATH,
                     isVideo ? Environment.DIRECTORY_MOVIES + "/SovereignTools" : Environment.DIRECTORY_DCIM + "/SovereignTools"
                 );
 
@@ -612,17 +578,12 @@ public class MainActivity extends BridgeActivity {
 
                         String realPath = resolveRealPathFromUri(uri);
                         if (realPath != null) {
-                            MediaScannerConnection.scanFile(
-                                MainActivity.this, 
-                                new String[]{realPath}, 
-                                null, 
-                                (path, newUri) -> {}
-                            );
+                            MediaScannerConnection.scanFile(MainActivity.this, new String[]{realPath}, null, (path, newUri) -> {});
                         }
 
                         runOnUiThread(() -> Toast.makeText(
-                            MainActivity.this, 
-                            isVideo ? "🎥 Video Saved to Gallery" : "📸 Photo Saved to Gallery", 
+                            MainActivity.this,
+                            isVideo ? "Video saved" : "Photo saved",
                             Toast.LENGTH_SHORT
                         ).show());
                         return true;
@@ -652,7 +613,7 @@ public class MainActivity extends BridgeActivity {
                         JSONObject obj = new JSONObject();
                         obj.put("uri", singleUri.toString());
                         uriList.put(obj);
-                    } catch (Exception e) {}
+                    } catch (Exception ignored) {}
                 } else if (data.getClipData() != null) {
                     int count = data.getClipData().getItemCount();
                     results = new Uri[count];
@@ -663,7 +624,7 @@ public class MainActivity extends BridgeActivity {
                             JSONObject obj = new JSONObject();
                             obj.put("uri", itemUri.toString());
                             uriList.put(obj);
-                        } catch (Exception e) {}
+                        } catch (Exception ignored) {}
                     }
                 }
             }
