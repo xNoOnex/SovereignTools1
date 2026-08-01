@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
+import jsQR from 'jsqr';
 import { ToolFooter } from './ToolFooter';
 
 export function ExifFreeCamera() {
   const videoRef = useRef(null);
-  const canvasScanRef = useRef(null);
   const [stream, setStream] = useState(null);
   const [error, setError] = useState('');
   
   // Camera Controls
-  const [mode, setMode] = useState('photo'); // 'photo' | 'video' | 'qr' | 'pro'
-  const [filter, setFilter] = useState('none'); // 'none' | 'bw' | 'sepia' | 'matrix' | 'vivid' | 'thermal'
+  const [mode, setMode] = useState('photo');
+  const [filter, setFilter] = useState('none');
   const [facingMode, setFacingMode] = useState('environment');
   const [zoom, setZoom] = useState(1.0);
   const [exposure, setExposure] = useState(0);
@@ -18,14 +18,7 @@ export function ExifFreeCamera() {
   
   // QR State
   const [scannedResult, setScannedResult] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-
-  // Recording State
-  const [isRecording, setIsRecording] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
-
-  const mediaRecorderRef = useRef(null);
-  const recordedChunksRef = useRef([]);
 
   const startCamera = async () => {
     setError('');
@@ -70,11 +63,10 @@ export function ExifFreeCamera() {
     };
   }, [facingMode, mode]);
 
-  // QR Code Live Canvas Scanner Loop
+  // Pure JavaScript jsQR Scanner Loop
   useEffect(() => {
     let scanInterval;
     if (mode === 'qr' && stream) {
-      setIsScanning(true);
       scanInterval = setInterval(() => {
         if (!videoRef.current) return;
         const video = videoRef.current;
@@ -85,22 +77,14 @@ export function ExifFreeCamera() {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(video, 0, 0, 300, 300);
 
-          // Standard Barcode Detector API (Native Chrome/Android)
-          if ('BarcodeDetector' in window) {
-            const barcodeDetector = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'code_128'] });
-            barcodeDetector.detect(canvas)
-              .then(barcodes => {
-                if (barcodes.length > 0) {
-                  setScannedResult(barcodes[0].rawValue);
-                  setStatusMsg('🔍 QR Code Detected!');
-                }
-              })
-              .catch(() => {});
+          const imageData = ctx.getImageData(0, 0, 300, 300);
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code && code.data) {
+            setScannedResult(code.data);
+            setStatusMsg('🔍 QR Code Successfully Scanned!');
           }
         }
-      }, 500);
-    } else {
-      setIsScanning(false);
+      }, 300);
     }
 
     return () => clearInterval(scanInterval);
@@ -126,8 +110,6 @@ export function ExifFreeCamera() {
     canvas.height = video.videoHeight || 720;
     
     const ctx = canvas.getContext('2d');
-    
-    // Apply privacy canvas filters directly into exported image pixels
     const activeFilter = getFilterStyle();
     if (activeFilter !== 'none') {
       ctx.filter = activeFilter;
@@ -150,7 +132,7 @@ export function ExifFreeCamera() {
       link.click();
     }
 
-    setStatusMsg('📸 Photo Saved (EXIF Scrubbed & Filtered)');
+    setStatusMsg('📸 Photo Captured & EXIF Scrubbed');
     setTimeout(() => setStatusMsg(''), 2500);
   };
 
@@ -163,7 +145,6 @@ export function ExifFreeCamera() {
   return (
     <div className={`select-none ${isFullscreen ? 'fixed inset-0 z-50 bg-black flex flex-col justify-between p-3' : 'p-3 space-y-3 max-w-2xl mx-auto pb-28'}`}>
       
-      {/* Top Bar */}
       <div className="border-b border-zinc-800 pb-2 flex justify-between items-center bg-zinc-900/90 p-2.5 rounded-xl backdrop-blur-md">
         <div className="flex items-center space-x-2">
           {isFullscreen && (
@@ -206,7 +187,6 @@ export function ExifFreeCamera() {
         </div>
       )}
 
-      {/* CAMERA VIEWFINDER FRAME */}
       <div className={`relative rounded-2xl overflow-hidden bg-black border border-zinc-800 shadow-2xl flex items-center justify-center ${isFullscreen ? 'flex-1 my-2' : 'aspect-[3/4]'}`}>
         <video
           ref={videoRef}
@@ -220,7 +200,6 @@ export function ExifFreeCamera() {
           }}
         />
 
-        {/* Rule of Thirds Grid */}
         {showGrid && mode !== 'qr' && (
           <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 pointer-events-none z-10 border border-white/10">
             <div className="border-r border-b border-white/15" />
@@ -235,7 +214,6 @@ export function ExifFreeCamera() {
           </div>
         )}
 
-        {/* QR Scanner Target Box */}
         {mode === 'qr' && (
           <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
             <div className="w-56 h-56 border-2 border-cyan-400 rounded-3xl bg-cyan-500/10 flex items-center justify-center animate-pulse relative">
@@ -246,7 +224,6 @@ export function ExifFreeCamera() {
           </div>
         )}
 
-        {/* Floating Quick Zoom Buttons */}
         <div className="absolute top-3 left-3 z-20 bg-black/70 backdrop-blur-md p-1 rounded-xl border border-zinc-800 flex space-x-1 text-[10px] font-bold">
           {[1.0, 2.0, 3.0].map(z => (
             <button
@@ -259,7 +236,6 @@ export function ExifFreeCamera() {
           ))}
         </div>
 
-        {/* Shutter Button */}
         {mode !== 'qr' && (
           <div className="absolute bottom-4 inset-x-3 flex justify-center items-center z-20">
             <button
@@ -272,7 +248,6 @@ export function ExifFreeCamera() {
         )}
       </div>
 
-      {/* QR CODE SCANNED RESULT MODAL / CARD */}
       {mode === 'qr' && scannedResult && (
         <div className="bg-zinc-900 border border-cyan-500/50 p-3.5 rounded-2xl space-y-2.5">
           <div className="text-xs font-bold text-cyan-400 flex justify-between items-center">
@@ -303,7 +278,6 @@ export function ExifFreeCamera() {
         </div>
       )}
 
-      {/* FILTER CAROUSEL BAR */}
       <div className="space-y-1">
         <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Privacy Filters</span>
         <div className="flex space-x-1.5 overflow-x-auto pb-1 text-[10px] font-bold">
@@ -328,7 +302,6 @@ export function ExifFreeCamera() {
         </div>
       </div>
 
-      {/* HIGH-CONTRAST MODE SELECTOR TABS */}
       <div className="grid grid-cols-4 gap-1.5 bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 text-xs font-bold text-center">
         <button
           onClick={() => setMode('photo')}

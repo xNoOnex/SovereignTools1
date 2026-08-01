@@ -36,11 +36,21 @@ export function LocalAIAssistant() {
     return null;
   };
 
+  // Conversational Intent Guard: Avoid blindly searching DuckDuckGo for chat commentary
+  const isConversationalFeedback = (query) => {
+    const q = query.toLowerCase().trim();
+    const chatPhrases = [
+      'thats not what i asked', "that's not what i asked", 'wrong answer',
+      'hello', 'hi', 'hey', 'thanks', 'thank you', 'who are you', 'stop',
+      'what else', 'no', 'nope', 'nevermind', 'cancel'
+    ];
+    return chatPhrases.some(phrase => q.includes(phrase)) || q.length < 3;
+  };
+
   const fetchPrivacyWebSearch = async (query) => {
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
     
     let htmlText = '';
-    // Use native Java fetcher to bypass browser CORS
     if (window.AndroidNative && window.AndroidNative.fetchUrl) {
       htmlText = window.AndroidNative.fetchUrl(url);
     } else {
@@ -55,30 +65,40 @@ export function LocalAIAssistant() {
     if (htmlText.startsWith('ERROR:')) {
       const proxyType = localStorage.getItem('sovereign_proxy_type') || 'direct';
       if (proxyType === 'tor') {
-        return `⚠️ **Web Search Query Failed:**\nTor proxy is active in Settings, but connection was refused. **Make sure the Orbot app is running on your phone**, or switch Settings to "Direct" mode!`;
+        return `⚠️ **Tor Proxy Active:** Ensure Orbot is connected on your phone, or switch Settings to Direct mode.`;
       }
       return `⚠️ Web Search query failed: ${htmlText.replace('ERROR:', '')}`;
     }
 
-    // Extract text snippets from DuckDuckGo HTML
     const parser = new DOMParser();
     const doc = parser.parseFromString(htmlText, 'text/html');
-    const snippets = Array.from(doc.querySelectorAll('.result__snippet'))
+    const rawSnippets = Array.from(doc.querySelectorAll('.result__snippet'))
       .slice(0, 3)
       .map(el => el.textContent.trim())
-      .filter(t => t.length > 0)
-      .join('\n\n');
+      .filter(t => t.length > 15);
 
-    if (snippets) {
-      return `🌐 **Live Web Search Results:**\n\n${snippets}`;
+    if (rawSnippets.length > 0) {
+      return `🌐 **Live Web Information Summary:**\n\n` + rawSnippets.map((s, idx) => `• ${s}`).join('\n\n');
     }
 
-    return "🌐 Query executed, but no clean search snippets were returned. Try rephrasing your search.";
+    return "🌐 Query executed, but no clean text snippets were returned. Try rephrasing your search term.";
   };
 
   const generateResponse = async (query) => {
     const mathResult = evaluateMath(query);
     if (mathResult) return mathResult;
+
+    // Direct conversational handler
+    if (isConversationalFeedback(query)) {
+      const q = query.toLowerCase();
+      if (q.includes('not what i asked') || q.includes('wrong')) {
+        return " Got it! Please rephrase your question with specific terms (e.g., 'MLB baseball scores today' or 'NFL current standings') so I can search the web for the exact answer.";
+      }
+      if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
+        return "👋 Hello! Ask me a math equation, privacy topic, or toggle Web Search ON to search current facts.";
+      }
+      return "👍 Ready! Ask a specific question or calculation.";
+    }
 
     if (webSearchEnabled) {
       const webResult = await fetchPrivacyWebSearch(query);
@@ -99,7 +119,7 @@ export function LocalAIAssistant() {
       return "🧅 **Tor & Proxy Routing:**\nWhen enabled in Settings, Android WebKit ProxyController routes all network traffic through SOCKS5 127.0.0.1:9050 before leaving your physical device.";
     }
 
-    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries, toggle the "🌐 Search: OFF" button above to ON!`;
+    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries, toggle "🌐 Search: OFF" button above to ON!`;
   };
 
   const handleSend = async (e) => {
@@ -162,7 +182,7 @@ export function LocalAIAssistant() {
         ))}
         {isProcessing && (
           <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-zinc-400 text-xs animate-pulse mr-auto max-w-[70%]">
-            🤖 Fetching and parsing response...
+            🤖 Processing request...
           </div>
         )}
         <div ref={chatEndRef} />
