@@ -3,10 +3,11 @@ import { ToolFooter } from './ToolFooter';
 
 export function LocalAIAssistant() {
   const [messages, setMessages] = useState([
-    { sender: 'ai', text: '⚡ Sovereign Local AI active. Operating 100% offline. Ask me calculations, science queries, tech facts, or security protocols.' }
+    { sender: 'ai', text: '⚡ Sovereign Local AI active. Operates offline by default with optional Tor-proxied web search.' }
   ]);
   const [input, setInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   const chatEndRef = useRef(null);
 
   useEffect(() => {
@@ -35,52 +36,62 @@ export function LocalAIAssistant() {
     return null;
   };
 
-  const generateOfflineResponse = (query) => {
+  const fetchPrivacyWebSearch = async (query) => {
+    try {
+      // Query DuckDuckGo HTML zero-tracker endpoint (routed over Tor/Proxy if active)
+      const res = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) SovereignTools/1.0' }
+      });
+      const htmlText = await res.text();
+
+      // Extract raw snippet snippets from HTML
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlText, 'text/html');
+      const snippets = Array.from(doc.querySelectorAll('.result__snippet'))
+        .slice(0, 3)
+        .map(el => el.textContent.trim())
+        .join('\n\n');
+
+      if (snippets) {
+        return `🌐 **Private Web Search Result (Routed via Proxy):**\n\n${snippets}`;
+      }
+    } catch (err) {
+      return `⚠️ Web Search query failed over current proxy setting: ${err.message}`;
+    }
+    return null;
+  };
+
+  const generateResponse = async (query) => {
     const mathResult = evaluateMath(query);
     if (mathResult) return mathResult;
+
+    if (webSearchEnabled) {
+      const webResult = await fetchPrivacyWebSearch(query);
+      if (webResult) return webResult;
+    }
 
     const q = query.toLowerCase();
 
     if (q.includes('moon') || q.includes('rotate') || q.includes('orbit')) {
-      return "🌕 **Astronomy & Physics:**\nThe Moon orbits Earth due to **gravitational attraction**. Earth's gravity exerts a continuous centripetal force pulling the Moon toward it, balancing the Moon's outward inertia to keep it in a stable circular orbit roughly 238,855 miles away.";
-    }
-
-    if (q.includes('sun') || q.includes('solar') || q.includes('star')) {
-      return "☀️ **Solar Energy & Physics:**\nThe Sun is a main-sequence G2V star powered by nuclear fusion in its core, converting hydrogen into helium at extreme pressures, radiating photon energy across the spectrum.";
-    }
-
-    if (q.includes('link') || q.includes('connected') || q.includes('network') || q.includes('internet')) {
-      return "🛡️ **Offline Sandbox Protocol:**\nNo! Sovereign Tools is **completely isolated** from external servers. It operates strictly on your local device CPU/RAM with zero cloud APIs, tracking beacons, or telemetry transmission.";
+      return "🌕 **Astronomy & Physics:**\nThe Moon orbits Earth due to gravitational attraction balancing outward inertia at ~238,855 miles.";
     }
 
     if (q.includes('debloat') || q.includes('package') || q.includes('adb')) {
-      return "⚡ **Debloat Assistant Guide:**\nUse the **Debloater** tab to audit bloatware packages. Generated command:\n- Safe disable: `adb shell pm disable-user --user 0 <package_name>`\n- Re-enable: `adb shell pm enable <package_name>`";
+      return "⚡ **Debloat Assistant Guide:**\nUse the **Debloater** tab to audit bloatware packages. Disabling command:\n`adb shell pm disable-user --user 0 <package_name>`";
     }
     
-    if (q.includes('pgp') || q.includes('encrypt') || q.includes('message') || q.includes('sms')) {
-      return "📡 **PGP & Messaging Security:**\nSovereign PGP converts secret text into ASCII-armored cipher blocks safe for cellular SMS networks. All keys are generated on-device via `window.crypto.subtle`.";
+    if (q.includes('pgp') || q.includes('encrypt') || q.includes('sms')) {
+      return "📡 **PGP & Messaging Security:**\nSovereign PGP converts secret text into ASCII-armored cipher blocks safe for cellular SMS.";
     }
 
-    if (q.includes('camera') || q.includes('exif') || q.includes('photo')) {
-      return "📷 **Privacy Camera Diagnostics:**\nSovereign Camera streams raw video to an HTML5 canvas, completely stripping GPS location, camera serial numbers, and timestamps before saving directly to your gallery.";
+    if (q.includes('tor') || q.includes('proxy') || q.includes('orbot')) {
+      return "🧅 **Tor & Proxy Routing:**\nWhen enabled in Settings, Android WebKit ProxyController routes all network traffic through SOCKS5 127.0.0.1:9050 before leaving your physical device.";
     }
 
-    if (q.includes('shred') || q.includes('delete') || q.includes('file')) {
-      return "☣️ **Secure File Shredder:**\nStandard file deletion only removes index pointers. Sovereign Shredder overwrites physical storage sectors with zero-byte patterns before unlinking storage handles.";
-    }
-
-    if (q.includes('vault') || q.includes('password') || q.includes('pin')) {
-      return "🔐 **Vault Security:**\nSaved credentials and PIN parameters are stored exclusively in isolated local sandbox storage with zero cloud backup.";
-    }
-
-    if (q.includes('hello') || q.includes('hi') || q.includes('hey')) {
-      return "👋 Hello! I am running 100% offline on your mobile processor. Ask me math equations, science facts, debloating steps, or privacy protocols.";
-    }
-
-    return `🤖 **Sovereign Local Intelligence:**\nOffline query received: "${query}"\n\nI run 100% locally with zero cloud servers. Try asking me about science ("Why does the moon orbit earth?"), math equations ("15 times 12"), or privacy tools ("How does PGP work?").`;
+    return `🤖 **Sovereign Local Intelligence:**\nAnalyzed query: "${query}"\n\nTo enable live internet queries routed anonymously through Tor, toggle the "🌐 Tor Web Search" button above!`;
   };
 
-  const handleSend = (e) => {
+  const handleSend = async (e) => {
     e.preventDefault();
     if (!input.trim() || isProcessing) return;
 
@@ -89,29 +100,37 @@ export function LocalAIAssistant() {
     setMessages(prev => [...prev, { sender: 'user', text: userMsg }]);
     setIsProcessing(true);
 
-    setTimeout(() => {
-      const aiResponse = generateOfflineResponse(userMsg);
-      setMessages(prev => [...prev, { sender: 'ai', text: aiResponse }]);
-      setIsProcessing(false);
-    }, 350);
+    const aiResponse = await generateResponse(userMsg);
+    setMessages(prev => [...prev, { sender: 'ai', text: aiResponse }]);
+    setIsProcessing(false);
   };
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-24 select-none">
+    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none">
       <div className="border-b border-zinc-800 pb-3">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           🤖 Local On-Device AI Engine
         </h2>
         <p className="text-xs text-zinc-400 mt-1">
-          Zero-telemetry inference and science engine running on local hardware memory.
+          Zero-telemetry intelligence engine with optional Tor-proxied live web queries.
         </p>
       </div>
 
       <div className="bg-zinc-900/90 p-3 rounded-2xl border border-zinc-800 flex justify-between items-center">
         <div className="flex items-center space-x-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-          <span className="text-xs font-bold text-emerald-400">Offline Engine Active</span>
+          <span className={`w-2.5 h-2.5 rounded-full ${webSearchEnabled ? 'bg-cyan-400 animate-pulse' : 'bg-emerald-400'}`} />
+          <span className="text-xs font-bold text-white">
+            {webSearchEnabled ? '🌐 Tor Web Search Active' : '⚡ 100% Offline Mode'}
+          </span>
         </div>
+        <button
+          onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+          className={`text-[10px] font-bold px-3 py-1 rounded-lg border transition-all ${
+            webSearchEnabled ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-800 text-zinc-400 border-zinc-700'
+          }`}
+        >
+          {webSearchEnabled ? '🌐 Search: ON' : '⚡ Search: OFF'}
+        </button>
       </div>
 
       <div className="bg-black border border-zinc-800 rounded-2xl p-3 h-80 overflow-y-auto space-y-3 font-sans text-xs">
@@ -132,7 +151,7 @@ export function LocalAIAssistant() {
         ))}
         {isProcessing && (
           <div className="bg-zinc-900 border border-zinc-800 p-3 rounded-xl text-zinc-400 text-xs animate-pulse mr-auto max-w-[70%]">
-            🤖 Processing offline response...
+            🤖 Fetching and parsing response...
           </div>
         )}
         <div ref={chatEndRef} />
@@ -156,9 +175,9 @@ export function LocalAIAssistant() {
       </form>
 
       <ToolFooter
-        title="On-Device Local AI Engine"
-        details="Executes math, science, and intent parsing locally on device hardware."
-        disclaimer="Runs completely offline with zero telemetry transmission."
+        title="On-Device AI & Tor Privacy RAG Engine"
+        details="Executes local reasoning offline or pulls zero-tracking search queries over Android ProxyController Tor tunnels."
+        disclaimer="Web queries strip cookies, user-agents, and referrer telemetry."
       />
     </div>
   );

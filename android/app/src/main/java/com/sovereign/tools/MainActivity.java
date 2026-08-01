@@ -16,9 +16,14 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import android.widget.Toast;
 import androidx.core.app.ActivityCompat;
+import androidx.webkit.ProxyConfig;
+import androidx.webkit.ProxyController;
+import androidx.webkit.WebViewFeature;
 import com.getcapacitor.BridgeActivity;
 
 import java.io.OutputStream;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends BridgeActivity {
     private ValueCallback<Uri[]> filePathCallback;
@@ -36,7 +41,6 @@ public class MainActivity extends BridgeActivity {
             webView.getSettings().setAllowContentAccess(true);
             webView.getSettings().setJavaScriptEnabled(true);
             
-            // Add Native JavaScript Bridge: window.AndroidNative
             webView.addJavascriptInterface(new AndroidBridge(), "AndroidNative");
 
             webView.setWebChromeClient(new WebChromeClient() {
@@ -78,9 +82,43 @@ public class MainActivity extends BridgeActivity {
     public class AndroidBridge {
         
         @JavascriptInterface
+        public boolean setNetworkProxy(String proxyType, String host, int port) {
+            if (!WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                runOnUiThread(() -> Toast.makeText(MainActivity.this, "⚠️ Proxy override not supported on this Android WebKit version", Toast.LENGTH_SHORT).show());
+                return false;
+            }
+
+            try {
+                ProxyConfig.Builder proxyConfigBuilder = new ProxyConfig.Builder();
+                
+                if ("tor".equalsIgnoreCase(proxyType) || "socks".equalsIgnoreCase(proxyType)) {
+                    proxyConfigBuilder.addProxyRule("socks://" + host + ":" + port);
+                } else if ("http".equalsIgnoreCase(proxyType)) {
+                    proxyConfigBuilder.addProxyRule("http://" + host + ":" + port);
+                } else {
+                    // Direct mode - bypass all proxies
+                    ProxyController.getInstance().clearProxyOverride(Executors.newSingleThreadExecutor(), () -> {
+                        runOnUiThread(() -> Toast.makeText(MainActivity.this, "🚫 Proxy Cleared (Direct Connection)", Toast.LENGTH_SHORT).show());
+                    });
+                    return true;
+                }
+
+                ProxyConfig proxyConfig = proxyConfigBuilder.build();
+                Executor executor = Executors.newSingleThreadExecutor();
+
+                ProxyController.getInstance().setProxyOverride(proxyConfig, executor, () -> {
+                    runOnUiThread(() -> Toast.makeText(MainActivity.this, "🧅 Proxy Active: " + host + ":" + port, Toast.LENGTH_SHORT).show());
+                });
+                return true;
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+            return false;
+        }
+
+        @JavascriptInterface
         public boolean saveToGallery(String base64Data, String filename, String mimeType) {
             try {
-                // Properly strip base64 data header in Java
                 String cleanBase64 = base64Data.contains(",") ? base64Data.split(",")[1] : base64Data;
                 byte[] data = Base64.decode(cleanBase64, Base64.DEFAULT);
                 
