@@ -1,0 +1,16 @@
+{
+  "short_name": "SovereignTools",
+  "name": "Sovereign Tools",
+  "icons": [
+    {
+      "src": "sovereign_logo.jpg",
+      "sizes": "512x512 192x192 64x64 32x32",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#000000"
+}
