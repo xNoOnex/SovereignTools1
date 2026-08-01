@@ -6,10 +6,12 @@ import { ShizukuDebloater } from './components/ShizukuDebloater';
 import { PgpMessaging } from './components/PgpMessaging';
 import { AesCipherTool } from './components/AesCipherTool';
 import { LocalAIAssistant } from './components/LocalAIAssistant';
+import { Settings } from './components/Settings';
 
 export default function App() {
   const [isUnlocked, setIsUnlocked] = useState(false);
   const [currentTab, setCurrentTab] = useState('camera');
+  const appMode = localStorage.getItem('sovereign_mode') || 'expert';
 
   if (!isUnlocked) {
     return <LockScreen onUnlock={() => setIsUnlocked(true)} />;
@@ -26,14 +28,28 @@ export default function App() {
       <header className="bg-zinc-900/90 border-b border-zinc-800 p-4 flex justify-between items-center sticky top-0 z-40 backdrop-blur-md">
         <div className="flex items-center space-x-3">
           <img src="./sovereign_logo.jpg" alt="Logo" className="w-7 h-7 rounded-lg border border-cyan-500/50 object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
-          <h1 className="font-bold text-sm text-white tracking-wide">SOVEREIGN TOOLS</h1>
+          <div>
+            <h1 className="font-bold text-sm text-white tracking-wide">SOVEREIGN TOOLS</h1>
+            <span className="text-[9px] font-mono text-cyan-400 uppercase tracking-widest">{appMode} mode</span>
+          </div>
         </div>
-        <button
-          onClick={() => setIsUnlocked(false)}
-          className="text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-3 py-1.5 rounded-lg border border-zinc-700 font-medium"
-        >
-          🔒 Lock
-        </button>
+
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => setCurrentTab('settings')}
+            className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium ${
+              currentTab === 'settings' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-zinc-800 text-zinc-300 border-zinc-700'
+            }`}
+          >
+            ⚙️ Settings
+          </button>
+          <button
+            onClick={() => setIsUnlocked(false)}
+            className="text-xs bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 px-2.5 py-1.5 rounded-lg border border-zinc-700 font-medium"
+          >
+            🔒 Lock
+          </button>
+        </div>
       </header>
 
       {/* Main Content Area */}
@@ -44,6 +60,7 @@ export default function App() {
         {currentTab === 'pgp' && <PgpMessaging />}
         {currentTab === 'aes' && <AesCipherTool />}
         {currentTab === 'ai' && <LocalAIAssistant />}
+        {currentTab === 'settings' && <Settings onLock={() => setIsUnlocked(false)} />}
       </main>
 
       {/* Bottom Nav Dock */}

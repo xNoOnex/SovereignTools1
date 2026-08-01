@@ -9,14 +9,12 @@ export function PasswordManager() {
   const [showPass, setShowPass] = useState({});
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Password Generator Controls
   const [length, setLength] = useState(16);
   const [useNumbers, setUseNumbers] = useState(true);
   const [useSymbols, setUseSymbols] = useState(true);
   const [useUppercase, setUseUppercase] = useState(true);
   const [generatedPass, setGeneratedPass] = useState('');
 
-  // Load vault from localStorage
   useEffect(() => {
     const saved = localStorage.getItem('sovereign_vault');
     if (saved) {
@@ -25,16 +23,16 @@ export function PasswordManager() {
       } catch (e) {
         setVault([]);
       }
+    } else {
+      setVault([]); // Clean empty vault start
     }
   }, []);
 
-  // Save vault to localStorage
   const saveVault = (newVault) => {
     setVault(newVault);
     localStorage.setItem('sovereign_vault', JSON.stringify(newVault));
   };
 
-  // Generate Password logic
   const generatePassword = () => {
     let chars = 'abcdefghijklmnopqrstuvwxyz';
     if (useUppercase) chars += 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -93,7 +91,6 @@ export function PasswordManager() {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-24 select-none">
-      {/* Header */}
       <div className="border-b border-zinc-800 pb-3">
         <h2 className="text-xl font-bold text-white flex items-center gap-2">
           🔐 Encrypted Vault & Generator
@@ -113,10 +110,9 @@ export function PasswordManager() {
       <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-4">
         <div className="flex justify-between items-center">
           <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">Strong Password Generator</h3>
-          <span className="text-xs font-mono font-bold text-zinc-400">{length} Characters</span>
+          <span className="text-xs font-mono font-bold text-zinc-400">{length} Chars</span>
         </div>
 
-        {/* Generated Password Output Box */}
         <div className="flex items-center space-x-2 bg-black p-3 rounded-xl border border-zinc-800">
           <input
             type="text"
@@ -138,7 +134,6 @@ export function PasswordManager() {
           </button>
         </div>
 
-        {/* Character Amount Slider */}
         <div className="space-y-1">
           <div className="flex justify-between text-[10px] text-zinc-400 font-bold">
             <span>Length: 8</span>
@@ -155,39 +150,38 @@ export function PasswordManager() {
           />
         </div>
 
-        {/* Character Type Toggles */}
         <div className="grid grid-cols-3 gap-2 pt-1">
           <button
             type="button"
             onClick={() => setUseNumbers(!useNumbers)}
-            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center space-x-1 ${
               useNumbers ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300' : 'bg-black/40 border-zinc-800 text-zinc-500'
             }`}
           >
             <span>{useNumbers ? '✅' : '❌'}</span>
-            <span>Numbers (0-9)</span>
+            <span>Numbers</span>
           </button>
 
           <button
             type="button"
             onClick={() => setUseSymbols(!useSymbols)}
-            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center space-x-1 ${
               useSymbols ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300' : 'bg-black/40 border-zinc-800 text-zinc-500'
             }`}
           >
             <span>{useSymbols ? '✅' : '❌'}</span>
-            <span>Symbols (!@#)</span>
+            <span>Symbols</span>
           </button>
 
           <button
             type="button"
             onClick={() => setUseUppercase(!useUppercase)}
-            className={`py-2 px-3 rounded-xl text-xs font-bold border transition-all flex items-center justify-center space-x-1.5 ${
+            className={`py-2 px-2 rounded-xl text-[11px] font-bold border transition-all flex items-center justify-center space-x-1 ${
               useUppercase ? 'bg-cyan-500/20 border-cyan-500/60 text-cyan-300' : 'bg-black/40 border-zinc-800 text-zinc-500'
             }`}
           >
             <span>{useUppercase ? '✅' : '❌'}</span>
-            <span>Uppercase (A-Z)</span>
+            <span>Uppercase</span>
           </button>
         </div>
 
@@ -195,7 +189,7 @@ export function PasswordManager() {
           onClick={() => setPassword(generatedPass)}
           className="w-full py-2 bg-zinc-800 hover:bg-zinc-700 text-xs text-cyan-400 font-bold rounded-xl border border-zinc-700"
         >
-          ⬇️ Use Generated Password in Form Below
+          ⬇️ Use Generated Password in Form
         </button>
       </div>
 
@@ -214,7 +208,7 @@ export function PasswordManager() {
 
         <input
           type="text"
-          placeholder="Username / Email / Identifier (optional)..."
+          placeholder="Username / Handle (optional)..."
           value={username}
           onChange={(e) => setUsername(e.target.value)}
           className="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white focus:outline-none focus:border-cyan-500"
@@ -241,11 +235,11 @@ export function PasswordManager() {
 
       {/* STORED VAULT LIST */}
       <div className="space-y-3 pt-2">
-        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Saved Vault Entries ({vault.length})</h3>
+        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Saved Credentials ({vault.length})</h3>
         
         {vault.length === 0 ? (
           <div className="p-6 text-center text-xs text-zinc-500 border border-dashed border-zinc-800 rounded-2xl">
-            No credentials saved yet.
+            Vault is empty. Use the form above to add your custom entries.
           </div>
         ) : (
           vault.map((item) => (
@@ -286,8 +280,8 @@ export function PasswordManager() {
 
       <ToolFooter
         title="Encrypted Local Vault"
-        details="Stores encrypted entries in device-isolated storage (localStorage). Includes a cryptographically secure random password generator using window.crypto.getRandomValues."
-        disclaimer="Data remains offline on this physical device and is not synced to external servers."
+        details="Stores encrypted entries in device-isolated storage (localStorage)."
+        disclaimer="Data remains offline on this physical device and is never synced externally."
       />
     </div>
   );
