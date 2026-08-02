@@ -90,9 +90,10 @@ export function SmartAI({ onNavigate }) {
         const promptTemplate = `<|im_start|>system\nYou are a concise AI. Answer the user directly using the context provided. Do not repeat the question. Do not hallucinate.<|im_end|>\n<|im_start|>user\n${userText}${liveContext}<|im_end|>\n<|im_start|>assistant\n`;
         
         const output = await engine(promptTemplate, {
-          max_new_tokens: 128,
-          temperature: 0.3, // Lower temp for more direct answers
-          do_sample: true
+          max_new_tokens: 150,
+          temperature: 0.3,
+          do_sample: true,
+          return_full_text: false // Stops the engine from returning the prompt
         });
 
         // Strip the entire prompt out of the output, leaving only the generated text
