@@ -1,57 +1,56 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Capacitor } from '@capacitor/core';
 
 const StorageContext = createContext();
 
 export function StorageProvider({ children }) {
   const [indexedFiles, setIndexedFiles] = useState([]);
-  const [isScanning, setIsScanning] = useState(true);
-
-  const walkStorage = async (folderPath = '', depth = 0) => {
-    if (depth > 4) return [];
-    let results = [];
-    try {
-      const res = await Filesystem.readdir({
-        path: folderPath,
-        directory: Directory.ExternalStorage
-      });
-
-      for (const item of res.files) {
-        const fullPath = folderPath ? `${folderPath}/${item.name}` : item.name;
-        if (item.type === 'directory') {
-          if (!item.name.startsWith('.') && item.name !== 'Android') {
-            const sub = await walkStorage(fullPath, depth + 1);
-            results = [...results, ...sub];
-          }
-        } else {
-          const webUrl = Capacitor.convertFileSrc(`/storage/emulated/0/${fullPath}`);
-          results.push({
-            name: item.name,
-            path: fullPath,
-            src: webUrl,
-            ext: item.name.split('.').pop().toLowerCase()
-          });
-        }
-      }
-    } catch (e) {}
-    return results;
-  };
+  const [isScanning, setIsScanning] = useState(false);
 
   const runGlobalScan = async () => {
     setIsScanning(true);
-    const files = await walkStorage('');
-    setIndexedFiles(files);
-    setIsScanning(false);
-  };
+    try {
+      let filesFound = [];
 
-  const removeFileFromState = (path) => {
-    setIndexedFiles(prev => prev.filter(f => f.path !== path));
+      // Load custom gallery items saved directly from the Sovereign Camera
+      const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
+      filesFound.push(...customGallery);
+
+      // Attempt scanning external storage directories
+      try {
+        const result = await Filesystem.readdir({
+          path: '',
+          directory: Directory.ExternalStorage
+        });
+        
+        for (const file of result.files) {
+          const ext = file.name.split('.').pop().toLowerCase();
+          filesFound.push({
+            name: file.name,
+            path: file.name,
+            src: `file:///storage/emulated/0/${file.name}`,
+            ext
+          });
+        }
+      } catch (e) {}
+
+      setIndexedFiles(filesFound);
+    } catch (e) {}
+    setIsScanning(false);
   };
 
   useEffect(() => {
     runGlobalScan();
   }, []);
+
+  const removeFileFromState = (path) => {
+    setIndexedFiles(prev => prev.filter(f => f.path !== path));
+    
+    // Also remove from custom gallery storage if present
+    const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
+    const updated = customGallery.filter(f => f.path !== path);
+    localStorage.setItem('sovereign_custom_gallery', JSON.stringify(updated));
+  };
 
   return (
     <StorageContext.Provider value={{ indexedFiles, isScanning, runGlobalScan, removeFileFromState }}>
