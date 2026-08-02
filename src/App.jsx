@@ -28,7 +28,7 @@ function AppContent() {
   const { mode, accentColor, setAccentColor, setMode } = useSettings();
 
   useEffect(() => {
-    document.body.className = `theme-${accentColor}`;
+    document.body.className = `theme-${accentColor} text-scale-${textSize}`;
   }, [accentColor]);
 
   const navigateTo = (screen) => {

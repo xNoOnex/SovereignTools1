@@ -3,36 +3,19 @@
 @tailwind utilities;
 
 :root {
-  --accent-color: #06b6d4;
-  --accent-text: #22d3ee;
-  --accent-bg-subtle: rgba(6, 182, 212, 0.15);
-  --accent-border: rgba(6, 182, 212, 0.4);
-  font-size: 15px;
+  --accent-text: #22d3ee; /* default cyan */
+  --accent-bg: #22d3ee;
 }
 
-.theme-accent-bg {
-  background-color: var(--accent-color) !important;
-  color: #000000 !important;
-}
+body.theme-cyan { --accent-text: #22d3ee; --accent-bg: #22d3ee; }
+body.theme-amber { --accent-text: #fbbf24; --accent-bg: #fbbf24; }
+body.theme-matrix { --accent-text: #4ade80; --accent-bg: #4ade80; }
+body.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
 
-.theme-accent-text {
-  color: var(--accent-text) !important;
-}
+.theme-accent-text { color: var(--accent-text) !important; }
+.theme-accent-bg { background-color: var(--accent-bg) !important; color: #000 !important; }
 
-.theme-accent-border {
-  border-color: var(--accent-border) !important;
-}
-
-.theme-accent-badge {
-  background-color: var(--accent-bg-subtle) !important;
-  color: var(--accent-text) !important;
-  border-color: var(--accent-border) !important;
-}
-
-.no-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
+/* Dynamic Text Scaling */
+body.text-scale-Small { font-size: 0.85rem; }
+body.text-scale-Medium { font-size: 1rem; }
+body.text-scale-Large { font-size: 1.15rem; }

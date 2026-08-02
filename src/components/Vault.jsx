@@ -74,6 +74,7 @@ export function Vault({ onNavigate }) {
       pass += charset[randomValues[i] % charset.length];
     }
     setGeneratedPass(pass);
+    setActiveTab('Manager');
     setPassword(pass); // Auto-fill the new entry field
   };
 
