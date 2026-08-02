@@ -12,36 +12,40 @@ export function StorageProvider({ children }) {
     try {
       let filesFound = [];
 
-      // 1. Load custom gallery items saved from Sovereign Camera
+      // 1. Instantly load Sovereign Custom Gallery items
       const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
       filesFound.push(...customGallery);
+      setIndexedFiles([...filesFound]); 
 
-      // 2. RE-ENABLE FULL GLOBAL STORAGE RECURSIVE SCAN FOR SHREDDER
-      const targetDirs = [
-        Directory.ExternalStorage,
-        Directory.Documents,
-        Directory.Pictures,
-        Directory.Movies,
-        Directory.Music,
-        Directory.Data
-      ];
-
-      for (const d of targetDirs) {
+      // 2. Recursive Deep Scanner
+      const scanDir = async (path, maxDepth, currentDepth = 0) => {
+        if (currentDepth > maxDepth) return;
         try {
-          const result = await Filesystem.readdir({ path: '', directory: d });
-          for (const file of result.files) {
-            const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'file';
-            filesFound.push({
-              name: file.name,
-              path: file.name,
-              src: `file:///storage/emulated/0/${file.name}`,
-              ext
-            });
+          const res = await Filesystem.readdir({ path, directory: Directory.ExternalStorage });
+          for (const f of res.files) {
+            const fullPath = path ? `${path}/${f.name}` : f.name;
+            
+            if (f.type === 'directory') {
+               // Skip heavy/hidden OS folders to prevent RAM crashes
+               if (f.name === 'Android' || f.name.startsWith('.')) continue;
+               await scanDir(fullPath, maxDepth, currentDepth + 1);
+            } else {
+               const ext = f.name.includes('.') ? f.name.split('.').pop().toLowerCase() : 'file';
+               filesFound.push({
+                 name: f.name,
+                 path: fullPath,
+                 src: `file:///storage/emulated/0/${fullPath}`,
+                 ext
+               });
+            }
           }
-        } catch (e) {}
-      }
+        } catch (e) {} // Skip unreadable folders
+      };
 
-      // Deduplicate by path
+      // Crawl entire External Storage up to 4 folders deep
+      await scanDir('', 4);
+
+      // Deduplicate files by path to prevent UI glitches
       const uniqueFiles = Array.from(new Map(filesFound.map(item => [item.path, item])).values());
       setIndexedFiles(uniqueFiles);
     } catch (e) {}
