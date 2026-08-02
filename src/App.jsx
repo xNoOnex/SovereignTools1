@@ -17,12 +17,12 @@ import { EncryptedDocs } from './components/EncryptedDocs';
 import { FileViewer } from './components/FileViewer';
 import { Settings } from './components/Settings';
 import { StorageProvider } from './context/StorageContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
 
-export default function App() {
+function AppContent() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
-  const [appMode, setAppMode] = useState(() => localStorage.getItem('sovereign_mode') || 'EXPERT');
-  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('sovereign_accent') || 'cyan');
+  const { mode, setMode, accentColor, setAccentColor } = useSettings();
 
   useEffect(() => {
     document.body.className = `theme-${accentColor}`;
@@ -34,82 +34,88 @@ export default function App() {
   };
 
   return (
-    <StorageProvider>
-      <div className="min-h-screen bg-black text-white font-sans select-none pb-24">
-        
-        {/* Top Global Bar */}
-        <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
-          <div className="flex items-center gap-2">
-            <h1 className="text-sm font-black tracking-widest text-white">SOVEREIGN TOOLS</h1>
-            <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full">{appMode}</span>
-          </div>
-          <div className="flex gap-2">
-            <button onClick={() => setShowSettings(true)} className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95">
-              ⚙️ Settings
-            </button>
-            <button onClick={() => navigateTo('home')} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95">
-              🔒 Lock
-            </button>
-          </div>
+    <div className="min-h-screen bg-black text-white font-sans select-none pb-24">
+      {/* Top Global Bar */}
+      <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-black tracking-widest text-white">SOVEREIGN TOOLS</h1>
+          <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full">{mode}</span>
         </div>
-
-        {/* Screen Switcher */}
-        {currentScreen === 'home' && <Home onNavigate={navigateTo} appMode={appMode} />}
-        {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
-        {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
-        {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
-        {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
-        {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
-        {currentScreen === 'comms' && <Comms onNavigate={navigateTo} />}
-        {currentScreen === 'aes' && <AESCipher onNavigate={navigateTo} />}
-        {currentScreen === 'shred' && <Shredder onNavigate={navigateTo} />}
-        {currentScreen === 'netsec' && <NetSecOps onNavigate={navigateTo} />}
-        {currentScreen === 'camera' && <SovereignCamera onNavigate={navigateTo} />}
-        {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
-        {currentScreen === 'vault' && <Vault onNavigate={navigateTo} />}
-        {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} />}
-        {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
-        {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
-
-        {/* Settings Modal */}
-        {showSettings && (
-          <Settings 
-            closeSettings={() => setShowSettings(false)} 
-            appMode={appMode} 
-            setAppMode={setAppMode} 
-            accentColor={accentColor} 
-            setAccentColor={setAccentColor} 
-          />
-        )}
-
-        {/* Bottom Navigation Dock */}
-        <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-zinc-900 p-2 flex justify-around items-center z-40 overflow-x-auto no-scrollbar">
-          {[
-            { id: 'home', label: 'Home', icon: '🏠' },
-            { id: 'camera', label: 'Camera', icon: '📷' },
-            { id: 'gallery', label: 'Gallery', icon: '🖼️' },
-            { id: 'vault', label: 'Vault', icon: '🔐' },
-            { id: 'comms', label: 'Comms', icon: '📡' },
-            { id: 'docs', label: 'Docs', icon: '📝' },
-            { id: 'fileviewer', label: 'Files', icon: '📂' },
-            { id: 'audio', label: 'Audio', icon: '🎵' },
-            { id: 'calc', label: 'Calc', icon: '🧮' },
-            { id: 'calendar', label: 'Calendar', icon: '📅' },
-            { id: 'ai', label: 'AI', icon: '🤖' },
-            { id: 'netsec', label: 'NetSec', icon: '🌐' }
-          ].map(tab => (
-            <button 
-              key={tab.id} 
-              onClick={() => navigateTo(tab.id)} 
-              className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
-            >
-              <span className="text-lg">{tab.icon}</span>
-              <span className="text-[9px] tracking-wider mt-0.5">{tab.label}</span>
-            </button>
-          ))}
+        <div className="flex gap-2">
+          <button onClick={() => setShowSettings(true)} className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95">
+            ⚙️ Settings
+          </button>
+          <button onClick={() => navigateTo('home')} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95">
+            🔒 Lock
+          </button>
         </div>
-
       </div>
-    </StorageProvider>
+
+      {/* Screen Switcher */}
+      {currentScreen === 'home' && <Home onNavigate={navigateTo} appMode={mode} />}
+      {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
+      {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
+      {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
+      {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
+      {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
+      {currentScreen === 'comms' && <Comms onNavigate={navigateTo} />}
+      {currentScreen === 'aes' && <AESCipher onNavigate={navigateTo} />}
+      {currentScreen === 'shred' && <Shredder onNavigate={navigateTo} />}
+      {currentScreen === 'netsec' && <NetSecOps onNavigate={navigateTo} />}
+      {currentScreen === 'camera' && <SovereignCamera onNavigate={navigateTo} />}
+      {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
+      {currentScreen === 'vault' && <Vault onNavigate={navigateTo} />}
+      {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} />}
+      {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
+      {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
+
+      {/* Settings Modal */}
+      {showSettings && (
+        <Settings 
+          closeSettings={() => setShowSettings(false)} 
+          appMode={mode} 
+          setAppMode={setMode} 
+          accentColor={accentColor} 
+          setAccentColor={setAccentColor} 
+        />
+      )}
+
+      {/* Bottom Navigation Dock */}
+      <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-zinc-900 p-2 flex justify-around items-center z-40 overflow-x-auto no-scrollbar">
+        {[
+          { id: 'home', label: 'Home', icon: '🏠' },
+          { id: 'camera', label: 'Camera', icon: '📷' },
+          { id: 'gallery', label: 'Gallery', icon: '🖼️' },
+          { id: 'vault', label: 'Vault', icon: '🔐' },
+          { id: 'comms', label: 'Comms', icon: '📡' },
+          { id: 'docs', label: 'Docs', icon: '📝' },
+          { id: 'fileviewer', label: 'Files', icon: '📂' },
+          { id: 'audio', label: 'Audio', icon: '🎵' },
+          { id: 'calc', label: 'Calc', icon: '🧮' },
+          { id: 'calendar', label: 'Calendar', icon: '📅' },
+          { id: 'ai', label: 'AI', icon: '🤖' },
+          { id: 'netsec', label: 'NetSec', icon: '🌐' }
+        ].map(tab => (
+          <button 
+            key={tab.id} 
+            onClick={() => navigateTo(tab.id)} 
+            className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
+          >
+            <span className="text-lg">{tab.icon}</span>
+            <span className="text-[9px] tracking-wider mt-0.5">{tab.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  return (
+    <SettingsProvider>
+      <StorageProvider>
+        <AppContent />
+      </StorageProvider>
+    </SettingsProvider>
   );
 }
