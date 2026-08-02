@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LockScreen } from './components/LockScreen';
 import { Home } from './components/Home';
 import { StealthCalc } from './components/StealthCalc';
 import { Calendar } from './components/Calendar';
@@ -18,11 +19,13 @@ import { FileViewer } from './components/FileViewer';
 import { Settings } from './components/Settings';
 import { StorageProvider } from './context/StorageContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { AudioProvider } from './context/AudioContext';
 
 function AppContent() {
+  const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
-  const { mode, setMode, accentColor, setAccentColor } = useSettings();
+  const { mode, accentColor, setAccentColor, setMode } = useSettings();
 
   useEffect(() => {
     document.body.className = `theme-${accentColor}`;
@@ -33,20 +36,29 @@ function AppContent() {
     window.scrollTo(0, 0);
   };
 
+  const handleLock = () => {
+    setIsLocked(true);
+    setCurrentScreen('home');
+  };
+
+  if (isLocked) {
+    return <LockScreen onUnlock={() => setIsLocked(false)} />;
+  }
+
   return (
     <div className="min-h-screen bg-black text-white font-sans select-none pb-24">
       {/* Top Global Bar */}
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <h1 className="text-sm font-black tracking-widest text-white">SOVEREIGN TOOLS</h1>
-          <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full">{mode}</span>
+          <h1 className="text-sm font-black tracking-widest text-white uppercase">SOVEREIGN TOOLS</h1>
+          <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full uppercase">{mode}</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowSettings(true)} className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95">
-            ⚙️ Settings
+          <button onClick={() => setShowSettings(true)} className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
+            <span className="text-sm">⚙️</span> Settings
           </button>
-          <button onClick={() => navigateTo('home')} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95">
-            🔒 Lock
+          <button onClick={handleLock} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
+            <span className="text-sm">🔒</span> Lock
           </button>
         </div>
       </div>
@@ -114,7 +126,9 @@ export default function App() {
   return (
     <SettingsProvider>
       <StorageProvider>
-        <AppContent />
+        <AudioProvider>
+          <AppContent />
+        </AudioProvider>
       </StorageProvider>
     </SettingsProvider>
   );
