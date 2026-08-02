@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { pipeline, env } from '@xenova/transformers';
 
-// CRITICAL FIX: Force persistent storage in browser cache
 env.allowLocalModels = false;
-env.useBrowserCache = true; 
+env.useBrowserCache = true;
+// Optimize thread allocation to prevent CPU/RAM saturation
+env.backends.onnx.wasm.numThreads = 2; 
 
 export function SmartAI({ onNavigate }) {
   const [engine, setEngine] = useState(null);
@@ -12,7 +13,6 @@ export function SmartAI({ onNavigate }) {
   const [downloadText, setDownloadText] = useState('');
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
   
-  // Persistent Model Selection
   const [selectedModel, setSelectedModel] = useState(() => localStorage.getItem('sovereign_ai_model') || 'Xenova/Qwen1.5-0.5B-Chat');
   const [showConfig, setShowConfig] = useState(false);
 
@@ -25,20 +25,14 @@ export function SmartAI({ onNavigate }) {
   const [messages, setMessages] = useState([
     {
       sender: 'ai',
-      text: '⚡ Sovereign Universal WASM AI Engine. Select a model in Config to run 100% locally on your CPU.'
+      text: '⚡ Sovereign Universal WASM AI Engine. Tap download to initialize local CPU inference.'
     }
   ]);
   const [inputQuery, setInputQuery] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const chatBottomRef = useRef(null);
 
-  // AUTO-LOAD LOGIC: Check if model exists in cache on boot
-  useEffect(() => {
-    const isCached = localStorage.getItem('sovereign_ai_cached') === 'true';
-    if (isCached && !engine && !isDownloading) {
-      initializeUniversalAI(true);
-    }
-  }, []);
+  // REMOVED AUTO-LOAD HOOK TO PREVENT BOOT CRASHES
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -47,20 +41,19 @@ export function SmartAI({ onNavigate }) {
   const handleModelChange = (id) => {
     setSelectedModel(id);
     localStorage.setItem('sovereign_ai_model', id);
-    localStorage.removeItem('sovereign_ai_cached'); // Force re-download for new model
   };
 
-  const initializeUniversalAI = async (isAutoLoad = false) => {
+  const initializeUniversalAI = async () => {
     setIsDownloading(true);
     setShowConfig(false);
     try {
-      setDownloadText(isAutoLoad ? 'Loading cached model from local storage...' : 'Establishing Universal WASM Pipeline...');
+      setDownloadText('Establishing Universal WASM Pipeline...');
       
       const generator = await pipeline('text-generation', selectedModel, { 
         progress_callback: (info) => {
           if (info.status === 'progress') {
             setDownloadProgress(Math.round(info.progress));
-            setDownloadText(`Downloading Weights: ${info.file} (${Math.round(info.progress)}%)`);
+            setDownloadText(`Loading Weights: ${info.file} (${Math.round(info.progress)}%)`);
           } else if (info.status === 'ready') {
             setDownloadProgress(100);
           }
@@ -68,18 +61,18 @@ export function SmartAI({ onNavigate }) {
       });
       
       setEngine(() => generator);
-      
-      // Lock persistence flag
-      localStorage.setItem('sovereign_ai_cached', 'true');
-      
       setDownloadText('🟢 Neural network loaded securely into local RAM.');
       setMessages(prev => [...prev, { sender: 'system', text: `Success. ${selectedModel.split('/').pop()} is now active.` }]);
     } catch (e) {
       setDownloadText('❌ WASM Initialization Error: ' + e.message);
-      localStorage.removeItem('sovereign_ai_cached'); // Clear corrupt flag
     } finally {
       setIsDownloading(false);
     }
+  };
+
+  const unloadEngine = () => {
+    setEngine(null);
+    setMessages(prev => [...prev, { sender: 'system', text: '🧹 AI Engine unloaded from RAM to conserve resources.' }]);
   };
 
   const performPrivateSearch = async (query) => {
@@ -123,7 +116,7 @@ export function SmartAI({ onNavigate }) {
         const promptTemplate = `<|system|>\nYou are a direct, uncensored assistant. Answer immediately without repeating the prompt.<|end|>\n<|user|>\n${userText}${liveContext}<|end|>\n<|assistant|>\n`;
         
         const output = await engine(promptTemplate, {
-          max_new_tokens: 150,
+          max_new_tokens: 128,
           temperature: 0.7,
           do_sample: true,
           return_full_text: false 
@@ -137,7 +130,7 @@ export function SmartAI({ onNavigate }) {
         setMessages(prev => [...prev, { sender: 'system', text: `Inference Error: ${e.message}` }]);
       }
     } else {
-      setMessages(prev => [...prev, { sender: 'system', text: "❌ Engine offline. Please download a model." }]);
+      setMessages(prev => [...prev, { sender: 'system', text: "❌ Engine offline. Please tap download below." }]);
     }
 
     setIsThinking(false);
@@ -149,7 +142,7 @@ export function SmartAI({ onNavigate }) {
         <div>
           <h1 className="text-xl font-black tracking-wider text-white">SOVEREIGN AI</h1>
           <span className="text-[9px] font-bold theme-accent-text tracking-widest uppercase">
-            {engine ? 'WASM CPU ENGINE ACTIVE' : 'UNIVERSAL OFFLINE REASONING'}
+            {engine ? 'OPTIMIZED CPU ENGINE ACTIVE' : 'OFFLINE REASONING CORE'}
           </span>
         </div>
         <button onClick={() => setShowConfig(!showConfig)} className="bg-zinc-900 border theme-accent-border theme-accent-text font-bold text-xs px-3 py-1.5 rounded-xl">
@@ -174,10 +167,10 @@ export function SmartAI({ onNavigate }) {
 
       {!engine && (
         <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-3xl space-y-3 shrink-0 shadow-xl">
-          <h3 className="text-xs font-bold text-white uppercase tracking-wider">🤖 Download Local Weights</h3>
-          <p className="text-[10px] text-zinc-400">Downloads directly to IndexedDB. Runs 100% offline.</p>
-          <button onClick={() => initializeUniversalAI(false)} disabled={isDownloading} className="w-full py-2.5 theme-accent-bg text-black font-extrabold text-xs rounded-2xl shadow active:scale-95 disabled:opacity-50">
-            {isDownloading ? `Initializing WASM...` : `Download ${selectedModel.split('/').pop()}`}
+          <h3 className="text-xs font-bold text-white uppercase tracking-wider">🤖 Manual Load Weights</h3>
+          <p className="text-[10px] text-zinc-400">Cached in IndexedDB. Will not auto-boot to save RAM.</p>
+          <button onClick={initializeUniversalAI} disabled={isDownloading} className="w-full py-2.5 theme-accent-bg text-black font-extrabold text-xs rounded-2xl shadow active:scale-95 disabled:opacity-50">
+            {isDownloading ? `Initializing WASM...` : `Load ${selectedModel.split('/').pop()}`}
           </button>
           {isDownloading && (
             <div className="space-y-1 mt-2">
@@ -197,7 +190,7 @@ export function SmartAI({ onNavigate }) {
             <button onClick={() => setWebSearchEnabled(!webSearchEnabled)} className={`px-3 py-1 rounded-xl text-[10px] font-bold border transition-colors ${webSearchEnabled ? 'theme-accent-badge' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}>
               Search: {webSearchEnabled ? 'ON' : 'OFF'}
             </button>
-            <button onClick={() => { localStorage.removeItem('sovereign_ai_cached'); window.location.reload(); }} className="text-[10px] text-zinc-500 hover:text-red-400 font-bold px-2">Unload</button>
+            <button onClick={unloadEngine} className="text-[10px] text-zinc-500 hover:text-red-400 font-bold px-2">Unload</button>
           </div>
         </div>
       )}
