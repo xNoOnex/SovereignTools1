@@ -27,7 +27,7 @@ body {
 /* 
    This class injects your app icon as a massive, faded, sleek 
    watermark locked behind all components.
-   It looks for a file named "app_icon.png" in your public folder.
+   It looks for a file named "app_icon.jpg" in your public folder.
 */
 .app-bg-watermark::before {
   content: "";
@@ -37,7 +37,7 @@ body {
   width: 150vw; 
   height: 150vh;
   transform: translate(-50%, -50%);
-  background-image: url('/app_icon.png');
+  background-image: url('/app_icon.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
