@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSettings } from '../context/SettingsContext';
 
-export function Home({ onNavigate }) {
+export function Home({ onNavigate, onLock }) {
   const { mode, currentTheme, setIsSettingsOpen } = useSettings();
 
   const allLaunchItems = [
@@ -37,9 +37,15 @@ export function Home({ onNavigate }) {
         <div className="flex items-center gap-2">
           <button 
             onClick={() => setIsSettingsOpen(true)} 
-            className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold"
+            className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all active:scale-95"
           >
             ⚙️ Settings
+          </button>
+          <button 
+            onClick={onLock}
+            className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all active:scale-95"
+          >
+            🔒 Lock
           </button>
         </div>
       </div>

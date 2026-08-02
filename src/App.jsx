@@ -3,7 +3,7 @@ import { StorageProvider } from './context/StorageContext';
 import { AudioProvider } from './context/AudioContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 
-// Import Tools
+// Import Tools & Lock Screen
 import { Home } from './components/Home';
 import { SovereignCamera } from './components/SovereignCamera';
 import { SecureGallery } from './components/SecureGallery';
@@ -20,9 +20,11 @@ import { NetSecOps } from './components/NetSecOps';
 import { SmartAI } from './components/SmartAI';
 import { SupportCreator } from './components/SupportCreator';
 import { SettingsModal } from './components/SettingsModal';
+import { LockScreen } from './components/LockScreen';
 
 function MainLayout() {
   const [activeTab, setActiveTab] = useState('home');
+  const [isLocked, setIsLocked] = useState(true); // Locked by default on startup
   const { mode, currentTheme, currentFont, setIsSettingsOpen } = useSettings();
 
   const allNavItems = [
@@ -36,7 +38,6 @@ function MainLayout() {
     { id: 'calendar', label: 'Calendar', icon: '📅', easy: true },
     { id: 'ai', label: 'AI', icon: '🤖', easy: true },
     { id: 'support', label: 'Support', icon: '☕', easy: true },
-    // Advanced Tools (Hidden in Easy Mode)
     { id: 'debloat', label: 'Debloat', icon: '⚡', easy: false },
     { id: 'comms', label: 'Comms', icon: '📡', easy: false },
     { id: 'aes', label: 'AES', icon: '🛡️', easy: false },
@@ -47,6 +48,10 @@ function MainLayout() {
   const navItems = mode === 'easy'
     ? allNavItems.filter(item => item.easy)
     : allNavItems;
+
+  if (isLocked) {
+    return <LockScreen onUnlock={() => setIsLocked(false)} />;
+  }
 
   return (
     <div className={`bg-black text-white min-h-screen font-sans antialiased flex flex-col justify-between ${currentFont}`}>
@@ -61,17 +66,25 @@ function MainLayout() {
               {mode === 'easy' ? 'EASY' : 'EXPERT'}
             </span>
           </div>
-          <button
-            onClick={() => setIsSettingsOpen(true)}
-            className="text-xs font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-xl"
-          >
-            ⚙️ Settings
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="text-xs font-bold text-zinc-300 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-xl"
+            >
+              ⚙️ Settings
+            </button>
+            <button
+              onClick={() => setIsLocked(true)}
+              className="text-xs font-bold text-amber-400 bg-zinc-900 border border-zinc-800 px-2.5 py-1 rounded-xl"
+            >
+              🔒 Lock
+            </button>
+          </div>
         </div>
       )}
 
       <main className="flex-1 overflow-y-auto">
-        {activeTab === 'home' && <Home onNavigate={setActiveTab} />}
+        {activeTab === 'home' && <Home onNavigate={setActiveTab} onLock={() => setIsLocked(true)} />}
         {activeTab === 'camera' && <SovereignCamera onNavigate={setActiveTab} />}
         {activeTab === 'gallery' && <SecureGallery onNavigate={setActiveTab} />}
         {activeTab === 'audio' && <SovereignAudio onNavigate={setActiveTab} />}
