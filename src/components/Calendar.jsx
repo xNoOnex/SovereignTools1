@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 
 export function Calendar({ onNavigate }) {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [alarmTime, setAlarmTime] = useState('16:00'); // 4:00 PM Default
+  const [alarmTime, setAlarmTime] = useState('16:00');
   const [alarmTitle, setAlarmTitle] = useState('');
   const [alarms, setAlarms] = useState([]);
 
@@ -48,12 +48,12 @@ export function Calendar({ onNavigate }) {
         <div className="space-y-3">
           <div>
             <label className="text-[10px] text-zinc-400 font-bold ml-1 mb-1 block uppercase">Select Date</label>
-            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white font-mono focus:outline-none custom-date-input" />
+            <input type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white font-mono focus:outline-none block" style={{ WebkitAppearance: 'none' }} />
           </div>
           
           <div>
-            <label className="text-[10px] text-zinc-400 font-bold ml-1 mb-1 block uppercase">Select Time (Native OS Picker)</label>
-            <input type="time" value={alarmTime} onChange={(e) => setAlarmTime(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white font-mono focus:outline-none custom-time-input" />
+            <label className="text-[10px] text-zinc-400 font-bold ml-1 mb-1 block uppercase">Select Time</label>
+            <input type="time" value={alarmTime} onChange={(e) => setAlarmTime(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-sm text-white font-mono focus:outline-none block" style={{ WebkitAppearance: 'none' }} />
           </div>
 
           <div>
@@ -87,15 +87,6 @@ export function Calendar({ onNavigate }) {
            </div>
          )}
       </div>
-
-      {/* Hide default ugly webkit calendar icons so they look clean on Android */}
-      <style>{`
-        ::-webkit-calendar-picker-indicator {
-            filter: invert(1);
-            cursor: pointer;
-        }
-      `}</style>
-
     </div>
   );
 }
