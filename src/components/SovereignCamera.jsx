@@ -1,20 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Html5Qrcode } from "html5-qrcode";
+import jsQR from 'jsqr';
 
 export function SovereignCamera({ onNavigate }) {
   const videoRef = useRef(null);
   const mediaRecorderRef = useRef(null);
+  const canvasRef = useRef(null);
+  
   const [stream, setStream] = useState(null);
   const [mode, setMode] = useState('Photo'); // 'Photo' | 'Video' | 'QR'
   const [isRecording, setIsRecording] = useState(false);
   const [facingMode, setFacingMode] = useState('environment');
   const [errorMsg, setErrorMsg] = useState('');
-  const [recordedChunks, setRecordedChunks] = useState([]);
   
-  // Real QR Scanner State
   const [qrResult, setQrResult] = useState('');
-  const [isScanning, setIsScanning] = useState(false);
-  const html5QrCodeRef = useRef(null);
 
   const startCamera = async (currentFacingMode) => {
     try {
@@ -47,9 +45,7 @@ export function SovereignCamera({ onNavigate }) {
   };
 
   useEffect(() => {
-    if (mode !== 'QR') {
-      startCamera(facingMode);
-    }
+    startCamera(facingMode);
     return () => {
       if (stream) stream.getTracks().forEach(track => track.stop());
     };
@@ -85,15 +81,33 @@ export function SovereignCamera({ onNavigate }) {
 
   const startRecording = () => {
     if (!stream) return;
-    setRecordedChunks([]);
+    let recordedChunks = [];
     
     try {
       const mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
       
       mediaRecorder.ondataavailable = (event) => {
         if (event.data.size > 0) {
-          setRecordedChunks((prev) => [...prev, event.data]);
+          recordedChunks.push(event.data);
         }
+      };
+
+      mediaRecorder.onstop = () => {
+        if(recordedChunks.length === 0) return;
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        reader.onloadend = () => {
+            const base64data = reader.result;
+            const newVideo = {
+              name: `SOV_VID_${Date.now()}.webm`,
+              path: `SOV_VID_${Date.now()}.webm`,
+              src: base64data,
+              ext: 'webm'
+            };
+            const existing = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
+            localStorage.setItem('sovereign_custom_gallery', JSON.stringify([newVideo, ...existing]));
+        };
       };
 
       mediaRecorderRef.current = mediaRecorder;
@@ -108,63 +122,45 @@ export function SovereignCamera({ onNavigate }) {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
-      
-      setTimeout(() => {
-        setRecordedChunks(currentChunks => {
-            if(currentChunks.length === 0) return currentChunks;
-            const blob = new Blob(currentChunks, { type: 'video/webm' });
-            const reader = new FileReader();
-            reader.readAsDataURL(blob);
-            reader.onloadend = () => {
-                const base64data = reader.result;
-                const newVideo = {
-                  name: `SOV_VID_${Date.now()}.webm`,
-                  path: `SOV_VID_${Date.now()}.webm`,
-                  src: base64data,
-                  ext: 'webm'
-                };
-                const existing = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
-                localStorage.setItem('sovereign_custom_gallery', JSON.stringify([newVideo, ...existing]));
-            };
-            return [];
-        });
-      }, 500);
     }
   };
 
-  // TRUE QR SCANNER LOGIC
+  // TRUE QR SCANNER LOGIC (Using jsQR)
   useEffect(() => {
+    let animationFrameId;
+    const scanQRCode = () => {
+      if (mode === 'QR' && videoRef.current && canvasRef.current && videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+        
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, imageData.width, imageData.height, {
+          inversionAttempts: "dontInvert",
+        });
+        
+        if (code && code.data) {
+          setQrResult(code.data);
+        }
+      }
+      
+      if (mode === 'QR' && !qrResult) {
+         animationFrameId = requestAnimationFrame(scanQRCode);
+      }
+    };
+
     if (mode === 'QR') {
       setQrResult('');
-      if (stream) stream.getTracks().forEach(track => track.stop());
-      
-      const scanner = new Html5Qrcode("reader");
-      html5QrCodeRef.current = scanner;
-      
-      scanner.start(
-        { facingMode: facingMode }, 
-        { fps: 10, qrbox: { width: 250, height: 250 } },
-        (decodedText) => {
-          setQrResult(decodedText);
-          scanner.stop().then(() => setIsScanning(false));
-        },
-        (errorMessage) => {
-          // Ignore scanning loops
-        }
-      ).then(() => setIsScanning(true)).catch(err => setErrorMsg("QR Error: " + err));
-    } else {
-      if (html5QrCodeRef.current && isScanning) {
-        html5QrCodeRef.current.stop().catch(e => console.error(e));
-        setIsScanning(false);
-      }
+      scanQRCode();
     }
 
     return () => {
-      if (html5QrCodeRef.current && isScanning) {
-        html5QrCodeRef.current.stop().catch(e => console.error(e));
-      }
+      if (animationFrameId) cancelAnimationFrame(animationFrameId);
     };
-  }, [mode, facingMode]);
+  }, [mode, qrResult, stream]);
 
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col font-sans select-none">
@@ -188,22 +184,35 @@ export function SovereignCamera({ onNavigate }) {
       )}
 
       <div className="flex-1 relative bg-zinc-950 flex items-center justify-center overflow-hidden">
-        {mode !== 'QR' ? (
-          <>
-            {!stream && !errorMsg && <div className="text-zinc-600 font-mono text-xs animate-pulse">Initializing Hardware...</div>}
-            <video ref={videoRef} autoPlay playsInline muted className="min-w-full min-h-full object-cover transition-opacity duration-100" />
-          </>
-        ) : (
-          <div className="w-full h-full relative flex items-center justify-center">
-             <div id="reader" className="w-full h-full object-cover"></div>
-             
-             {qrResult && (
-               <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 bg-emerald-950/90 border-2 border-emerald-500 p-6 rounded-3xl z-30 shadow-2xl text-center space-y-4">
-                 <h3 className="text-emerald-400 font-bold text-sm uppercase">QR CODE DECODED</h3>
-                 <p className="text-white font-mono break-all text-sm select-all">{qrResult}</p>
-                 <button onClick={() => { navigator.clipboard.writeText(qrResult); setQrResult(''); setMode('Photo'); }} className="w-full bg-emerald-500 text-black font-bold py-3 rounded-xl">Copy & Close</button>
-               </div>
-             )}
+        {!stream && !errorMsg && <div className="text-zinc-600 font-mono text-xs animate-pulse">Initializing Hardware...</div>}
+        
+        <video 
+          ref={videoRef} 
+          autoPlay 
+          playsInline 
+          muted={mode !== 'Video'}
+          className="min-w-full min-h-full object-cover transition-opacity duration-100"
+        />
+        
+        <canvas ref={canvasRef} className="hidden" />
+
+        {mode === 'QR' && !qrResult && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-64 h-64 border-2 border-emerald-400/50 rounded-3xl relative">
+              <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-emerald-400 rounded-tl-3xl"></div>
+              <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-emerald-400 rounded-tr-3xl"></div>
+              <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-emerald-400 rounded-bl-3xl"></div>
+              <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-emerald-400 rounded-br-3xl"></div>
+              <div className="absolute inset-0 bg-emerald-400/10 animate-pulse"></div>
+            </div>
+          </div>
+        )}
+
+        {qrResult && (
+          <div className="absolute top-1/2 left-4 right-4 -translate-y-1/2 bg-emerald-950/90 border-2 border-emerald-500 p-6 rounded-3xl z-30 shadow-2xl text-center space-y-4 animate-fadeIn">
+            <h3 className="text-emerald-400 font-bold text-sm uppercase">QR CODE DECODED</h3>
+            <p className="text-white font-mono break-all text-sm select-all">{qrResult}</p>
+            <button onClick={() => { navigator.clipboard.writeText(qrResult); setQrResult(''); setMode('Photo'); }} className="w-full bg-emerald-500 text-black font-bold py-3 rounded-xl">Copy & Close</button>
           </div>
         )}
       </div>
