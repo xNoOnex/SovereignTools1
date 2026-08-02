@@ -1,237 +1,213 @@
 import React, { useState, useEffect } from 'react';
+import { jsPDF } from 'jspdf';
+import CryptoJS from 'crypto-js';
 
 export function EncryptedDocs({ onNavigate }) {
-  const [activeSubTab, setActiveSubTab] = useState('Editor'); // 'Editor' | 'My Files'
+  const [activeTab, setActiveTab] = useState('Editor');
+  
+  // Editor State
   const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
-  const [format, setFormat] = useState('NOTE (.TXT)');
-  const [template, setTemplate] = useState('');
+  const [text, setText] = useState('');
+  const [format, setFormat] = useState('TXT');
+  const [password, setPassword] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Local storage vault for saved docs
-  const [savedDocs, setSavedDocs] = useState(() => {
-    try {
-      const stored = localStorage.getItem('sovereign_encrypted_docs');
-      return stored ? JSON.parse(stored) : [];
-    } catch {
-      return [];
-    }
-  });
+  // Vault State
+  const [vaultFiles, setVaultFiles] = useState([]);
+  const [viewingFile, setViewingFile] = useState(null);
+  const [unlockPassword, setUnlockPassword] = useState('');
 
   useEffect(() => {
-    try {
-      localStorage.setItem('sovereign_encrypted_docs', JSON.stringify(savedDocs));
-    } catch (e) {}
-  }, [savedDocs]);
+    const saved = JSON.parse(localStorage.getItem('sovereign_docs') || '[]');
+    setVaultFiles(saved);
+  }, [activeTab]);
 
-  // Load preset note templates
-  const handleTemplateChange = (e) => {
-    const selected = e.target.value;
-    setTemplate(selected);
-    
-    if (selected === 'checklist') {
-      setContent("[ ] Task 1\n[ ] Task 2\n[ ] Task 3\n");
-    } else if (selected === 'memo') {
-      setContent("MEMORANDUM\nTO: Enclave\nFROM: Self\nDATE: " + new Date().toLocaleDateString() + "\n\nSUBJECT: \n\n");
-    } else if (selected === 'journal') {
-      setContent("--- LOG " + new Date().toISOString().split('T')[0] + " ---\n\nNotes:\n");
-    }
-  };
-
-  const saveToAppVault = () => {
-    if (!title.trim() && !content.trim()) {
-      setStatusMsg('❌ Title or content cannot be empty.');
-      setTimeout(() => setStatusMsg(''), 3000);
-      return;
-    }
-
-    const newDoc = {
-      id: Date.now(),
-      title: title.trim() || 'Untitled Document',
-      content,
-      format,
-      date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    setSavedDocs([newDoc, ...savedDocs]);
-    setTitle('');
-    setContent('');
-    setStatusMsg('💾 Saved document to App Vault!');
+  const showStatus = (msg) => {
+    setStatusMsg(msg);
     setTimeout(() => setStatusMsg(''), 3000);
   };
 
+  const getEncryptedBlock = (rawText, pass) => {
+    const encrypted = CryptoJS.AES.encrypt(rawText, pass).toString();
+    return `-----BEGIN SOVEREIGN AES BLOCK-----\n${encrypted}\n-----END SOVEREIGN AES BLOCK-----`;
+  };
+
+  const getDecryptedText = (encryptedBlock, pass) => {
+    try {
+      const cleanBlock = encryptedBlock.replace(/-----.*?-----/g, '').trim();
+      const bytes = CryptoJS.AES.decrypt(cleanBlock, pass);
+      const originalText = bytes.toString(CryptoJS.enc.Utf8);
+      if (!originalText) throw new Error("Bad password");
+      return originalText;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  // Export to actual device hard drive
   const exportToDevice = () => {
-    if (!content.trim()) return;
-    const blob = new Blob([content], { type: 'text/plain' });
+    if (!text) return showStatus('❌ Document is empty.');
+    let blob;
+    let filename = `${title || 'Sovereign_Doc'}`;
+
+    if (format === 'PDF') {
+      const doc = new jsPDF();
+      const lines = doc.splitTextToSize(text, 180);
+      doc.text(lines, 10, 10);
+      doc.save(`${filename}.pdf`);
+      return showStatus('✅ PDF Exported to Device!');
+    }
+
+    if (format === 'ENC') {
+      if (!password) return showStatus('❌ AES Password Required for .ENC');
+      blob = new Blob([getEncryptedBlock(text, password)], { type: 'text/plain' });
+      filename += '.enc';
+    } else if (format === 'DOC') {
+      const htmlDoc = `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'></head><body>${text.replace(/\n/g, '<br>')}</body></html>`;
+      blob = new Blob([htmlDoc], { type: 'application/msword' });
+      filename += '.doc';
+    } else if (format === 'EXCEL') {
+      blob = new Blob([text], { type: 'text/csv' });
+      filename += '.csv';
+    } else {
+      blob = new Blob([text], { type: 'text/plain' });
+      filename += '.txt';
+    }
+
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = (title.trim() || 'sovereign_note') + (format.includes('.MD') ? '.md' : '.txt');
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
-    setStatusMsg('📤 Exported file to device downloads!');
-    setTimeout(() => setStatusMsg(''), 3000);
+    showStatus(`✅ ${format} Exported to Device!`);
   };
 
-  const deleteDoc = (id) => {
-    setSavedDocs(savedDocs.filter(d => d.id !== id));
+  // Save to internal app memory (Vault)
+  const saveToVault = () => {
+    if (!text) return showStatus('❌ Document is empty.');
+    if (format === 'ENC' && !password) return showStatus('❌ AES Password Required for .ENC');
+
+    const finalPayload = format === 'ENC' ? getEncryptedBlock(text, password) : text;
+    const newDoc = {
+      id: Date.now(),
+      title: title || 'Untitled Document',
+      content: finalPayload,
+      format: format,
+      date: new Date().toLocaleDateString()
+    };
+
+    const updated = [newDoc, ...vaultFiles];
+    setVaultFiles(updated);
+    localStorage.setItem('sovereign_docs', JSON.stringify(updated));
+    showStatus('✅ Saved to Secure Vault');
+  };
+
+  const deleteFromVault = (id) => {
+    const updated = vaultFiles.filter(f => f.id !== id);
+    setVaultFiles(updated);
+    localStorage.setItem('sovereign_docs', JSON.stringify(updated));
+    setViewingFile(null);
+  };
+
+  const handleUnlock = () => {
+    const decrypted = getDecryptedText(viewingFile.content, unlockPassword);
+    if (decrypted) {
+      setViewingFile({ ...viewingFile, decryptedContent: decrypted, isUnlocked: true });
+      setUnlockPassword('');
+    } else {
+      showStatus('❌ Invalid AES Password.');
+    }
   };
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen">
+    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen flex flex-col">
       
-      {/* HEADER */}
-      <div className="border-b border-zinc-900 pb-3 pt-2">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          📝 Encrypted Docs
-        </h2>
-        <p className="text-xs text-zinc-400 mt-0.5">
-          Offline local text & Markdown note vault
-        </p>
+      <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0">
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">📝 Encrypted Docs</h2>
+        <p className="text-xs text-zinc-400 mt-1">Multi-format compiler & AES document vault.</p>
       </div>
 
-      {/* TOAST NOTIFICATION */}
-      {statusMsg && (
-        <div className="bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 text-xs font-bold py-2 px-3 rounded-xl text-center shadow-lg animate-fadeIn">
-          {statusMsg}
-        </div>
-      )}
+      {statusMsg && <div className="theme-accent-badge p-2 rounded-xl text-xs font-bold text-center shadow animate-fadeIn">{statusMsg}</div>}
 
-      {/* TOP TOGGLE SUBTABS */}
-      <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-900">
-        <button
-          onClick={() => setActiveSubTab('Editor')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeSubTab === 'Editor' 
-              ? 'bg-cyan-500 text-black shadow-md scale-105' 
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          ✍️ Document Editor
-        </button>
-        <button
-          onClick={() => setActiveSubTab('My Files')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeSubTab === 'My Files' 
-              ? 'bg-cyan-500 text-black shadow-md scale-105' 
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          📁 My Files ({savedDocs.length})
-        </button>
+      <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-900 shrink-0">
+        <button onClick={() => { setActiveTab('Editor'); setViewingFile(null); }} className={`flex-1 py-2 text-xs font-bold rounded-xl ${activeTab === 'Editor' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>✍️ Document Editor</button>
+        <button onClick={() => setActiveTab('Vault')} className={`flex-1 py-2 text-xs font-bold rounded-xl ${activeTab === 'Vault' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>📁 My Vault ({vaultFiles.length})</button>
       </div>
 
-      {/* SUBTAB 1: DOCUMENT EDITOR */}
-      {activeSubTab === 'Editor' && (
-        <div className="space-y-3">
+      {activeTab === 'Editor' && (
+        <div className="flex-1 flex flex-col space-y-3">
           
-          {/* TOOLBAR CONTROLS */}
-          <div className="grid grid-cols-2 gap-2">
-            <select
-              value={template}
-              onChange={handleTemplateChange}
-              className="bg-black border border-zinc-800 text-xs text-cyan-400 font-mono rounded-xl p-2.5 focus:outline-none"
-            >
-              <option value="">+ Load Template...</option>
-              <option value="checklist">Checklist Template</option>
-              <option value="memo">Secure Memo</option>
-              <option value="journal">Daily Journal Log</option>
-            </select>
-
-            <select
-              value={format}
-              onChange={(e) => setFormat(e.target.value)}
-              className="bg-black border border-zinc-800 text-xs text-cyan-400 font-mono rounded-xl p-2.5 focus:outline-none"
-            >
-              <option value="NOTE (.TXT)">NOTE (.TXT)</option>
-              <option value="MARKDOWN (.MD)">MARKDOWN (.MD)</option>
-              <option value="ENCRYPTED (.ENC)">ENCRYPTED (.ENC)</option>
+          <div className="flex gap-2">
+            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document Title..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-bold focus:outline-none" />
+            <select value={format} onChange={(e) => setFormat(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-xs font-bold theme-accent-text focus:outline-none cursor-pointer">
+              <option value="TXT">NOTE (.TXT)</option>
+              <option value="PDF">DOC (.PDF)</option>
+              <option value="DOC">WORD (.DOC)</option>
+              <option value="EXCEL">EXCEL (.CSV)</option>
+              <option value="ENC">ENCRYPTED (.ENC)</option>
             </select>
           </div>
 
-          {/* TITLE INPUT */}
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Document Title..."
-            className="w-full bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
-          />
+          {format === 'ENC' && (
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Required: Set AES-256 Password..." className="w-full bg-red-950/20 border border-red-900/50 rounded-xl px-4 py-3 text-xs text-red-200 font-mono focus:outline-none animate-fadeIn" />
+          )}
 
-          {/* EDITOR BODY */}
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Start typing or load a template..."
-            className="w-full bg-black border border-zinc-800 rounded-3xl p-4 text-xs text-white font-mono h-64 focus:outline-none focus:border-cyan-500 leading-relaxed resize-none"
-          />
+          <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Start typing... Data compiles entirely offline." className="flex-1 w-full bg-black border border-zinc-800 rounded-2xl p-4 text-xs text-zinc-300 font-mono focus:outline-none min-h-[300px]" />
 
-          {/* ACTION BUTTONS */}
-          <div className="grid grid-cols-2 gap-3 pt-1">
-            <button
-              onClick={saveToAppVault}
-              className="py-3 bg-zinc-900 hover:bg-zinc-800 text-white border border-zinc-700 text-xs font-bold rounded-2xl shadow active:scale-95 transition-transform"
-            >
-              💾 Save to App Vault
-            </button>
-            <button
-              onClick={exportToDevice}
-              className="py-3 bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold rounded-2xl shadow active:scale-95 transition-transform"
-            >
-              📤 Export to Device
-            </button>
+          <div className="flex gap-2 shrink-0 pt-2">
+            <button onClick={saveToVault} className="flex-1 py-3 bg-zinc-900 border border-zinc-700 text-white font-bold text-xs rounded-xl active:scale-95 transition-transform">💾 Save to Vault</button>
+            <button onClick={exportToDevice} className="flex-1 py-3 theme-accent-bg text-black font-extrabold text-xs rounded-xl shadow active:scale-95 transition-transform">📥 Export to Device</button>
           </div>
         </div>
       )}
 
-      {/* SUBTAB 2: MY FILES */}
-      {activeSubTab === 'My Files' && (
-        <div className="bg-zinc-900/80 p-4 rounded-3xl border border-zinc-800 space-y-3 min-h-[360px]">
-          {savedDocs.length === 0 ? (
-            <div className="text-center py-24 text-xs text-zinc-500 font-mono space-y-2">
-              <p className="text-2xl">📁</p>
-              <p>No documents saved in App Vault.</p>
-            </div>
+      {activeTab === 'Vault' && !viewingFile && (
+        <div className="space-y-2 overflow-y-auto">
+          {vaultFiles.length === 0 ? (
+            <div className="text-center text-zinc-500 font-mono text-xs py-12">Vault is empty.</div>
           ) : (
-            <div className="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
-              {savedDocs.map((doc) => (
-                <div key={doc.id} className="bg-black/80 p-3.5 rounded-2xl border border-zinc-800 space-y-2">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="text-xs font-bold text-white">{doc.title}</h4>
-                      <p className="text-[9px] text-cyan-400 font-mono mt-0.5">{doc.date} at {doc.time} • {doc.format}</p>
-                    </div>
-                    <button
-                      onClick={() => deleteDoc(doc.id)}
-                      className="text-red-400 text-xs font-bold px-2 py-1 hover:bg-red-950/50 rounded-lg"
-                    >
-                      Delete
-                    </button>
-                  </div>
-
-                  <p className="text-[10px] text-zinc-400 font-mono bg-zinc-950 p-2.5 rounded-xl border border-zinc-900 line-clamp-3 whitespace-pre-wrap">
-                    {doc.content}
-                  </p>
-
-                  <button
-                    onClick={() => {
-                      setTitle(doc.title);
-                      setContent(doc.content);
-                      setFormat(doc.format);
-                      setActiveSubTab('Editor');
-                    }}
-                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-cyan-300 text-[10px] font-bold py-1.5 rounded-xl border border-zinc-700"
-                  >
-                    Open in Editor
-                  </button>
+            vaultFiles.map(file => (
+              <div key={file.id} onClick={() => setViewingFile(file)} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
+                <div>
+                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                    {file.format === 'ENC' ? '🔒' : '📄'} {file.title}
+                  </h4>
+                  <p className="text-[10px] text-zinc-500 font-mono mt-1">{file.date} • {file.format}</p>
                 </div>
-              ))}
-            </div>
+              </div>
+            ))
           )}
         </div>
       )}
 
+      {activeTab === 'Vault' && viewingFile && (
+        <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
+          <div className="flex justify-between items-center bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
+            <h3 className="font-bold text-sm text-white truncate">{viewingFile.title}</h3>
+            <button onClick={() => setViewingFile(null)} className="text-xs text-zinc-400 font-bold px-2">Back</button>
+          </div>
+
+          {viewingFile.format === 'ENC' && !viewingFile.isUnlocked ? (
+            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+              <span className="text-5xl">🔒</span>
+              <p className="text-xs font-mono text-red-400">AES-256 Encrypted Payload</p>
+              <input type="password" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} placeholder="Enter AES Password..." className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-center text-white focus:outline-none" />
+              <button onClick={handleUnlock} className="w-full py-3 theme-accent-bg text-black font-bold text-xs rounded-xl shadow">Decrypt Document</button>
+            </div>
+          ) : (
+            <div className="flex-1 bg-black border border-zinc-800 rounded-2xl p-4 overflow-y-auto">
+              <p className="text-xs font-mono text-zinc-300 whitespace-pre-wrap">
+                {viewingFile.isUnlocked ? viewingFile.decryptedContent : viewingFile.content}
+              </p>
+            </div>
+          )}
+
+          <button onClick={() => deleteFromVault(viewingFile.id)} className="w-full py-3 bg-red-950/40 border border-red-900 text-red-400 font-bold text-xs rounded-xl mt-auto">
+            Delete from Vault
+          </button>
+        </div>
+      )}
     </div>
   );
 }
