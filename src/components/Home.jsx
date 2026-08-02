@@ -1,14 +1,29 @@
 import React from 'react';
+import { useSettings } from '../context/SettingsContext';
 
 export function Home({ onNavigate }) {
-  const quickLaunchItems = [
-    { id: 'camera', label: 'Camera', sub: 'EXIF-Free & QR', icon: '📷' },
-    { id: 'browser', label: 'Browser', sub: 'Zero Telemetry', icon: '🌐' },
-    { id: 'gallery', label: 'Gallery', sub: 'Albums & Video', icon: '🖼️' },
-    { id: 'vault', label: 'Vault', sub: 'AES-256 Storage', icon: '🔐' },
-    { id: 'audio', label: 'Audio', sub: 'Offline Player', icon: '🎧' },
-    { id: 'shred', label: 'Shredder', sub: 'Sector Zero-Fill', icon: '☣️' }
+  const { mode, setIsSettingsOpen } = useSettings();
+
+  const allLaunchItems = [
+    { id: 'camera', label: 'Camera', sub: 'EXIF-Free & QR', icon: '📷', easy: true },
+    { id: 'browser', label: 'Browser', sub: 'Zero Telemetry', icon: '🌐', easy: true },
+    { id: 'gallery', label: 'Gallery', sub: 'Albums & Video', icon: '🖼️', easy: true },
+    { id: 'vault', label: 'Vault', sub: 'AES-256 Storage', icon: '🔐', easy: true },
+    { id: 'audio', label: 'Audio', sub: 'Offline Player', icon: '🎧', easy: true },
+    { id: 'docs', label: 'Docs', sub: 'Encrypted Notes', icon: '📝', easy: true },
+    { id: 'calc', label: 'Calc', sub: 'Multi-Calculator', icon: '🧮', easy: true },
+    { id: 'calendar', label: 'Calendar', sub: 'Zero Telemetry', icon: '📅', easy: true },
+    { id: 'ai', label: 'AI Engine', sub: 'Smart Local AI', icon: '🤖', easy: true },
+    { id: 'shred', label: 'Shredder', sub: 'Sector Zero-Fill', icon: '☣️', easy: false },
+    { id: 'debloat', label: 'Debloat', sub: 'Risk Inspector', icon: '⚡', easy: false },
+    { id: 'comms', label: 'Comms', icon: '📡', sub: 'PGP & P2P', easy: false },
+    { id: 'aes', label: 'Cipher', icon: '🛡️', sub: 'AES-GCM 256', easy: false },
+    { id: 'netsec', label: 'NetSec', icon: '🌐', sub: 'Network Audits', easy: false }
   ];
+
+  const displayedItems = mode === 'easy' 
+    ? allLaunchItems.filter(item => item.easy)
+    : allLaunchItems;
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans bg-black min-h-screen text-white">
@@ -16,12 +31,14 @@ export function Home({ onNavigate }) {
       <div className="flex justify-between items-center pt-2 pb-3 border-b border-zinc-900">
         <div>
           <h1 className="text-xl font-black tracking-wider text-white">SOVEREIGN TOOLS</h1>
-          <span className="text-[9px] font-bold text-cyan-400 tracking-widest uppercase">EXPERT MODE</span>
+          <span className={`text-[9px] font-bold tracking-widest uppercase ${mode === 'easy' ? 'text-emerald-400' : 'text-cyan-400'}`}>
+            {mode === 'easy' ? 'EASY MODE' : 'EXPERT MODE'}
+          </span>
         </div>
         <div className="flex items-center gap-2">
           <button 
-            onClick={() => onNavigate && onNavigate('support')} 
-            className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all"
+            onClick={() => setIsSettingsOpen(true)} 
+            className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold hover:bg-zinc-800 transition-all active:scale-95"
           >
             ⚙️ Settings
           </button>
@@ -31,9 +48,9 @@ export function Home({ onNavigate }) {
         </div>
       </div>
 
-      {/* CENTRAL HERO CARD */}
+      {/* HERO CARD */}
       <div className="bg-zinc-900/90 border border-zinc-800 rounded-3xl p-6 text-center space-y-3 shadow-2xl relative overflow-hidden">
-        <div className="w-16 h-16 bg-zinc-950 border border-cyan-500/40 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-inner shadow-cyan-500/10">
+        <div className="w-16 h-16 bg-zinc-950 border border-cyan-500/40 rounded-2xl mx-auto flex items-center justify-center text-3xl shadow-inner">
           🛡️
         </div>
 
@@ -51,11 +68,11 @@ export function Home({ onNavigate }) {
       {/* QUICK LAUNCH GRID */}
       <div className="space-y-3 pt-2">
         <div className="flex items-center gap-2 text-xs font-bold text-zinc-400 uppercase tracking-wider px-1">
-          <span className="text-amber-400">⚡</span> MASTER SUITE QUICK LAUNCH
+          <span className="text-amber-400">⚡</span> MASTER SUITE QUICK LAUNCH ({displayedItems.length})
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {quickLaunchItems.map((item) => (
+          {displayedItems.map((item) => (
             <button
               key={item.id}
               onClick={() => onNavigate && onNavigate(item.id)}
