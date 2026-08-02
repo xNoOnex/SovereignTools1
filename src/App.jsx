@@ -3,8 +3,9 @@ import { StorageProvider } from './context/StorageContext';
 import { AudioProvider } from './context/AudioContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 
-// Import Tools & Lock Screen
+// Import Tools
 import { Home } from './components/Home';
+import { SovereignClock } from './components/SovereignClock';
 import { SovereignCamera } from './components/SovereignCamera';
 import { SecureGallery } from './components/SecureGallery';
 import { SovereignAudio } from './components/SovereignAudio';
@@ -24,11 +25,12 @@ import { LockScreen } from './components/LockScreen';
 
 function MainLayout() {
   const [activeTab, setActiveTab] = useState('home');
-  const [isLocked, setIsLocked] = useState(true); // Locked by default on startup
+  const [isLocked, setIsLocked] = useState(true);
   const { mode, currentTheme, currentFont, setIsSettingsOpen } = useSettings();
 
   const allNavItems = [
     { id: 'home', label: 'Home', icon: '🏠', easy: true },
+    { id: 'clock', label: 'Clock', icon: '⏰', easy: true },
     { id: 'camera', label: 'Camera', icon: '📷', easy: true },
     { id: 'gallery', label: 'Gallery', icon: '🖼️', easy: true },
     { id: 'vault', label: 'Vault', icon: '🔐', easy: true },
@@ -85,6 +87,7 @@ function MainLayout() {
 
       <main className="flex-1 overflow-y-auto">
         {activeTab === 'home' && <Home onNavigate={setActiveTab} onLock={() => setIsLocked(true)} />}
+        {activeTab === 'clock' && <SovereignClock onNavigate={setActiveTab} />}
         {activeTab === 'camera' && <SovereignCamera onNavigate={setActiveTab} />}
         {activeTab === 'gallery' && <SecureGallery onNavigate={setActiveTab} />}
         {activeTab === 'audio' && <SovereignAudio onNavigate={setActiveTab} />}

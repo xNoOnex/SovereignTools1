@@ -5,6 +5,7 @@ export function Home({ onNavigate, onLock }) {
   const { mode, currentTheme, setIsSettingsOpen } = useSettings();
 
   const allLaunchItems = [
+    { id: 'clock', label: 'Clock', sub: 'Timer & Alarms', icon: '⏰', easy: true },
     { id: 'camera', label: 'Camera', sub: 'EXIF-Free & QR', icon: '📷', easy: true },
     { id: 'gallery', label: 'Gallery', sub: 'Albums & Video', icon: '🖼️', easy: true },
     { id: 'vault', label: 'Vault', sub: 'AES-256 Storage', icon: '🔐', easy: true },
