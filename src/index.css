@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --accent-text: #22d3ee; /* default cyan */
+  --accent-text: #22d3ee;
   --accent-bg: #22d3ee;
 }
 
@@ -19,3 +19,13 @@ body.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
 body.text-scale-Small { font-size: 0.85rem; }
 body.text-scale-Medium { font-size: 1rem; }
 body.text-scale-Large { font-size: 1.15rem; }
+
+/* Custom Main Picture Background */
+body {
+  background-color: #000;
+  background-image: url('/background.jpg');
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+}

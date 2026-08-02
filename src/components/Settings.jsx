@@ -1,81 +1,90 @@
 import React, { useState } from 'react';
 
-export function Settings({ closeSettings, appMode, setAppMode, accentColor, setAccentColor }) {
+export function Settings({ closeSettings, appMode, setAppMode, accentColor, setAccentColor, textSize, setTextSize }) {
   const [pin, setPin] = useState(localStorage.getItem('sovereign_pin') || '');
-  const [saveMsg, setSaveMsg] = useState('');
+  const [pinSaved, setPinSaved] = useState(false);
 
-  // Fetch true WASM Engine status
-  const aiCached = localStorage.getItem('sovereign_ai_cached') === 'true';
-  const aiModel = localStorage.getItem('sovereign_ai_model') || 'None';
-
-  const handleSavePin = () => {
-    if (pin.length < 4) {
-      setSaveMsg('❌ PIN must be at least 4 chars.');
-    } else {
+  const savePin = () => {
+    if (pin.length === 4) {
       localStorage.setItem('sovereign_pin', pin);
-      setSaveMsg('✅ PIN Saved');
+      setPinSaved(true);
+      setTimeout(() => setPinSaved(false), 2000);
+    } else {
+      alert('PIN must be exactly 4 digits.');
     }
-    setTimeout(() => setSaveMsg(''), 2000);
+  };
+
+  const handleAppMode = (mode) => {
+    setAppMode(mode);
+    localStorage.setItem('sovereign_mode', mode);
+  };
+
+  const handleAccent = (color) => {
+    setAccentColor(color);
+    localStorage.setItem('sovereign_accent', color);
+  };
+
+  const handleTextSize = (size) => {
+    setTextSize(size);
+    localStorage.setItem('sovereign_text', size);
   };
 
   return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col font-sans select-none overflow-y-auto pb-8">
-      
-      <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black sticky top-0 z-10">
-        <h2 className="text-lg font-black tracking-widest text-white flex items-center gap-2">
-          ⚙️ SOVEREIGN SETTINGS
+    <div className="fixed inset-0 bg-black z-50 overflow-y-auto">
+      <div className="p-4 border-b border-zinc-900 flex justify-between items-center sticky top-0 bg-black/90 backdrop-blur z-10">
+        <h2 className="text-xl font-black tracking-widest text-white flex items-center gap-2">
+          <span className="text-2xl text-zinc-400">⚙️</span> SOVEREIGN SETTINGS
         </h2>
-        <button onClick={closeSettings} className="p-2 text-zinc-400 hover:text-white">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
+        <button onClick={closeSettings} className="text-zinc-500 hover:text-white p-2">✕</button>
       </div>
 
-      <div className="p-5 space-y-6">
+      <div className="p-4 space-y-6 pb-24 max-w-2xl mx-auto">
         
         {/* APP OPERATION MODE */}
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl space-y-4">
           <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
             ⚙️ APP OPERATION MODE
           </h3>
           <p className="text-xs text-zinc-400">Easy mode hides advanced security tools (Debloat, Comms, Shredder, NetSec, AES).</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button 
-              onClick={() => { setAppMode('EXPERT'); localStorage.setItem('sovereign_mode', 'EXPERT'); }}
-              className={`py-3 rounded-2xl text-xs font-black tracking-wide shadow ${appMode === 'EXPERT' ? 'theme-accent-bg text-black' : 'bg-black border border-zinc-800 text-zinc-500'}`}
-            >
-              ⚡ EXPERT MODE
-            </button>
-            <button 
-              onClick={() => { setAppMode('EASY'); localStorage.setItem('sovereign_mode', 'EASY'); }}
-              className={`py-3 rounded-2xl text-xs font-black tracking-wide shadow ${appMode === 'EASY' ? 'bg-emerald-500 text-black' : 'bg-black border border-zinc-800 text-zinc-500'}`}
-            >
-              🌿 EASY MODE
-            </button>
+          <div className="flex gap-2">
+            <button onClick={() => handleAppMode('EXPERT')} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${appMode === 'EXPERT' ? 'theme-accent-bg text-black shadow' : 'bg-black text-zinc-400 border border-zinc-800'}`}>⚡ EXPERT MODE</button>
+            <button onClick={() => handleAppMode('EASY')} className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${appMode === 'EASY' ? 'bg-emerald-500 text-black shadow' : 'bg-black text-zinc-400 border border-zinc-800'}`}>🌿 EASY MODE</button>
           </div>
         </div>
 
-        {/* SECURITY PIN */}
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl">
+        {/* SECURITY ACCESS PIN */}
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl space-y-4">
           <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
             🔒 SECURITY ACCESS PIN
           </h3>
           <div className="flex gap-2">
-            <input 
-              type="password" 
-              value={pin} 
-              onChange={(e) => setPin(e.target.value)} 
-              placeholder="Enter numerical PIN..."
-              className="flex-1 bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-lg tracking-widest text-white font-mono focus:outline-none focus:border-zinc-600"
-            />
-            <button onClick={handleSavePin} className="theme-accent-bg text-black font-bold px-4 py-3 rounded-2xl text-sm shadow">
-              Save PIN
+            <input type="password" maxLength="4" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))} placeholder="Enter numerical PIN" className="flex-1 bg-black border border-zinc-800 rounded-xl px-5 py-4 text-lg text-white font-mono tracking-widest focus:outline-none" />
+            <button onClick={savePin} className={`px-5 rounded-xl text-xs font-bold transition-all ${pinSaved ? 'bg-emerald-500 text-black' : 'theme-accent-bg text-black'}`}>
+              {pinSaved ? 'Saved!' : 'Save PIN'}
             </button>
           </div>
-          {saveMsg && <p className={`text-xs font-bold ${saveMsg.includes('❌') ? 'text-red-400' : 'text-emerald-400'}`}>{saveMsg}</p>}
         </div>
 
-        {/* ACCENT COLOR */}
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+        {/* TEXT SCALE - RESTORED */}
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl space-y-4">
+          <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
+            🔤 TEXT SCALE
+          </h3>
+          <div className="flex gap-2">
+            {['Small', 'Medium', 'Large'].map(size => (
+              <button 
+                key={size}
+                onClick={() => handleTextSize(size)}
+                className={`flex-1 py-3 rounded-xl text-xs font-bold transition-all ${textSize === size ? 'theme-accent-bg text-black shadow' : 'bg-black text-zinc-400 border border-zinc-800'}`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ACCENT COLOR PROFILE */}
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl space-y-4">
           <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
             🎨 ACCENT COLOR PROFILE
           </h3>
@@ -83,8 +92,8 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
             {['cyan', 'amber', 'matrix', 'onion'].map(color => (
               <button 
                 key={color}
-                onClick={() => { setAccentColor(color); localStorage.setItem('sovereign_accent', color); }}
-                className={`py-3 rounded-2xl text-[10px] font-bold uppercase transition-all ${accentColor === color ? 'bg-zinc-800 text-white border-2 border-white' : 'bg-black text-zinc-500 border border-zinc-800'}`}
+                onClick={() => handleAccent(color)}
+                className={`py-3 rounded-xl text-[10px] font-bold uppercase transition-all ${accentColor === color ? 'border-2 border-white text-white' : 'bg-black text-zinc-500 border border-zinc-800'}`}
               >
                 {color}
               </button>
@@ -92,24 +101,22 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
           </div>
         </div>
 
-        {/* OFFLINE AI STATUS */}
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl">
+        {/* OFFLINE AI MODEL STATUS */}
+        <div className="bg-zinc-900 border border-zinc-800 p-5 rounded-3xl space-y-4">
           <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
             🤖 OFFLINE AI MODEL STATUS
           </h3>
-          <div className="bg-black border border-zinc-800 p-4 rounded-2xl flex justify-between items-center">
-            <span className="text-xs font-mono text-zinc-300 w-32 truncate">{aiModel.split('/').pop()}</span>
-            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
-              <div className={`w-2.5 h-2.5 rounded-full ${aiCached ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`}></div>
-              <span className="text-[10px] font-bold text-zinc-400 tracking-wide">{aiCached ? 'Active in IndexedDB' : 'Not Downloaded'}</span>
-            </div>
+          <div className="flex justify-between items-center bg-black border border-zinc-800 rounded-xl p-4">
+            <span className="text-xs font-mono text-zinc-300">Cached Local 3B LLM:</span>
+            <span className="text-xs font-bold text-zinc-500 flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-zinc-600"></div> Not Downloaded
+            </span>
           </div>
         </div>
-
       </div>
       
-      <div className="px-5 mt-auto">
-        <button onClick={closeSettings} className="w-full theme-accent-bg text-black font-extrabold py-4 rounded-3xl text-sm shadow-xl">
+      <div className="fixed bottom-0 left-0 right-0 p-4 bg-black/95 backdrop-blur border-t border-zinc-900 z-50">
+        <button onClick={closeSettings} className="w-full py-4 theme-accent-bg text-black font-extrabold text-sm rounded-xl shadow active:scale-95 transition-transform">
           Close Settings
         </button>
       </div>

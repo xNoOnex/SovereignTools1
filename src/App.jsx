@@ -25,11 +25,13 @@ function AppContent() {
   const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
-  const { mode, accentColor, setAccentColor, setMode } = useSettings();
+  
+  // FIX: textSize and setTextSize are now correctly pulled from the global provider
+  const { mode, accentColor, setAccentColor, setMode, textSize, setTextSize } = useSettings();
 
   useEffect(() => {
     document.body.className = `theme-${accentColor} text-scale-${textSize}`;
-  }, [accentColor]);
+  }, [accentColor, textSize]);
 
   const navigateTo = (screen) => {
     setCurrentScreen(screen);
@@ -46,8 +48,7 @@ function AppContent() {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans select-none pb-24">
-      {/* Top Global Bar */}
+    <div className="min-h-screen bg-black/80 text-white font-sans select-none pb-24 relative">
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <h1 className="text-sm font-black tracking-widest text-white uppercase">SOVEREIGN TOOLS</h1>
@@ -63,7 +64,6 @@ function AppContent() {
         </div>
       </div>
 
-      {/* Screen Switcher */}
       {currentScreen === 'home' && <Home onNavigate={navigateTo} appMode={mode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
@@ -81,18 +81,18 @@ function AppContent() {
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
-      {/* Settings Modal */}
       {showSettings && (
         <Settings 
           closeSettings={() => setShowSettings(false)} 
           appMode={mode} 
           setAppMode={setMode} 
           accentColor={accentColor} 
-          setAccentColor={setAccentColor} 
+          setAccentColor={setAccentColor}
+          textSize={textSize}
+          setTextSize={setTextSize}
         />
       )}
 
-      {/* Bottom Navigation Dock */}
       <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-zinc-900 p-2 flex justify-around items-center z-40 overflow-x-auto no-scrollbar">
         {[
           { id: 'home', label: 'Home', icon: '🏠' },
