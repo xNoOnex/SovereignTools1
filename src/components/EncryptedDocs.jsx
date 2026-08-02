@@ -12,7 +12,7 @@ export function EncryptedDocs({ onNavigate }) {
   const [password, setPassword] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Vault State
+  // Vault & Embedded Viewer State
   const [vaultFiles, setVaultFiles] = useState([]);
   const [viewingFile, setViewingFile] = useState(null);
   const [unlockPassword, setUnlockPassword] = useState('');
@@ -44,7 +44,6 @@ export function EncryptedDocs({ onNavigate }) {
     }
   };
 
-  // Export to actual device hard drive
   const exportToDevice = () => {
     if (!text) return showStatus('❌ Document is empty.');
     let blob;
@@ -83,7 +82,6 @@ export function EncryptedDocs({ onNavigate }) {
     showStatus(`✅ ${format} Exported to Device!`);
   };
 
-  // Save to internal app memory (Vault)
   const saveToVault = () => {
     if (!text) return showStatus('❌ Document is empty.');
     if (format === 'ENC' && !password) return showStatus('❌ AES Password Required for .ENC');
@@ -120,24 +118,29 @@ export function EncryptedDocs({ onNavigate }) {
     }
   };
 
+  // Helper to parse CSV for embedded spreadsheet preview
+  const parseCSV = (content) => {
+    if (!content) return [];
+    return content.split('\n').map(row => row.split(','));
+  };
+
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen flex flex-col">
       
       <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">📝 Encrypted Docs</h2>
-        <p className="text-xs text-zinc-400 mt-1">Multi-format compiler & AES document vault.</p>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">📝 Encrypted Docs & Vault</h2>
+        <p className="text-xs text-zinc-400 mt-1">Multi-format compiler & embedded vault file viewer.</p>
       </div>
 
       {statusMsg && <div className="theme-accent-badge p-2 rounded-xl text-xs font-bold text-center shadow animate-fadeIn">{statusMsg}</div>}
 
       <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-900 shrink-0">
         <button onClick={() => { setActiveTab('Editor'); setViewingFile(null); }} className={`flex-1 py-2 text-xs font-bold rounded-xl ${activeTab === 'Editor' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>✍️ Document Editor</button>
-        <button onClick={() => setActiveTab('Vault')} className={`flex-1 py-2 text-xs font-bold rounded-xl ${activeTab === 'Vault' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>📁 My Vault ({vaultFiles.length})</button>
+        <button onClick={() => setActiveTab('Vault')} className={`flex-1 py-2 text-xs font-bold rounded-xl ${activeTab === 'Vault' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>📁 Notes Vault ({vaultFiles.length})</button>
       </div>
 
       {activeTab === 'Editor' && (
         <div className="flex-1 flex flex-col space-y-3">
-          
           <div className="flex gap-2">
             <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Document Title..." className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-bold focus:outline-none" />
             <select value={format} onChange={(e) => setFormat(e.target.value)} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-3 text-xs font-bold theme-accent-text focus:outline-none cursor-pointer">
@@ -169,42 +172,69 @@ export function EncryptedDocs({ onNavigate }) {
           ) : (
             vaultFiles.map(file => (
               <div key={file.id} onClick={() => setViewingFile(file)} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex justify-between items-center cursor-pointer active:scale-95 transition-transform">
-                <div>
-                  <h4 className="text-sm font-bold text-white flex items-center gap-2">
-                    {file.format === 'ENC' ? '🔒' : '📄'} {file.title}
-                  </h4>
-                  <p className="text-[10px] text-zinc-500 font-mono mt-1">{file.date} • {file.format}</p>
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">
+                    {file.format === 'ENC' ? '🔒' : file.format === 'EXCEL' ? '📊' : file.format === 'PDF' ? '📑' : '📄'}
+                  </span>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">{file.title}</h4>
+                    <p className="text-[10px] text-zinc-500 font-mono mt-0.5">{file.date} • {file.format} FORMAT</p>
+                  </div>
                 </div>
+                <span className="text-xs theme-accent-text font-bold">Open →</span>
               </div>
             ))
           )}
         </div>
       )}
 
+      {/* EMBEDDED FILE VIEWER INSIDE VAULT */}
       {activeTab === 'Vault' && viewingFile && (
         <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
-          <div className="flex justify-between items-center bg-zinc-900 p-3 rounded-2xl border border-zinc-800">
-            <h3 className="font-bold text-sm text-white truncate">{viewingFile.title}</h3>
-            <button onClick={() => setViewingFile(null)} className="text-xs text-zinc-400 font-bold px-2">Back</button>
+          <div className="flex justify-between items-center bg-zinc-900 p-3 rounded-2xl border border-zinc-800 shrink-0">
+            <div>
+              <h3 className="font-bold text-xs text-white truncate">{viewingFile.title}</h3>
+              <span className="text-[9px] text-zinc-400 font-mono uppercase">{viewingFile.format} FORMAT VIEWER</span>
+            </div>
+            <button onClick={() => setViewingFile(null)} className="theme-accent-bg text-black px-3 py-1.5 rounded-xl text-xs font-bold">Back to Vault</button>
           </div>
 
-          {viewingFile.format === 'ENC' && !viewingFile.isUnlocked ? (
-            <div className="flex-1 flex flex-col items-center justify-center space-y-4">
-              <span className="text-5xl">🔒</span>
-              <p className="text-xs font-mono text-red-400">AES-256 Encrypted Payload</p>
-              <input type="password" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} placeholder="Enter AES Password..." className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-center text-white focus:outline-none" />
-              <button onClick={handleUnlock} className="w-full py-3 theme-accent-bg text-black font-bold text-xs rounded-xl shadow">Decrypt Document</button>
-            </div>
-          ) : (
-            <div className="flex-1 bg-black border border-zinc-800 rounded-2xl p-4 overflow-y-auto">
-              <p className="text-xs font-mono text-zinc-300 whitespace-pre-wrap">
+          <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-2xl p-4 overflow-auto min-h-[350px] flex items-center justify-center">
+            
+            {/* ENCRYPTED (.ENC) FORMAT */}
+            {viewingFile.format === 'ENC' && !viewingFile.isUnlocked ? (
+              <div className="w-full flex flex-col items-center justify-center space-y-4">
+                <span className="text-5xl">🔒</span>
+                <p className="text-xs font-mono text-red-400">AES-256 Encrypted Payload Locked</p>
+                <input type="password" value={unlockPassword} onChange={(e) => setUnlockPassword(e.target.value)} placeholder="Enter AES Password..." className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-center text-white focus:outline-none" />
+                <button onClick={handleUnlock} className="w-full py-3 theme-accent-bg text-black font-bold text-xs rounded-xl shadow">Decrypt Payload</button>
+              </div>
+            ) : viewingFile.format === 'EXCEL' ? (
+              /* SPREADSHEET TABLE VIEWER (.CSV) */
+              <div className="w-full overflow-x-auto">
+                <table className="w-full text-left font-mono text-xs border-collapse">
+                  <tbody>
+                    {parseCSV(viewingFile.isUnlocked ? viewingFile.decryptedContent : viewingFile.content).map((row, rIdx) => (
+                      <tr key={rIdx} className="border-b border-zinc-900">
+                        {row.map((cell, cIdx) => (
+                          <td key={cIdx} className="p-2 border-r border-zinc-900 text-zinc-300">{cell}</td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              /* STANDARD TEXT / MARKDOWN / UNLOCKED ENC VIEWER */
+              <div className="w-full h-full font-mono text-xs text-zinc-300 whitespace-pre-wrap overflow-y-auto">
                 {viewingFile.isUnlocked ? viewingFile.decryptedContent : viewingFile.content}
-              </p>
-            </div>
-          )}
+              </div>
+            )}
 
-          <button onClick={() => deleteFromVault(viewingFile.id)} className="w-full py-3 bg-red-950/40 border border-red-900 text-red-400 font-bold text-xs rounded-xl mt-auto">
-            Delete from Vault
+          </div>
+
+          <button onClick={() => deleteFromVault(viewingFile.id)} className="w-full py-3 bg-red-950/40 border border-red-900 text-red-400 font-bold text-xs rounded-xl shrink-0">
+            Delete File from Vault
           </button>
         </div>
       )}
