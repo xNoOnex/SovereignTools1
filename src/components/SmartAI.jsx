@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { pipeline, env } from '@huggingface/transformers';
+import { pipeline, env } from '@xenova/transformers';
 
-// Crucial: Disables local file system loading since we are in a web environment
+// Crucial: Tells the engine we are in a browser environment, not a Node server
 env.allowLocalModels = false;
-env.backends.onnx.wasm.numThreads = 4; // Optimize for mobile multi-core CPU
 
 export function SmartAI({ onNavigate }) {
   const [engine, setEngine] = useState(null);
@@ -14,7 +13,7 @@ export function SmartAI({ onNavigate }) {
   const [messages, setMessages] = useState([
     {
       sender: 'ai',
-      text: '⚡ Sovereign Universal WASM AI Engine. Bypassing OS WebGPU locks. Download the Qwen-0.5B model to run 100% locally on your CPU.'
+      text: '⚡ Sovereign Universal WASM AI Engine. Bypassing OS WebGPU locks. Download the Xenova Qwen model to run 100% locally on your CPU.'
     }
   ]);
   const [inputQuery, setInputQuery] = useState('');
@@ -30,13 +29,11 @@ export function SmartAI({ onNavigate }) {
     try {
       setDownloadText('Establishing Universal WASM Pipeline...');
       
-      // Load the ultra-lightweight text-generation model optimized for WASM
+      // Load the ultra-lightweight text-generation model
       const generator = await pipeline(
         'text-generation', 
-        'onnx-community/Qwen2.5-0.5B-Instruct', 
+        'Xenova/Qwen1.5-0.5B-Chat', 
         { 
-          device: 'wasm', 
-          dtype: 'q4', // 4-bit quantization for mobile RAM
           progress_callback: (info) => {
             if (info.status === 'progress') {
               setDownloadProgress(Math.round(info.progress));
@@ -52,7 +49,7 @@ export function SmartAI({ onNavigate }) {
       setDownloadText('🟢 Neural network loaded securely into local RAM.');
       setMessages(prev => [...prev, { 
         sender: 'system', 
-        text: `Success. Qwen2.5-0.5B is now running locally on WebAssembly. GPU lock bypassed.` 
+        text: `Success. Qwen-0.5B-Chat is now running locally on WebAssembly. GPU lock bypassed.` 
       }]);
     } catch (e) {
       setDownloadText('❌ WASM Initialization Error: ' + e.message);
@@ -80,7 +77,7 @@ export function SmartAI({ onNavigate }) {
           do_sample: true
         });
 
-        // Extract the generated text after the prompt
+        // Extract the generated text
         let reply = output[0].generated_text.split('<|im_start|>assistant\n').pop().trim();
         setMessages(prev => [...prev, { sender: 'ai', text: reply }]);
       } catch (e) {
@@ -111,7 +108,7 @@ export function SmartAI({ onNavigate }) {
           <p className="text-[10px] text-zinc-400">Guaranteed to run on any device CPU. Bypasses Android WebView GPU locks.</p>
 
           <button onClick={initializeUniversalAI} disabled={isDownloading} className="w-full py-2.5 theme-accent-bg text-black font-extrabold text-xs rounded-2xl shadow active:scale-95 disabled:opacity-50">
-            {isDownloading ? `Initializing WASM...` : `Download Qwen2.5-0.5B-Instruct`}
+            {isDownloading ? `Initializing WASM...` : `Download Qwen-0.5B-Chat`}
           </button>
 
           {isDownloading && (
@@ -127,7 +124,7 @@ export function SmartAI({ onNavigate }) {
 
       {engine && (
         <div className="bg-zinc-900/60 border border-zinc-800 p-2.5 rounded-2xl flex justify-between items-center shrink-0 font-mono text-xs">
-          <span className="text-emerald-400 font-bold flex items-center gap-1.5">🟢 Qwen2.5-0.5B WASM Active</span>
+          <span className="text-emerald-400 font-bold flex items-center gap-1.5">🟢 Qwen-0.5B WASM Active</span>
           <button onClick={() => window.location.reload()} className="text-[10px] text-zinc-500 hover:text-red-400 font-bold">Unload</button>
         </div>
       )}
