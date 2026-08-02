@@ -8,8 +8,6 @@ export function SmartAI({ onNavigate }) {
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadText, setDownloadText] = useState('');
-  
-  // New Search Toggle
   const [webSearchEnabled, setWebSearchEnabled] = useState(false);
 
   const [messages, setMessages] = useState([
@@ -50,27 +48,22 @@ export function SmartAI({ onNavigate }) {
     }
   };
 
-  // --- PRIVATE BS-FREE SEARCH LOGIC ---
   const performPrivateSearch = async (query) => {
     try {
-      // Primary: DuckDuckGo Instant Answer API (No trackers, purely factual)
       const ddgRes = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`);
       const ddgData = await ddgRes.json();
       if (ddgData.AbstractText) return ddgData.AbstractText;
       if (ddgData.RelatedTopics && ddgData.RelatedTopics.length > 0 && ddgData.RelatedTopics[0].Text) {
         return ddgData.RelatedTopics[0].Text;
       }
-
-      // Fallback: Wikipedia API (No tracking, highly factual)
       const wikiRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`);
       const wikiData = await wikiRes.json();
       if (wikiData.query?.search?.[0]) {
-         return wikiData.query.search[0].snippet.replace(/(<([^>]+)>)/gi, ""); // Strip HTML tags
+         return wikiData.query.search[0].snippet.replace(/(<([^>]+)>)/gi, "");
       }
-
-      return "No live data found on secure networks.";
+      return "No live data found.";
     } catch (e) {
-      return "Secure network connection failed. Check your connection.";
+      return "Secure network connection failed.";
     }
   };
 
@@ -87,29 +80,33 @@ export function SmartAI({ onNavigate }) {
       try {
         let liveContext = "";
         
-        // Execute Secure Search if toggled ON
         if (webSearchEnabled) {
-          setMessages(prev => [...prev, { sender: 'system', text: `🔍 Querying secure, tracker-free networks for: "${userText}"...` }]);
           const searchResult = await performPrivateSearch(userText);
-          liveContext = `\n\nLive Web Context provided to you for this query: ${searchResult}`;
+          liveContext = `\n\n[CONTEXT: ${searchResult}]`;
           setMessages(prev => [...prev, { sender: 'system', text: `📡 Extracted Data: ${searchResult}` }]);
         }
 
-        const promptTemplate = `<|im_start|>system\nYou are a highly intelligent privacy assistant. Provide clear, concise answers without fluff.${liveContext}<|im_end|>\n<|im_start|>user\n${userText}<|im_end|>\n<|im_start|>assistant\n`;
+        // Tightly control the prompt formatting to prevent the AI from echoing the prompt
+        const promptTemplate = `<|im_start|>system\nYou are a concise AI. Answer the user directly using the context provided. Do not repeat the question. Do not hallucinate.<|im_end|>\n<|im_start|>user\n${userText}${liveContext}<|im_end|>\n<|im_start|>assistant\n`;
         
         const output = await engine(promptTemplate, {
           max_new_tokens: 128,
-          temperature: 0.6,
+          temperature: 0.3, // Lower temp for more direct answers
           do_sample: true
         });
 
-        let reply = output[0].generated_text.split('<|im_start|>assistant\n').pop().trim();
+        // Strip the entire prompt out of the output, leaving only the generated text
+        let reply = output[0].generated_text.replace(promptTemplate, '').trim();
+        
+        // Failsafe strip if it still echoes 'user' or 'assistant' tags
+        reply = reply.replace(/<\|im_start\|>.*?\n/g, '').replace(/<\|im_end\|>/g, '').trim();
+
         setMessages(prev => [...prev, { sender: 'ai', text: reply }]);
       } catch (e) {
         setMessages(prev => [...prev, { sender: 'system', text: `Inference Error: ${e.message}` }]);
       }
     } else {
-      setMessages(prev => [...prev, { sender: 'system', text: "❌ Engine offline. Please download the WASM model above." }]);
+      setMessages(prev => [...prev, { sender: 'system', text: "❌ Engine offline." }]);
     }
 
     setIsThinking(false);
@@ -117,7 +114,6 @@ export function SmartAI({ onNavigate }) {
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen flex flex-col">
-      
       <div className="flex justify-between items-center border-b border-zinc-900 pb-3 pt-2 shrink-0">
         <div>
           <h1 className="text-xl font-black tracking-wider text-white">SOVEREIGN AI</h1>
@@ -130,7 +126,7 @@ export function SmartAI({ onNavigate }) {
       {!engine && (
         <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-3xl space-y-3 shrink-0 shadow-xl">
           <h3 className="text-xs font-bold text-white uppercase tracking-wider">🤖 Universal WASM Engine</h3>
-          <p className="text-[10px] text-zinc-400">Guaranteed to run on any device CPU. Bypasses Android WebView GPU locks.</p>
+          <p className="text-[10px] text-zinc-400">Guaranteed to run on any device CPU.</p>
           <button onClick={initializeUniversalAI} disabled={isDownloading} className="w-full py-2.5 theme-accent-bg text-black font-extrabold text-xs rounded-2xl shadow active:scale-95 disabled:opacity-50">
             {isDownloading ? `Initializing WASM...` : `Download Qwen-0.5B-Chat`}
           </button>
