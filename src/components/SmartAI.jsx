@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { pipeline, env } from '@xenova/transformers';
 
-// Crucial: Tells the engine we are in a browser environment, not a Node server
 env.allowLocalModels = false;
 
 export function SmartAI({ onNavigate }) {
@@ -10,10 +9,13 @@ export function SmartAI({ onNavigate }) {
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadText, setDownloadText] = useState('');
   
+  // New Search Toggle
+  const [webSearchEnabled, setWebSearchEnabled] = useState(false);
+
   const [messages, setMessages] = useState([
     {
       sender: 'ai',
-      text: '⚡ Sovereign Universal WASM AI Engine. Bypassing OS WebGPU locks. Download the Xenova Qwen model to run 100% locally on your CPU.'
+      text: '⚡ Sovereign Universal WASM AI Engine. Download the Xenova Qwen model to run 100% locally on your CPU.'
     }
   ]);
   const [inputQuery, setInputQuery] = useState('');
@@ -28,33 +30,47 @@ export function SmartAI({ onNavigate }) {
     setIsDownloading(true);
     try {
       setDownloadText('Establishing Universal WASM Pipeline...');
-      
-      // Load the ultra-lightweight text-generation model
-      const generator = await pipeline(
-        'text-generation', 
-        'Xenova/Qwen1.5-0.5B-Chat', 
-        { 
-          progress_callback: (info) => {
-            if (info.status === 'progress') {
-              setDownloadProgress(Math.round(info.progress));
-              setDownloadText(`Downloading Neural Weights: ${info.file} (${Math.round(info.progress)}%)`);
-            } else if (info.status === 'ready') {
-              setDownloadProgress(100);
-            }
+      const generator = await pipeline('text-generation', 'Xenova/Qwen1.5-0.5B-Chat', { 
+        progress_callback: (info) => {
+          if (info.status === 'progress') {
+            setDownloadProgress(Math.round(info.progress));
+            setDownloadText(`Downloading Neural Weights: ${info.file} (${Math.round(info.progress)}%)`);
+          } else if (info.status === 'ready') {
+            setDownloadProgress(100);
           }
         }
-      );
-      
+      });
       setEngine(() => generator);
       setDownloadText('🟢 Neural network loaded securely into local RAM.');
-      setMessages(prev => [...prev, { 
-        sender: 'system', 
-        text: `Success. Qwen-0.5B-Chat is now running locally on WebAssembly. GPU lock bypassed.` 
-      }]);
+      setMessages(prev => [...prev, { sender: 'system', text: `Success. Qwen-0.5B-Chat is now running locally on WebAssembly.` }]);
     } catch (e) {
       setDownloadText('❌ WASM Initialization Error: ' + e.message);
     } finally {
       setIsDownloading(false);
+    }
+  };
+
+  // --- PRIVATE BS-FREE SEARCH LOGIC ---
+  const performPrivateSearch = async (query) => {
+    try {
+      // Primary: DuckDuckGo Instant Answer API (No trackers, purely factual)
+      const ddgRes = await fetch(`https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1`);
+      const ddgData = await ddgRes.json();
+      if (ddgData.AbstractText) return ddgData.AbstractText;
+      if (ddgData.RelatedTopics && ddgData.RelatedTopics.length > 0 && ddgData.RelatedTopics[0].Text) {
+        return ddgData.RelatedTopics[0].Text;
+      }
+
+      // Fallback: Wikipedia API (No tracking, highly factual)
+      const wikiRes = await fetch(`https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(query)}&utf8=&format=json&origin=*`);
+      const wikiData = await wikiRes.json();
+      if (wikiData.query?.search?.[0]) {
+         return wikiData.query.search[0].snippet.replace(/(<([^>]+)>)/gi, ""); // Strip HTML tags
+      }
+
+      return "No live data found on secure networks.";
+    } catch (e) {
+      return "Secure network connection failed. Check your connection.";
     }
   };
 
@@ -69,15 +85,24 @@ export function SmartAI({ onNavigate }) {
 
     if (engine) {
       try {
-        const promptTemplate = `<|im_start|>system\nYou are a highly intelligent privacy assistant.<|im_end|>\n<|im_start|>user\n${userText}<|im_end|>\n<|im_start|>assistant\n`;
+        let liveContext = "";
+        
+        // Execute Secure Search if toggled ON
+        if (webSearchEnabled) {
+          setMessages(prev => [...prev, { sender: 'system', text: `🔍 Querying secure, tracker-free networks for: "${userText}"...` }]);
+          const searchResult = await performPrivateSearch(userText);
+          liveContext = `\n\nLive Web Context provided to you for this query: ${searchResult}`;
+          setMessages(prev => [...prev, { sender: 'system', text: `📡 Extracted Data: ${searchResult}` }]);
+        }
+
+        const promptTemplate = `<|im_start|>system\nYou are a highly intelligent privacy assistant. Provide clear, concise answers without fluff.${liveContext}<|im_end|>\n<|im_start|>user\n${userText}<|im_end|>\n<|im_start|>assistant\n`;
         
         const output = await engine(promptTemplate, {
           max_new_tokens: 128,
-          temperature: 0.7,
+          temperature: 0.6,
           do_sample: true
         });
 
-        // Extract the generated text
         let reply = output[0].generated_text.split('<|im_start|>assistant\n').pop().trim();
         setMessages(prev => [...prev, { sender: 'ai', text: reply }]);
       } catch (e) {
@@ -106,11 +131,9 @@ export function SmartAI({ onNavigate }) {
         <div className="bg-zinc-900/90 border border-zinc-800 p-4 rounded-3xl space-y-3 shrink-0 shadow-xl">
           <h3 className="text-xs font-bold text-white uppercase tracking-wider">🤖 Universal WASM Engine</h3>
           <p className="text-[10px] text-zinc-400">Guaranteed to run on any device CPU. Bypasses Android WebView GPU locks.</p>
-
           <button onClick={initializeUniversalAI} disabled={isDownloading} className="w-full py-2.5 theme-accent-bg text-black font-extrabold text-xs rounded-2xl shadow active:scale-95 disabled:opacity-50">
             {isDownloading ? `Initializing WASM...` : `Download Qwen-0.5B-Chat`}
           </button>
-
           {isDownloading && (
             <div className="space-y-1 mt-2">
               <div className="w-full bg-black rounded-full h-1.5 overflow-hidden border border-zinc-800">
@@ -125,7 +148,15 @@ export function SmartAI({ onNavigate }) {
       {engine && (
         <div className="bg-zinc-900/60 border border-zinc-800 p-2.5 rounded-2xl flex justify-between items-center shrink-0 font-mono text-xs">
           <span className="text-emerald-400 font-bold flex items-center gap-1.5">🟢 Qwen-0.5B WASM Active</span>
-          <button onClick={() => window.location.reload()} className="text-[10px] text-zinc-500 hover:text-red-400 font-bold">Unload</button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setWebSearchEnabled(!webSearchEnabled)} 
+              className={`px-3 py-1 rounded-xl text-[10px] font-bold border transition-colors ${webSearchEnabled ? 'theme-accent-badge' : 'bg-zinc-900 text-zinc-500 border-zinc-800'}`}
+            >
+              Search: {webSearchEnabled ? 'ON' : 'OFF'}
+            </button>
+            <button onClick={() => window.location.reload()} className="text-[10px] text-zinc-500 hover:text-red-400 font-bold px-2">Unload</button>
+          </div>
         </div>
       )}
 
@@ -138,12 +169,12 @@ export function SmartAI({ onNavigate }) {
             </div>
           </div>
         ))}
-        {isThinking && <div className="text-xs theme-accent-text font-mono animate-pulse">⚡ Generating tokens on CPU...</div>}
+        {isThinking && <div className="text-xs theme-accent-text font-mono animate-pulse">⚡ Generating...</div>}
         <div ref={chatBottomRef} />
       </div>
 
       <form onSubmit={handleSend} className="flex gap-2 shrink-0 pt-1">
-        <input type="text" value={inputQuery} onChange={(e) => setInputQuery(e.target.value)} placeholder="Enter prompt for local AI..." className="flex-1 bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-xs text-white font-mono focus:outline-none" />
+        <input type="text" value={inputQuery} onChange={(e) => setInputQuery(e.target.value)} placeholder="Enter prompt..." className="flex-1 bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-xs text-white font-mono focus:outline-none" />
         <button type="submit" disabled={isThinking} className="theme-accent-bg text-black font-extrabold text-xs px-5 py-3 rounded-2xl shadow disabled:opacity-50">SEND</button>
       </form>
     </div>
