@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSettings } from '../context/SettingsContext';
 
 export function LockScreen({ onUnlock }) {
-  const { pin, currentTheme } = useSettings();
+  const { pin } = useSettings();
   const [inputPin, setInputPin] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
 
@@ -21,9 +21,9 @@ export function LockScreen({ onUnlock }) {
     const nextPin = inputPin + val;
     setInputPin(nextPin);
 
-    // Auto-check PIN when length matches
-    if (nextPin.length === pin.length) {
-      if (nextPin === pin) {
+    // Check PIN match on complete input length
+    if (nextPin.length === (pin ? pin.length : 4)) {
+      if (nextPin === (pin || '1234')) {
         setInputPin('');
         setErrorMsg('');
         onUnlock();
@@ -51,15 +51,15 @@ export function LockScreen({ onUnlock }) {
         </p>
       </div>
 
-      {/* PIN DISPLAY / DOTS */}
+      {/* PIN DISPLAY DOTS */}
       <div className="space-y-3 w-full max-w-xs text-center">
         <div className="flex justify-center items-center gap-3 py-2">
-          {Array.from({ length: Math.max(4, pin.length) }).map((_, i) => (
+          {Array.from({ length: Math.max(4, pin ? pin.length : 4) }).map((_, i) => (
             <div
               key={i}
               className={`w-4 h-4 rounded-full border transition-all ${
                 i < inputPin.length
-                  ? `${currentTheme.bg} ${currentTheme.border} scale-110 shadow-lg`
+                  ? 'theme-accent-bg theme-accent-border scale-110 shadow-lg'
                   : 'bg-zinc-950 border-zinc-800'
               }`}
             />
