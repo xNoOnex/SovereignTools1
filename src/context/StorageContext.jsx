@@ -12,29 +12,38 @@ export function StorageProvider({ children }) {
     try {
       let filesFound = [];
 
-      // Load custom gallery items saved directly from the Sovereign Camera
+      // 1. Load custom gallery items saved from Sovereign Camera
       const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
       filesFound.push(...customGallery);
 
-      // Attempt scanning external storage directories
-      try {
-        const result = await Filesystem.readdir({
-          path: '',
-          directory: Directory.ExternalStorage
-        });
-        
-        for (const file of result.files) {
-          const ext = file.name.split('.').pop().toLowerCase();
-          filesFound.push({
-            name: file.name,
-            path: file.name,
-            src: `file:///storage/emulated/0/${file.name}`,
-            ext
-          });
-        }
-      } catch (e) {}
+      // 2. RE-ENABLE FULL GLOBAL STORAGE RECURSIVE SCAN FOR SHREDDER
+      const targetDirs = [
+        Directory.ExternalStorage,
+        Directory.Documents,
+        Directory.Pictures,
+        Directory.Movies,
+        Directory.Music,
+        Directory.Data
+      ];
 
-      setIndexedFiles(filesFound);
+      for (const d of targetDirs) {
+        try {
+          const result = await Filesystem.readdir({ path: '', directory: d });
+          for (const file of result.files) {
+            const ext = file.name.includes('.') ? file.name.split('.').pop().toLowerCase() : 'file';
+            filesFound.push({
+              name: file.name,
+              path: file.name,
+              src: `file:///storage/emulated/0/${file.name}`,
+              ext
+            });
+          }
+        } catch (e) {}
+      }
+
+      // Deduplicate by path
+      const uniqueFiles = Array.from(new Map(filesFound.map(item => [item.path, item])).values());
+      setIndexedFiles(uniqueFiles);
     } catch (e) {}
     setIsScanning(false);
   };
@@ -45,8 +54,6 @@ export function StorageProvider({ children }) {
 
   const removeFileFromState = (path) => {
     setIndexedFiles(prev => prev.filter(f => f.path !== path));
-    
-    // Also remove from custom gallery storage if present
     const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
     const updated = customGallery.filter(f => f.path !== path);
     localStorage.setItem('sovereign_custom_gallery', JSON.stringify(updated));

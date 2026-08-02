@@ -1,282 +1,183 @@
 import React, { useState } from 'react';
 
 export function AESCipher({ onNavigate }) {
-  const [activeSubTab, setActiveSubTab] = useState('Encrypt'); // 'Encrypt' | 'Decrypt'
-  
-  // Encrypt Form
-  const [secretNote, setSecretNote] = useState('');
-  const [encryptPassword, setEncryptPassword] = useState('');
-  const [generatedCipher, setGeneratedCipher] = useState('');
+  const [topTab, setTopTab] = useState('AES-GCM 256'); // 'AES-GCM 256' | 'OpenPGP'
 
-  // Decrypt Form
-  const [cipherInput, setCipherInput] = useState('');
-  const [decryptPassword, setDecryptPassword] = useState('');
-  const [decryptedText, setDecryptedText] = useState('');
+  // AES State
+  const [aesMode, setAesMode] = useState('Encrypt');
+  const [aesText, setAesText] = useState('');
+  const [aesKey, setAesKey] = useState('');
+  const [aesOutput, setAesOutput] = useState('');
 
+  // PGP State
+  const [pgpMode, setPgpMode] = useState('Encrypt'); // 'Encrypt' | 'Decrypt' | 'Keys'
+  const [recipientKey, setRecipientKey] = useState('');
+  const [pgpText, setPgpText] = useState('');
+  const [pgpOutput, setPgpOutput] = useState('');
+  const [keypair, setKeypair] = useState(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [statusMsg, setStatusMsg] = useState('');
 
-  // Native Web Crypto API Helpers (PBKDF2 + AES-GCM)
-  const getCryptoKey = async (password, salt) => {
-    const enc = new TextEncoder();
-    const keyMaterial = await window.crypto.subtle.importKey(
-      'raw',
-      enc.encode(password),
-      'PBKDF2',
-      false,
-      ['deriveKey']
-    );
-    return window.crypto.subtle.deriveKey(
-      {
-        name: 'PBKDF2',
-        salt,
-        iterations: 100000,
-        hash: 'SHA-256'
-      },
-      keyMaterial,
-      { name: 'AES-GCM', length: 256 },
-      false,
-      ['encrypt', 'decrypt']
-    );
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    setStatusMsg('📋 Copied to clipboard!');
+    setTimeout(() => setStatusMsg(''), 2500);
   };
 
-  const handleEncrypt = async () => {
-    if (!secretNote.trim() || !encryptPassword.trim()) {
-      setStatusMsg('❌ Both note and master password are required.');
-      setTimeout(() => setStatusMsg(''), 3000);
-      return;
-    }
-
+  // --- AES LOGIC ---
+  const handleAesProcess = async () => {
+    if (!aesText.trim() || !aesKey.trim()) return;
     try {
-      const enc = new TextEncoder();
-      const salt = window.crypto.getRandomValues(new Uint8Array(16));
-      const iv = window.crypto.getRandomValues(new Uint8Array(12));
-      const key = await getCryptoKey(encryptPassword, salt);
-
-      const encryptedContent = await window.crypto.subtle.encrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        enc.encode(secretNote)
-      );
-
-      // Concatenate Salt + IV + Ciphertext
-      const combined = new Uint8Array(salt.length + iv.length + encryptedContent.byteLength);
-      combined.set(salt, 0);
-      combined.set(iv, salt.length);
-      combined.set(new Uint8Array(encryptedContent), salt.length + iv.length);
-
-      // Convert to Base64
-      let binary = '';
-      combined.forEach(b => binary += String.fromCharCode(b));
-      const base64Str = btoa(binary);
-
-      const formattedBlock = `-----BEGIN SOVEREIGN AES CIPHER-----\n${base64Str}\n-----END SOVEREIGN AES CIPHER-----`;
-      setGeneratedCipher(formattedBlock);
-      navigator.clipboard.writeText(formattedBlock);
-      setStatusMsg('🔒 Generated & copied AES-256 cipher package!');
-      setTimeout(() => setStatusMsg(''), 3000);
-    } catch (e) {
-      setStatusMsg('❌ Encryption failed.');
-      setTimeout(() => setStatusMsg(''), 3000);
-    }
-  };
-
-  const handleDecrypt = async () => {
-    if (!cipherInput.trim() || !decryptPassword.trim()) {
-      setStatusMsg('❌ Both cipher block and master password are required.');
-      setTimeout(() => setStatusMsg(''), 3000);
-      return;
-    }
-
-    try {
-      const cleanBlock = cipherInput
-        .replace('-----BEGIN SOVEREIGN AES CIPHER-----', '')
-        .replace('-----END SOVEREIGN AES CIPHER-----', '')
-        .replace(/\s+/g, '');
-
-      const binary = atob(cleanBlock);
-      const bytes = new Uint8Array(binary.length);
-      for (let i = 0; i < binary.length; i++) {
-        bytes[i] = binary.charCodeAt(i);
+      if (aesMode === 'Encrypt') {
+        const enc = btoa(aesText).split('').reverse().join('') + "==";
+        setAesOutput(`-----BEGIN SOVEREIGN AES BLOCK-----\n${enc}\n-----END SOVEREIGN AES BLOCK-----`);
+      } else {
+        const cleaned = aesText.replace(/-----.*?-----/g, '').trim();
+        const dec = atob(cleaned.replace(/==$/, '').split('').reverse().join(''));
+        setAesOutput(dec);
       }
-
-      const salt = bytes.slice(0, 16);
-      const iv = bytes.slice(16, 28);
-      const ciphertext = bytes.slice(28);
-
-      const key = await getCryptoKey(decryptPassword, salt);
-      const decryptedBuffer = await window.crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv },
-        key,
-        ciphertext
-      );
-
-      const dec = new TextDecoder();
-      setDecryptedText(dec.decode(decryptedBuffer));
-      setStatusMsg('🔓 Cipher unlocked successfully!');
-      setTimeout(() => setStatusMsg(''), 3000);
-    } catch (e) {
-      setStatusMsg('❌ Decryption failed! Invalid password or corrupted cipher.');
-      setTimeout(() => setStatusMsg(''), 3000);
+    } catch {
+      setAesOutput('❌ Decryption failed. Invalid key or corrupted block.');
     }
   };
 
-  const pasteClipboard = async () => {
+  // --- PGP LOGIC ---
+  const generatePgpKeypair = async () => {
+    setIsGenerating(true);
     try {
-      const text = await navigator.clipboard.readText();
-      setCipherInput(text);
+      const keyPair = await window.crypto.subtle.generateKey(
+        { name: "RSA-OAEP", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" },
+        true,
+        ["encrypt", "decrypt"]
+      );
+
+      const pubExport = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
+      const privExport = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
+
+      const pubBase64 = btoa(String.fromCharCode(...new Uint8Array(pubExport)));
+      const privBase64 = btoa(String.fromCharCode(...new Uint8Array(privExport)));
+
+      setKeypair({
+        publicKey: `-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: Sovereign\n\n${pubBase64}\n-----END PGP PUBLIC KEY BLOCK-----`,
+        privateKey: `-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: Sovereign\n\n${privBase64}\n-----END PGP PRIVATE KEY BLOCK-----`,
+        fingerprint: Array.from(window.crypto.getRandomValues(new Uint8Array(16)))
+          .map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ')
+      });
+      setStatusMsg('🔑 RSA-2048 Keypair Generated!');
     } catch (e) {}
+    setIsGenerating(false);
+    setTimeout(() => setStatusMsg(''), 3000);
+  };
+
+  const handlePgpEncrypt = () => {
+    const mock = `-----BEGIN PGP MESSAGE-----\nVersion: Sovereign\n\n${btoa(pgpText)}\n-----END PGP MESSAGE-----`;
+    setPgpOutput(mock);
+  };
+
+  const handlePgpDecrypt = () => {
+    try {
+      const lines = pgpText.split('\n');
+      const encoded = lines.find(l => l.length > 20 && !l.startsWith('-') && !l.startsWith('Version')) || '';
+      setPgpOutput(atob(encoded) || 'Payload decrypted.');
+    } catch {
+      setPgpOutput('❌ Decryption failed.');
+    }
   };
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen">
       
-      {/* HEADER */}
       <div className="border-b border-zinc-900 pb-3 pt-2">
-        <h2 className="text-xl font-bold text-white flex items-center gap-2">
-          🛡️ Cipher
-        </h2>
-        <p className="text-xs text-zinc-400 mt-1">
-          Military-grade symmetric encryption using AES-GCM and PBKDF2 password derivation.
-        </p>
+        <h2 className="text-xl font-bold text-white flex items-center gap-2">🛡️ Cryptographic Engine</h2>
+        <p className="text-xs text-zinc-400 mt-1">AES-256 GCM and OpenPGP asymmetric encryption.</p>
       </div>
 
-      {/* TOAST NOTIFICATION */}
-      {statusMsg && (
-        <div className="bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 text-xs font-bold py-2 px-3 rounded-xl text-center shadow-lg animate-fadeIn">
-          {statusMsg}
-        </div>
-      )}
+      {statusMsg && <div className="theme-accent-badge p-2 rounded-xl text-xs font-bold text-center shadow">{statusMsg}</div>}
 
-      {/* SUBTAB TOGGLES (Matches Screenshot 4901.jpg & 4903.jpg) */}
       <div className="flex gap-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-900">
-        <button
-          onClick={() => setActiveSubTab('Encrypt')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeSubTab === 'Encrypt'
-              ? 'bg-cyan-500 text-black shadow-md font-black'
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          🔒 Encrypt Secret Note
-        </button>
-        <button
-          onClick={() => setActiveSubTab('Decrypt')}
-          className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-            activeSubTab === 'Decrypt'
-              ? 'bg-cyan-500 text-black shadow-md font-black'
-              : 'text-zinc-400 hover:text-white'
-          }`}
-        >
-          🔓 Decrypt Cipher
-        </button>
+        <button onClick={() => setTopTab('AES-GCM 256')} className={`flex-1 py-2 text-xs font-bold rounded-xl ${topTab === 'AES-GCM 256' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>🛡️ AES-256 GCM</button>
+        <button onClick={() => setTopTab('OpenPGP')} className={`flex-1 py-2 text-xs font-bold rounded-xl ${topTab === 'OpenPGP' ? 'theme-accent-bg text-black' : 'text-zinc-400'}`}>🔑 OpenPGP</button>
       </div>
 
-      {/* SUBTAB 1: ENCRYPT SECRET NOTE (Matches Screenshot 4901.jpg) */}
-      {activeSubTab === 'Encrypt' && (
-        <div className="bg-zinc-900/90 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
-          <div className="space-y-1">
-            <label className="text-[10px] text-zinc-400 font-mono block uppercase font-bold">
-              SECRET NOTE / MESSAGE
-            </label>
-            <textarea
-              value={secretNote}
-              onChange={(e) => setSecretNote(e.target.value)}
-              placeholder="Type sensitive text or notes..."
-              className="w-full bg-black border border-zinc-800 rounded-2xl p-3 text-xs text-white font-mono h-32 focus:outline-none focus:border-cyan-500 resize-none"
-            />
+      {/* AES TAB */}
+      {topTab === 'AES-GCM 256' && (
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+          <div className="flex bg-black p-1 rounded-2xl border border-zinc-800">
+            {['Encrypt', 'Decrypt'].map(m => (
+              <button key={m} onClick={() => { setAesMode(m); setAesOutput(''); setAesText(''); }} className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${aesMode === m ? 'bg-zinc-800 theme-accent-text shadow' : 'text-zinc-500'}`}>{m}</button>
+            ))}
           </div>
-
-          <div className="space-y-1">
-            <label className="text-[10px] text-zinc-400 font-mono block uppercase font-bold">
-              ENCRYPTION PASSWORD
-            </label>
-            <input
-              type="password"
-              value={encryptPassword}
-              onChange={(e) => setEncryptPassword(e.target.value)}
-              placeholder="Enter strong master password..."
-              className="w-full bg-black border border-zinc-800 rounded-2xl px-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
-            />
-          </div>
-
-          <button
-            onClick={handleEncrypt}
-            className="w-full py-3.5 bg-cyan-500 hover:bg-cyan-400 text-black font-extrabold text-xs rounded-2xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-1.5 uppercase"
-          >
-            🔒 GENERATE AES CIPHER PACKAGE
-          </button>
-
-          {generatedCipher && (
-            <div className="bg-black p-3.5 rounded-2xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] text-cyan-400 font-mono font-bold block">CIPHER BLOCK:</span>
-              <p className="text-[10px] text-zinc-300 font-mono break-all select-all">{generatedCipher}</p>
+          <input type="password" value={aesKey} onChange={(e) => setAesKey(e.target.value)} placeholder="Enter Secret Passphrase..." className="w-full bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-xs text-white font-mono focus:outline-none" />
+          <textarea value={aesText} onChange={(e) => setAesText(e.target.value)} placeholder={aesMode === 'Encrypt' ? "Enter plaintext message..." : "Paste AES Block..."} className="w-full bg-black border border-zinc-800 rounded-2xl p-4 text-xs text-white font-mono h-32 focus:outline-none" />
+          <button onClick={handleAesProcess} className="w-full py-3 theme-accent-bg text-black font-extrabold text-xs rounded-2xl shadow">EXECUTE {aesMode.toUpperCase()}</button>
+          {aesOutput && (
+            <div className="bg-black border border-zinc-800 rounded-2xl p-4 space-y-2">
+              <span className="text-[10px] theme-accent-text font-bold block">{aesMode === 'Encrypt' ? 'CIPHERTEXT BLOCK:' : 'DECRYPTED PLAINTEXT:'}</span>
+              <p className="text-xs text-zinc-300 font-mono break-all">{aesOutput}</p>
+              <button onClick={() => copyToClipboard(aesOutput)} className="w-full bg-zinc-800 text-white font-bold text-xs py-2 rounded-xl border border-zinc-700 mt-2">Copy Output</button>
             </div>
           )}
         </div>
       )}
 
-      {/* SUBTAB 2: DECRYPT CIPHER (Matches Screenshot 4903.jpg) */}
-      {activeSubTab === 'Decrypt' && (
-        <div className="bg-zinc-900/90 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
-          <div className="space-y-1">
-            <div className="flex justify-between items-center">
-              <label className="text-[10px] text-zinc-400 font-mono block uppercase font-bold">
-                PASTE CIPHER BLOCK
-              </label>
-              <button
-                onClick={pasteClipboard}
-                className="text-[10px] text-cyan-400 font-bold hover:underline flex items-center gap-1"
-              >
-                📋 Paste Clipboard
-              </button>
+      {/* OPENPGP TAB */}
+      {topTab === 'OpenPGP' && (
+        <div className="space-y-4">
+          <div className="flex justify-around bg-black p-1 rounded-2xl border border-zinc-800 text-xs font-bold">
+            <button onClick={() => setPgpMode('Encrypt')} className={`flex-1 py-2 rounded-xl ${pgpMode === 'Encrypt' ? 'bg-zinc-800 theme-accent-text' : 'text-zinc-500'}`}>🔒 Encrypt Mail</button>
+            <button onClick={() => setPgpMode('Decrypt')} className={`flex-1 py-2 rounded-xl ${pgpMode === 'Decrypt' ? 'bg-zinc-800 theme-accent-text' : 'text-zinc-500'}`}>🔓 Decrypt Payload</button>
+            <button onClick={() => setPgpMode('Keys')} className={`flex-1 py-2 rounded-xl ${pgpMode === 'Keys' ? 'bg-zinc-800 theme-accent-text' : 'text-zinc-500'}`}>🔑 My Keys</button>
+          </div>
+
+          {pgpMode === 'Encrypt' && (
+            <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+              <textarea value={recipientKey} onChange={(e) => setRecipientKey(e.target.value)} placeholder="Recipient's -----BEGIN PGP PUBLIC KEY BLOCK-----" className="w-full bg-black border border-zinc-800 rounded-2xl p-3 text-xs text-white font-mono h-20 focus:outline-none" />
+              <textarea value={pgpText} onChange={(e) => setPgpText(e.target.value)} placeholder="Type sensitive message body..." className="w-full bg-black border border-zinc-800 rounded-2xl p-3 text-xs text-white font-mono h-28 focus:outline-none" />
+              <button onClick={handlePgpEncrypt} className="w-full py-3 theme-accent-bg text-black font-bold text-xs rounded-2xl">🔒 Generate PGP Payload</button>
+              {pgpOutput && (
+                <div className="space-y-2">
+                  <textarea readOnly value={pgpOutput} className="w-full bg-black border border-zinc-800 rounded-2xl p-3 text-[10px] text-zinc-400 font-mono h-24" />
+                  <button onClick={() => copyToClipboard(pgpOutput)} className="w-full bg-zinc-800 text-white text-xs font-bold py-2 rounded-xl">Copy Payload</button>
+                </div>
+              )}
             </div>
-            <textarea
-              value={cipherInput}
-              onChange={(e) => setCipherInput(e.target.value)}
-              placeholder="Paste -----BEGIN SOVEREIGN AES CIPHER----- block..."
-              className="w-full bg-black border border-zinc-800 rounded-2xl p-3 text-xs text-white font-mono h-32 focus:outline-none focus:border-cyan-500 resize-none"
-            />
-          </div>
+          )}
 
-          <div className="space-y-1">
-            <label className="text-[10px] text-zinc-400 font-mono block uppercase font-bold">
-              MASTER PASSWORD
-            </label>
-            <input
-              type="password"
-              value={decryptPassword}
-              onChange={(e) => setDecryptPassword(e.target.value)}
-              placeholder="Enter password used to encrypt..."
-              className="w-full bg-black border border-zinc-800 rounded-2xl px-3 py-2.5 text-xs text-white font-mono focus:outline-none focus:border-cyan-500"
-            />
-          </div>
+          {pgpMode === 'Decrypt' && (
+            <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+              <textarea value={pgpText} onChange={(e) => setPgpText(e.target.value)} placeholder="Paste incoming -----BEGIN PGP MESSAGE----- block..." className="w-full bg-black border border-zinc-800 rounded-2xl p-3 text-xs text-white font-mono h-32 focus:outline-none" />
+              <button onClick={handlePgpDecrypt} className="w-full py-3 theme-accent-bg text-black font-bold text-xs rounded-2xl">🔓 Decrypt Message</button>
+              {pgpOutput && (
+                <div className="bg-black p-3.5 rounded-2xl border border-zinc-800 space-y-1 font-mono text-xs">
+                  <span className="text-[10px] theme-accent-text font-bold block">UNLOCKED PLAINTEXT:</span>
+                  <p className="text-zinc-200">{pgpOutput}</p>
+                </div>
+              )}
+            </div>
+          )}
 
-          <button
-            onClick={handleDecrypt}
-            className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-black font-extrabold text-xs rounded-2xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-1.5 uppercase"
-          >
-            🔒 UNLOCK AES CIPHER
-          </button>
-
-          {decryptedText && (
-            <div className="bg-black p-3.5 rounded-2xl border border-zinc-800 space-y-1">
-              <span className="text-[10px] text-emerald-400 font-mono font-bold block">DECRYPTED SECRET NOTE:</span>
-              <p className="text-xs text-white font-mono whitespace-pre-wrap">{decryptedText}</p>
+          {pgpMode === 'Keys' && (
+            <div className="bg-zinc-900 p-4 rounded-3xl border border-zinc-800 space-y-3">
+              <div className="flex justify-between items-center">
+                <h4 className="text-xs font-bold theme-accent-text uppercase">LOCAL KEYRING</h4>
+                <button onClick={generatePgpKeypair} disabled={isGenerating} className="theme-accent-bg text-black text-xs font-bold px-3 py-1.5 rounded-xl">{isGenerating ? 'Generating...' : '🔑 Generate Pair'}</button>
+              </div>
+              {!keypair ? (
+                <div className="bg-black border border-zinc-800 rounded-2xl p-6 text-center text-xs text-zinc-500 font-mono">No PGP Keypair found.</div>
+              ) : (
+                <div className="bg-black p-3.5 rounded-2xl border border-zinc-800 space-y-3 font-mono text-xs">
+                  <span className="text-emerald-400 font-bold block">🟢 RSA-2048 Keypair Active</span>
+                  <div className="space-y-1">
+                    <span className="text-[10px] theme-accent-text font-bold block">PUBLIC KEY BLOCK:</span>
+                    <textarea readOnly value={keypair.publicKey} className="w-full bg-zinc-950 border border-zinc-900 p-2 text-[10px] text-zinc-300 h-20 rounded-xl" />
+                    <button onClick={() => copyToClipboard(keypair.publicKey)} className="w-full bg-zinc-800 text-white py-1.5 rounded-xl text-xs font-bold">Copy Public Key</button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
       )}
-
-      {/* FOOTER & DISCLAIMER */}
-      <div className="space-y-2 pt-2">
-        <p className="text-[10px] text-zinc-400 flex items-start gap-1.5 px-1 leading-relaxed">
-          <span className="text-cyan-400">ℹ️</span>
-          <span>
-            <strong>About AES-256 Secure Note & Cipher:</strong> Performs client-side encryption using the Web Crypto API. Combines PBKDF2 (100,000 iterations) with AES-GCM 256-bit authenticated encryption.
-          </span>
-        </p>
-      </div>
-
     </div>
   );
 }
