@@ -15,17 +15,33 @@ body.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
 .theme-accent-text { color: var(--accent-text) !important; }
 .theme-accent-bg { background-color: var(--accent-bg) !important; color: #000 !important; }
 
-/* Dynamic Text Scaling */
 body.text-scale-Small { font-size: 0.85rem; }
 body.text-scale-Medium { font-size: 1rem; }
 body.text-scale-Large { font-size: 1.15rem; }
 
-/* Custom Main Picture Background */
+/* Sets background to black */
 body {
-  background-color: #000;
-  background-image: url('/background.jpg');
+  background-color: #000000; 
+}
+
+/* 
+   This class injects your app icon as a massive, faded, sleek 
+   watermark locked behind all components.
+   It looks for a file named "app_icon.png" in your public folder.
+*/
+.app-bg-watermark::before {
+  content: "";
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  width: 150vw; 
+  height: 150vh;
+  transform: translate(-50%, -50%);
+  background-image: url('/app_icon.png');
   background-size: cover;
   background-position: center;
-  background-attachment: fixed;
   background-repeat: no-repeat;
+  opacity: 0.05; /* Super subtle sleek fade */
+  z-index: 0;
+  pointer-events: none; /* Allows you to click tools on top of it */
 }

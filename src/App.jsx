@@ -26,11 +26,11 @@ function AppContent() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
   
-  // FIX: textSize and setTextSize are now correctly pulled from the global provider
   const { mode, accentColor, setAccentColor, setMode, textSize, setTextSize } = useSettings();
 
   useEffect(() => {
-    document.body.className = `theme-${accentColor} text-scale-${textSize}`;
+    // Inject the theme, text scale, and global background image class
+    document.body.className = `theme-${accentColor} text-scale-${textSize} app-bg-watermark`;
   }, [accentColor, textSize]);
 
   const navigateTo = (screen) => {
@@ -38,17 +38,30 @@ function AppContent() {
     window.scrollTo(0, 0);
   };
 
-  const handleLock = () => {
-    setIsLocked(true);
-    setCurrentScreen('home');
-  };
-
   if (isLocked) {
     return <LockScreen onUnlock={() => setIsLocked(false)} />;
   }
 
+  // Filter bottom dock icons based on mode
+  const allDockTabs = [
+    { id: 'home', label: 'Home', icon: '🏠', reqExpert: false },
+    { id: 'camera', label: 'Camera', icon: '📷', reqExpert: false },
+    { id: 'gallery', label: 'Gallery', icon: '🖼️', reqExpert: false },
+    { id: 'vault', label: 'Vault', icon: '🔐', reqExpert: false },
+    { id: 'comms', label: 'Comms', icon: '📡', reqExpert: true },
+    { id: 'docs', label: 'Docs', icon: '📝', reqExpert: false },
+    { id: 'fileviewer', label: 'Files', icon: '📂', reqExpert: false },
+    { id: 'audio', label: 'Audio', icon: '🎵', reqExpert: false },
+    { id: 'calc', label: 'Calc', icon: '🧮', reqExpert: false },
+    { id: 'calendar', label: 'Calendar', icon: '📅', reqExpert: false },
+    { id: 'ai', label: 'AI', icon: '🤖', reqExpert: true },
+    { id: 'netsec', label: 'NetSec', icon: '🌐', reqExpert: true }
+  ];
+  
+  const activeDockTabs = mode === 'EXPERT' ? allDockTabs : allDockTabs.filter(t => !t.reqExpert);
+
   return (
-    <div className="min-h-screen bg-black/80 text-white font-sans select-none pb-24 relative">
+    <div className="min-h-screen text-white font-sans select-none pb-24 relative z-10">
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <h1 className="text-sm font-black tracking-widest text-white uppercase">SOVEREIGN TOOLS</h1>
@@ -58,7 +71,7 @@ function AppContent() {
           <button onClick={() => setShowSettings(true)} className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
             <span className="text-sm">⚙️</span> Settings
           </button>
-          <button onClick={handleLock} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
+          <button onClick={() => { setIsLocked(true); setCurrentScreen('home'); }} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
             <span className="text-sm">🔒</span> Lock
           </button>
         </div>
@@ -82,37 +95,12 @@ function AppContent() {
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
       {showSettings && (
-        <Settings 
-          closeSettings={() => setShowSettings(false)} 
-          appMode={mode} 
-          setAppMode={setMode} 
-          accentColor={accentColor} 
-          setAccentColor={setAccentColor}
-          textSize={textSize}
-          setTextSize={setTextSize}
-        />
+        <Settings closeSettings={() => setShowSettings(false)} appMode={mode} setAppMode={setMode} accentColor={accentColor} setAccentColor={setAccentColor} textSize={textSize} setTextSize={setTextSize} />
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-zinc-900 p-2 flex justify-around items-center z-40 overflow-x-auto no-scrollbar">
-        {[
-          { id: 'home', label: 'Home', icon: '🏠' },
-          { id: 'camera', label: 'Camera', icon: '📷' },
-          { id: 'gallery', label: 'Gallery', icon: '🖼️' },
-          { id: 'vault', label: 'Vault', icon: '🔐' },
-          { id: 'comms', label: 'Comms', icon: '📡' },
-          { id: 'docs', label: 'Docs', icon: '📝' },
-          { id: 'fileviewer', label: 'Files', icon: '📂' },
-          { id: 'audio', label: 'Audio', icon: '🎵' },
-          { id: 'calc', label: 'Calc', icon: '🧮' },
-          { id: 'calendar', label: 'Calendar', icon: '📅' },
-          { id: 'ai', label: 'AI', icon: '🤖' },
-          { id: 'netsec', label: 'NetSec', icon: '🌐' }
-        ].map(tab => (
-          <button 
-            key={tab.id} 
-            onClick={() => navigateTo(tab.id)} 
-            className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}
-          >
+      <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-zinc-900 p-2 flex justify-start gap-4 items-center z-40 overflow-x-auto no-scrollbar px-4">
+        {activeDockTabs.map(tab => (
+          <button key={tab.id} onClick={() => navigateTo(tab.id)} className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}>
             <span className="text-lg">{tab.icon}</span>
             <span className="text-[9px] tracking-wider mt-0.5">{tab.label}</span>
           </button>
