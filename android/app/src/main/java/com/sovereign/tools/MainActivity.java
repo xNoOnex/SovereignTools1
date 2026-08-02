@@ -9,6 +9,8 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
 import android.view.WindowManager;
+import android.webkit.PermissionRequest;
+import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -22,10 +24,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // Keep app awake during audio playback execution
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
 
-        // 1. Trigger All Files Access Permission on Startup
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 try {
@@ -40,7 +40,6 @@ public class MainActivity extends BridgeActivity {
             }
         }
 
-        // 2. Trigger Camera & Microphone Permissions on Startup
         String[] permissions = {
             Manifest.permission.CAMERA,
             Manifest.permission.RECORD_AUDIO,
@@ -68,8 +67,14 @@ public class MainActivity extends BridgeActivity {
             webView.getSettings().setMediaPlaybackRequiresUserGesture(false);
             webView.getSettings().setAllowFileAccess(true);
             webView.getSettings().setAllowContentAccess(true);
-            webView.getSettings().setAllowFileAccessFromFileURLs(true);
-            webView.getSettings().setAllowUniversalAccessFromFileURLs(true);
+            
+            // GRANT WEBVIEW CAMERA & MICROPHONE PERMISSIONS AUTOMATICALLY
+            webView.setWebChromeClient(new WebChromeClient() {
+                @Override
+                public void onPermissionRequest(final PermissionRequest request) {
+                    request.grant(request.getResources());
+                }
+            });
         }
     }
 }

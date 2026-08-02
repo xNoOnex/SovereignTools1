@@ -11,6 +11,7 @@ export function SettingsProvider({ children }) {
   const [autoDeleteDays, setAutoDeleteDays] = useState(() => Number(localStorage.getItem('sovereign_autodelete_days')) || 15);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Apply CSS Variables on Root whenever settings change
   useEffect(() => {
     localStorage.setItem('sovereign_app_pin', pin);
     localStorage.setItem('sovereign_app_mode', mode);
@@ -18,33 +19,44 @@ export function SettingsProvider({ children }) {
     localStorage.setItem('sovereign_theme_color', themeColor);
     localStorage.setItem('sovereign_autodelete_enabled', String(autoDeleteEnabled));
     localStorage.setItem('sovereign_autodelete_days', String(autoDeleteDays));
+
+    const root = document.documentElement;
+
+    // Font Scaling
+    if (fontSize === 'small') root.style.fontSize = '13px';
+    else if (fontSize === 'large') root.style.fontSize = '17px';
+    else root.style.fontSize = '15px';
+
+    // Theme Color Palettes
+    if (themeColor === 'amber') {
+      root.style.setProperty('--accent-color', '#f59e0b');
+      root.style.setProperty('--accent-text', '#fbbf24');
+      root.style.setProperty('--accent-bg-subtle', 'rgba(245, 158, 11, 0.15)');
+      root.style.setProperty('--accent-border', 'rgba(245, 158, 11, 0.4)');
+    } else if (themeColor === 'emerald') {
+      root.style.setProperty('--accent-color', '#10b981');
+      root.style.setProperty('--accent-text', '#34d399');
+      root.style.setProperty('--accent-bg-subtle', 'rgba(16, 185, 129, 0.15)');
+      root.style.setProperty('--accent-border', 'rgba(16, 185, 129, 0.4)');
+    } else if (themeColor === 'purple') {
+      root.style.setProperty('--accent-color', '#a855f7');
+      root.style.setProperty('--accent-text', '#c084fc');
+      root.style.setProperty('--accent-bg-subtle', 'rgba(168, 85, 247, 0.15)');
+      root.style.setProperty('--accent-border', 'rgba(168, 85, 247, 0.4)');
+    } else {
+      root.style.setProperty('--accent-color', '#06b6d4');
+      root.style.setProperty('--accent-text', '#22d3ee');
+      root.style.setProperty('--accent-bg-subtle', 'rgba(6, 182, 212, 0.15)');
+      root.style.setProperty('--accent-border', 'rgba(6, 182, 212, 0.4)');
+    }
   }, [pin, mode, fontSize, themeColor, autoDeleteEnabled, autoDeleteDays]);
-
-  // Theme Color Utility Classes
-  const themeClasses = {
-    cyan: { text: 'text-cyan-400', bg: 'bg-cyan-500', border: 'border-cyan-500', badge: 'bg-cyan-950 text-cyan-400 border-cyan-800' },
-    amber: { text: 'text-amber-400', bg: 'bg-amber-500', border: 'border-amber-500', badge: 'bg-amber-950 text-amber-400 border-amber-800' },
-    emerald: { text: 'text-emerald-400', bg: 'bg-emerald-500', border: 'border-emerald-500', badge: 'bg-emerald-950 text-emerald-400 border-emerald-800' },
-    purple: { text: 'text-purple-400', bg: 'bg-purple-500', border: 'border-purple-500', badge: 'bg-purple-950 text-purple-400 border-purple-800' }
-  };
-
-  const currentTheme = themeClasses[themeColor] || themeClasses.cyan;
-
-  // Font Scaling Utility Classes
-  const fontClasses = {
-    small: 'text-[11px] leading-snug',
-    medium: 'text-xs leading-normal',
-    large: 'text-sm leading-relaxed'
-  };
-
-  const currentFont = fontClasses[fontSize] || fontClasses.medium;
 
   return (
     <SettingsContext.Provider value={{
       pin, setPin,
       mode, setMode,
-      fontSize, setFontSize, currentFont,
-      themeColor, setThemeColor, currentTheme,
+      fontSize, setFontSize,
+      themeColor, setThemeColor,
       autoDeleteEnabled, setAutoDeleteEnabled,
       autoDeleteDays, setAutoDeleteDays,
       isSettingsOpen, setIsSettingsOpen

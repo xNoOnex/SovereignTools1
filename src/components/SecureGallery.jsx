@@ -1,12 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useStorage } from '../context/StorageContext';
-import { useSettings } from '../context/SettingsContext';
 
 export function SecureGallery({ onNavigate }) {
   const { indexedFiles, isScanning, runGlobalScan, removeFileFromState } = useStorage();
-  const { currentTheme } = useSettings();
-  
   const [activeTab, setActiveTab] = useState('All');
   const [previewIndex, setPreviewIndex] = useState(null);
   const [statusMsg, setStatusMsg] = useState('');
@@ -40,10 +37,7 @@ export function SecureGallery({ onNavigate }) {
   const nukeFile = async (filePath, e) => {
     if (e) e.stopPropagation();
     try {
-      await Filesystem.deleteFile({
-        path: filePath,
-        directory: Directory.ExternalStorage
-      });
+      await Filesystem.deleteFile({ path: filePath, directory: Directory.ExternalStorage });
       removeFileFromState(filePath);
       setPreviewIndex(null);
       setStatusMsg('☣️ File permanently nuked');
@@ -65,13 +59,13 @@ export function SecureGallery({ onNavigate }) {
           <h2 className="text-xl font-bold text-white flex items-center gap-2">🖼️ Secure Gallery</h2>
           <p className="text-xs text-zinc-400 mt-0.5">Local catalog ({mediaFiles.length} items)</p>
         </div>
-        <button onClick={runGlobalScan} disabled={isScanning} className={`border text-xs px-3 py-1.5 rounded-xl font-bold shadow ${currentTheme.badge}`}>
+        <button onClick={runGlobalScan} disabled={isScanning} className="theme-accent-badge border text-xs px-3 py-1.5 rounded-xl font-bold shadow">
           {isScanning ? 'Scanning...' : 'Refresh'}
         </button>
       </div>
 
       {statusMsg && (
-        <div className={`p-2 rounded-xl text-xs font-bold text-center shadow ${currentTheme.badge}`}>
+        <div className="theme-accent-badge p-2 rounded-xl text-xs font-bold text-center shadow">
           {statusMsg}
         </div>
       )}
@@ -83,7 +77,7 @@ export function SecureGallery({ onNavigate }) {
             key={cat}
             onClick={() => setActiveTab(cat)}
             className={`py-1.5 px-3 text-xs font-bold rounded-xl transition-all shrink-0 ${
-              activeTab === cat ? `${currentTheme.bg} text-black shadow scale-105` : 'text-zinc-400 hover:text-white'
+              activeTab === cat ? 'theme-accent-bg text-black shadow scale-105' : 'text-zinc-400 hover:text-white'
             }`}
           >
             {cat}
@@ -125,63 +119,42 @@ export function SecureGallery({ onNavigate }) {
         )}
       </div>
 
-      {/* TRUE EDGE-TO-EDGE FULLSCREEN LIGHTBOX MODAL */}
+      {/* LIGHTBOX WITH UNOBSTRUCTED MEDIA & VIDEO CONTROLS */}
       {currentPreviewItem && (
-        <div className="fixed inset-0 bg-black z-50 flex items-center justify-center select-none overflow-hidden animate-fadeIn">
+        <div className="fixed inset-0 bg-black z-50 flex flex-col justify-between items-center p-4 select-none animate-fadeIn">
           
-          {/* FLOATING HEADER CONTROLS OVERLAY */}
-          <div className="absolute top-4 left-4 right-4 z-30 flex justify-between items-center bg-black/60 backdrop-blur-md border border-zinc-800 p-2.5 rounded-2xl shadow-2xl">
-            <span className="text-xs font-mono text-white truncate max-w-[200px] font-bold">
+          {/* FLOATING TOP BAR */}
+          <div className="w-full flex justify-between items-center bg-zinc-900/90 border border-zinc-800 p-3 rounded-2xl shadow-2xl z-30 shrink-0">
+            <span className="text-xs font-mono text-white truncate max-w-[220px] font-bold">
               [{previewIndex + 1}/{displayedFiles.length}] {currentPreviewItem.name}
             </span>
-            <button 
-              onClick={() => setPreviewIndex(null)} 
-              className="bg-zinc-800 text-white text-sm font-bold w-8 h-8 rounded-full flex items-center justify-center border border-zinc-700 active:scale-90"
-            >
-              ✕
+            <button onClick={() => setPreviewIndex(null)} className="bg-zinc-800 text-white text-xs font-bold px-3 py-1.5 rounded-xl border border-zinc-700">
+              ✕ Close
             </button>
           </div>
 
-          {/* PREV BUTTON */}
-          <button
-            onClick={prevPreview}
-            className="absolute left-3 z-30 bg-black/70 text-white w-12 h-12 rounded-full border border-zinc-700 text-xl font-bold flex items-center justify-center shadow-2xl active:scale-90"
-          >
-            ◀
-          </button>
+          {/* MAIN VIEWPORT WITH PADDED BOTTOM FOR VIDEO SCRUBBER */}
+          <div className="flex-1 w-full max-w-lg flex items-center justify-between relative my-2 overflow-hidden pb-16">
+            <button onClick={prevPreview} className="absolute left-2 z-30 bg-black/80 text-white w-10 h-10 rounded-full border border-zinc-700 text-lg font-bold flex items-center justify-center shadow-2xl">
+              ◀
+            </button>
 
-          {/* FULLSCREEN IMAGE / VIDEO DISPLAY */}
-          <div className="w-screen h-screen flex items-center justify-center bg-black p-0 m-0">
-            {!videoExts.includes(currentPreviewItem.ext) ? (
-              <img 
-                src={currentPreviewItem.src} 
-                alt={currentPreviewItem.name} 
-                className="w-full h-full object-contain" 
-              />
-            ) : (
-              <video 
-                src={currentPreviewItem.src} 
-                controls 
-                autoPlay 
-                className="w-full h-full object-contain" 
-              />
-            )}
+            <div className="w-full h-full flex items-center justify-center">
+              {!videoExts.includes(currentPreviewItem.ext) ? (
+                <img src={currentPreviewItem.src} alt={currentPreviewItem.name} className="max-h-full max-w-full object-contain rounded-2xl" />
+              ) : (
+                <video src={currentPreviewItem.src} controls autoPlay className="max-h-full max-w-full rounded-2xl z-20" />
+              )}
+            </div>
+
+            <button onClick={nextPreview} className="absolute right-2 z-30 bg-black/80 text-white w-10 h-10 rounded-full border border-zinc-700 text-lg font-bold flex items-center justify-center shadow-2xl">
+              ▶
+            </button>
           </div>
 
-          {/* NEXT BUTTON */}
-          <button
-            onClick={nextPreview}
-            className="absolute right-3 z-30 bg-black/70 text-white w-12 h-12 rounded-full border border-zinc-700 text-xl font-bold flex items-center justify-center shadow-2xl active:scale-90"
-          >
-            ▶
-          </button>
-
-          {/* FLOATING FOOTER NUKE BUTTON */}
-          <div className="absolute bottom-6 left-6 right-6 z-30">
-            <button
-              onClick={(e) => nukeFile(currentPreviewItem.path, e)}
-              className="w-full bg-red-600/90 hover:bg-red-600 text-white font-bold text-xs py-3 rounded-2xl border border-red-500 shadow-2xl active:scale-95 transition-transform flex items-center justify-center gap-2"
-            >
+          {/* BOTTOM BAR ANCHORED Safely BELOW MEDIA PLAYER */}
+          <div className="w-full max-w-lg shrink-0 z-30 pb-2">
+            <button onClick={(e) => nukeFile(currentPreviewItem.path, e)} className="w-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs py-3 rounded-2xl border border-red-500 shadow-2xl flex items-center justify-center gap-2">
               <span>☣️</span> NUKE PERMANENTLY
             </button>
           </div>
