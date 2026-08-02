@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 
 const StorageContext = createContext();
 
@@ -12,10 +13,9 @@ export function StorageProvider({ children }) {
     try {
       let filesFound = [];
 
-      // 1. Instantly load Sovereign Custom Gallery items
+      // 1. Load custom gallery items (Already base64/safe data URLs)
       const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
       filesFound.push(...customGallery);
-      setIndexedFiles([...filesFound]); 
 
       // 2. Recursive Deep Scanner
       const scanDir = async (path, maxDepth, currentDepth = 0) => {
@@ -26,26 +26,30 @@ export function StorageProvider({ children }) {
             const fullPath = path ? `${path}/${f.name}` : f.name;
             
             if (f.type === 'directory') {
-               // Skip heavy/hidden OS folders to prevent RAM crashes
+               // Skip heavy/hidden OS folders to prevent crashes
                if (f.name === 'Android' || f.name.startsWith('.')) continue;
                await scanDir(fullPath, maxDepth, currentDepth + 1);
             } else {
                const ext = f.name.includes('.') ? f.name.split('.').pop().toLowerCase() : 'file';
+               
+               // FIX: Convert raw file path to secure Capacitor WebView URL
+               const rawPath = `file:///storage/emulated/0/${fullPath}`;
+               const safeSrc = Capacitor.convertFileSrc(rawPath);
+
                filesFound.push({
                  name: f.name,
                  path: fullPath,
-                 src: `file:///storage/emulated/0/${fullPath}`,
+                 src: safeSrc,
                  ext
                });
             }
           }
-        } catch (e) {} // Skip unreadable folders
+        } catch (e) {}
       };
 
-      // Crawl entire External Storage up to 4 folders deep
       await scanDir('', 4);
 
-      // Deduplicate files by path to prevent UI glitches
+      // Deduplicate files by path
       const uniqueFiles = Array.from(new Map(filesFound.map(item => [item.path, item])).values());
       setIndexedFiles(uniqueFiles);
     } catch (e) {}
