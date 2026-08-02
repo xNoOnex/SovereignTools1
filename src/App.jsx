@@ -28,9 +28,10 @@ function AppContent() {
   
   const { mode, accentColor, setAccentColor, setMode, textSize, setTextSize } = useSettings();
 
+  // FIX: Force React to physically update the root HTML tag for true CSS scaling
   useEffect(() => {
-    // Inject the theme, text scale, and global background image class
-    document.body.className = `theme-${accentColor} text-scale-${textSize} app-bg-watermark`;
+    document.documentElement.className = `theme-${accentColor} text-scale-${textSize}`;
+    document.body.className = 'app-bg-watermark';
   }, [accentColor, textSize]);
 
   const navigateTo = (screen) => {
@@ -42,7 +43,6 @@ function AppContent() {
     return <LockScreen onUnlock={() => setIsLocked(false)} />;
   }
 
-  // Filter bottom dock icons based on mode
   const allDockTabs = [
     { id: 'home', label: 'Home', icon: '🏠', reqExpert: false },
     { id: 'camera', label: 'Camera', icon: '📷', reqExpert: false },

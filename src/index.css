@@ -7,27 +7,28 @@
   --accent-bg: #22d3ee;
 }
 
-body.theme-cyan { --accent-text: #22d3ee; --accent-bg: #22d3ee; }
-body.theme-amber { --accent-text: #fbbf24; --accent-bg: #fbbf24; }
-body.theme-matrix { --accent-text: #4ade80; --accent-bg: #4ade80; }
-body.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
+html.theme-cyan { --accent-text: #22d3ee; --accent-bg: #22d3ee; }
+html.theme-amber { --accent-text: #fbbf24; --accent-bg: #fbbf24; }
+html.theme-matrix { --accent-text: #4ade80; --accent-bg: #4ade80; }
+html.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
 
 .theme-accent-text { color: var(--accent-text) !important; }
 .theme-accent-bg { background-color: var(--accent-bg) !important; color: #000 !important; }
 
-body.text-scale-Small { font-size: 0.85rem; }
-body.text-scale-Medium { font-size: 1rem; }
-body.text-scale-Large { font-size: 1.15rem; }
+/* FIX: CSS Variables applied to html tag so React instantly scales */
+html.text-scale-Small { font-size: 14px; }
+html.text-scale-Medium { font-size: 16px; }
+html.text-scale-Large { font-size: 18px; }
 
-/* Sets background to black */
 body {
   background-color: #000000; 
+  margin: 0;
+  padding: 0;
 }
 
 /* 
-   This class injects your app icon as a massive, faded, sleek 
-   watermark locked behind all components.
-   It looks for a file named "app_icon.jpg" in your public folder.
+   Ensure your image in the /public folder is named exactly "Appicon.jpg" 
+   for this to display across the entire app interface.
 */
 .app-bg-watermark::before {
   content: "";
@@ -37,11 +38,11 @@ body {
   width: 150vw; 
   height: 150vh;
   transform: translate(-50%, -50%);
-  background-image: url('/app_icon.jpg');
+  background-image: url('/Appicon.jpg');
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-  opacity: 0.05; /* Super subtle sleek fade */
+  opacity: 0.04; 
   z-index: 0;
-  pointer-events: none; /* Allows you to click tools on top of it */
+  pointer-events: none; 
 }
