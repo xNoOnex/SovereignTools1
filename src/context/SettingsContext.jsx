@@ -4,9 +4,9 @@ const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
   const [pin, setPin] = useState(() => localStorage.getItem('sovereign_app_pin') || '1234');
-  const [mode, setMode] = useState(() => localStorage.getItem('sovereign_app_mode') || 'expert'); // 'expert' | 'easy'
-  const [fontSize, setFontSize] = useState(() => localStorage.getItem('sovereign_font_size') || 'medium'); // 'small' | 'medium' | 'large'
-  const [themeColor, setThemeColor] = useState(() => localStorage.getItem('sovereign_theme_color') || 'cyan'); // 'cyan' | 'amber' | 'emerald' | 'purple'
+  const [mode, setMode] = useState(() => localStorage.getItem('sovereign_app_mode') || 'easy'); // Default set to 'easy'
+  const [fontSize, setFontSize] = useState(() => localStorage.getItem('sovereign_font_size') || 'medium');
+  const [themeColor, setThemeColor] = useState(() => localStorage.getItem('sovereign_theme_color') || 'cyan');
   const [autoDeleteEnabled, setAutoDeleteEnabled] = useState(() => localStorage.getItem('sovereign_autodelete_enabled') === 'true');
   const [autoDeleteDays, setAutoDeleteDays] = useState(() => Number(localStorage.getItem('sovereign_autodelete_days')) || 15);
   
