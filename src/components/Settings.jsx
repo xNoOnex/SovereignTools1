@@ -1,227 +1,118 @@
-import React, { useState, useEffect } from 'react';
-import { ToolFooter } from './ToolFooter';
+import React, { useState } from 'react';
 
-export function Settings({ onLock }) {
-  const [pin, setPin] = useState(localStorage.getItem('sovereign_pin') || '1234');
-  const [newPin, setNewPin] = useState('');
-  const [confirmPin, setConfirmPin] = useState('');
-  const [appMode, setAppMode] = useState(localStorage.getItem('sovereign_mode') || 'expert');
-  const [proxyType, setProxyType] = useState(localStorage.getItem('sovereign_proxy_type') || 'direct');
-  
-  const [proxyHost, setProxyHost] = useState(localStorage.getItem('sovereign_proxy_host') || '127.0.0.1');
-  const [proxyPort, setProxyPort] = useState(localStorage.getItem('sovereign_proxy_port') || '9050');
-  
-  const [statusMsg, setStatusMsg] = useState('');
+export function Settings({ closeSettings, appMode, setAppMode, accentColor, setAccentColor }) {
+  const [pin, setPin] = useState(localStorage.getItem('sovereign_pin') || '');
+  const [saveMsg, setSaveMsg] = useState('');
 
-  const handlePinUpdate = (e) => {
-    e.preventDefault();
-    if (newPin.length !== 4 || isNaN(newPin)) {
-      setStatusMsg('⚠️ PIN must be exactly 4 digits');
-      return;
+  // Fetch true WASM Engine status
+  const aiCached = localStorage.getItem('sovereign_ai_cached') === 'true';
+  const aiModel = localStorage.getItem('sovereign_ai_model') || 'None';
+
+  const handleSavePin = () => {
+    if (pin.length < 4) {
+      setSaveMsg('❌ PIN must be at least 4 chars.');
+    } else {
+      localStorage.setItem('sovereign_pin', pin);
+      setSaveMsg('✅ PIN Saved');
     }
-    if (newPin !== confirmPin) {
-      setStatusMsg('⚠️ PINs do not match');
-      return;
-    }
-
-    localStorage.setItem('sovereign_pin', newPin);
-    setPin(newPin);
-    setNewPin('');
-    setConfirmPin('');
-    setStatusMsg('✅ Lock PIN updated successfully!');
-    setTimeout(() => setStatusMsg(''), 2500);
-  };
-
-  const handleModeChange = (mode) => {
-    setAppMode(mode);
-    localStorage.setItem('sovereign_mode', mode);
-    setStatusMsg(`⚙️ Switched to ${mode.toUpperCase()} Mode`);
-    setTimeout(() => setStatusMsg(''), 2000);
-  };
-
-  const applyNetworkProxy = (type, host, port) => {
-    setProxyType(type);
-    localStorage.setItem('sovereign_proxy_type', type);
-    localStorage.setItem('sovereign_proxy_host', host);
-    localStorage.setItem('sovereign_proxy_port', port);
-
-    if (window.AndroidNative && window.AndroidNative.setNetworkProxy) {
-      if (type === 'tor' || type === 'socks') {
-        window.AndroidNative.setNetworkProxy('socks', host, parseInt(port) || 9050);
-      } else {
-        window.AndroidNative.setNetworkProxy('direct', '', 0);
-      }
-    }
-
-    setStatusMsg(type === 'direct' ? '⚡ Native Zero-Telemetry Mode Active' : `🧅 Custom SOCKS5 Tunnel Active: ${host}:${port}`);
-    setTimeout(() => setStatusMsg(''), 2500);
+    setTimeout(() => setSaveMsg(''), 2000);
   };
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none">
-      <div className="border-b border-zinc-800 pb-3 flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            ⚙️ App Settings & Security
-          </h2>
-          <p className="text-xs text-zinc-400 mt-1">
-            Configure lock PIN, UI complexity, and custom network proxies.
-          </p>
-        </div>
+    <div className="fixed inset-0 bg-black z-50 flex flex-col font-sans select-none overflow-y-auto pb-8">
+      
+      <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black sticky top-0 z-10">
+        <h2 className="text-lg font-black tracking-widest text-white flex items-center gap-2">
+          ⚙️ SOVEREIGN SETTINGS
+        </h2>
+        <button onClick={closeSettings} className="p-2 text-zinc-400 hover:text-white">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
 
-      {statusMsg && (
-        <div className="bg-cyan-950/90 border border-cyan-500/50 text-cyan-300 text-xs font-bold py-2 px-3 rounded-xl text-center">
-          {statusMsg}
-        </div>
-      )}
-
-      {/* NETWORK PRIVACY ENGINE WITH CUSTOM SOCKS CONFIGURATION */}
-      <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
-        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center gap-1.5">
-          <span>🌐 Network Privacy Engine</span>
-        </h3>
+      <div className="p-5 space-y-6">
         
-        <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-          <button
-            onClick={() => applyNetworkProxy('direct', '', 0)}
-            className={`p-3 rounded-xl border transition-all text-left space-y-1 ${
-              proxyType === 'direct' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-black border-zinc-800 text-zinc-400'
-            }`}
-          >
-            <div className="text-sm font-black">⚡ Automatic Built-In</div>
-            <div className="text-[9px] text-zinc-400 font-sans font-normal">
-              100% Plug & Play. Strips headers natively with zero setup.
-            </div>
-          </button>
-
-          <button
-            onClick={() => applyNetworkProxy('socks', proxyHost, proxyPort)}
-            className={`p-3 rounded-xl border transition-all text-left space-y-1 ${
-              proxyType !== 'direct' ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200' : 'bg-black border-zinc-800 text-zinc-400'
-            }`}
-          >
-            <div className="text-sm font-black">🧅 Custom SOCKS5 Proxy</div>
-            <div className="text-[9px] text-zinc-400 font-sans font-normal">
-              Manual proxy tunnel for power users running local SOCKS5 daemons.
-            </div>
-          </button>
-        </div>
-
-        {/* CUSTOM PROXY INPUT FORM */}
-        {proxyType !== 'direct' && (
-          <div className="bg-black p-3 rounded-xl border border-cyan-500/30 space-y-3 font-mono text-xs mt-2">
-            <div className="text-cyan-400 font-bold text-[10px] uppercase">🛠️ SOCKS5 Tunnel Configuration</div>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[9px] text-zinc-400">PROXY HOST / IP</label>
-                <input
-                  type="text"
-                  value={proxyHost}
-                  onChange={e => setProxyHost(e.target.value)}
-                  placeholder="127.0.0.1"
-                  className="w-full bg-zinc-900 border border-zinc-800 text-white p-2 rounded-lg text-xs mt-1 font-mono focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-              <div>
-                <label className="text-[9px] text-zinc-400">PROXY PORT</label>
-                <input
-                  type="text"
-                  value={proxyPort}
-                  onChange={e => setProxyPort(e.target.value)}
-                  placeholder="9050"
-                  className="w-full bg-zinc-900 border border-zinc-800 text-white p-2 rounded-lg text-xs mt-1 font-mono focus:outline-none focus:border-cyan-500"
-                />
-              </div>
-            </div>
-            <button
-              onClick={() => applyNetworkProxy('socks', proxyHost, proxyPort)}
-              className="w-full py-2 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-lg"
+        {/* APP OPERATION MODE */}
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+          <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
+            ⚙️ APP OPERATION MODE
+          </h3>
+          <p className="text-xs text-zinc-400">Easy mode hides advanced security tools (Debloat, Comms, Shredder, NetSec, AES).</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              onClick={() => { setAppMode('EXPERT'); localStorage.setItem('sovereign_mode', 'EXPERT'); }}
+              className={`py-3 rounded-2xl text-xs font-black tracking-wide shadow ${appMode === 'EXPERT' ? 'theme-accent-bg text-black' : 'bg-black border border-zinc-800 text-zinc-500'}`}
             >
-              Apply Custom Proxy Configuration
+              ⚡ EXPERT MODE
+            </button>
+            <button 
+              onClick={() => { setAppMode('EASY'); localStorage.setItem('sovereign_mode', 'EASY'); }}
+              className={`py-3 rounded-2xl text-xs font-black tracking-wide shadow ${appMode === 'EASY' ? 'bg-emerald-500 text-black' : 'bg-black border border-zinc-800 text-zinc-500'}`}
+            >
+              🌿 EASY MODE
             </button>
           </div>
-        )}
-      </div>
-
-      {/* SECURITY PIN MANAGEMENT */}
-      <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-3">
-        <h3 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-          🔒 Security PIN Settings
-        </h3>
-
-        <form onSubmit={handlePinUpdate} className="space-y-3">
-          <div>
-            <label className="text-[10px] font-mono text-zinc-400 uppercase">Current 4-Digit PIN</label>
-            <div className="bg-black p-2.5 rounded-xl border border-zinc-800 text-xs font-mono text-white mt-1">
-              {pin}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-[10px] font-mono text-zinc-400 uppercase">New 4-Digit PIN</label>
-              <input
-                type="password"
-                maxLength={4}
-                value={newPin}
-                onChange={e => setNewPin(e.target.value)}
-                placeholder="e.g. 8842"
-                className="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-mono mt-1 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-            <div>
-              <label className="text-[10px] font-mono text-zinc-400 uppercase">Confirm New PIN</label>
-              <input
-                type="password"
-                maxLength={4}
-                value={confirmPin}
-                onChange={e => setConfirmPin(e.target.value)}
-                placeholder="Re-enter..."
-                className="w-full bg-black border border-zinc-800 rounded-xl p-2.5 text-xs text-white font-mono mt-1 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-black font-bold text-xs rounded-xl shadow"
-          >
-            Update Lock PIN
-          </button>
-        </form>
-      </div>
-
-      {/* UI MODE SELECTION */}
-      <div className="bg-zinc-900/90 p-4 rounded-2xl border border-zinc-800 space-y-2">
-        <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
-          🎛️ UI Complexity Mode
-        </h3>
-        <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-          <button
-            onClick={() => handleModeChange('simple')}
-            className={`py-2.5 rounded-xl border transition-all ${
-              appMode === 'simple' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-black text-zinc-400 border-zinc-800'
-            }`}
-          >
-            🌱 Simple Mode
-          </button>
-          <button
-            onClick={() => handleModeChange('expert')}
-            className={`py-2.5 rounded-xl border transition-all ${
-              appMode === 'expert' ? 'bg-cyan-500 text-black border-cyan-400' : 'bg-black text-zinc-400 border-zinc-800'
-            }`}
-          >
-            ⚡ Expert Mode
-          </button>
         </div>
-      </div>
 
-      <ToolFooter
-        title="Settings & Local Configuration"
-        details="Sovereign Tools stores all configuration keys in isolated device local storage."
-        disclaimer="Zero cloud syncing • Zero analytics telemetry"
-      />
+        {/* SECURITY PIN */}
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl">
+          <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
+            🔒 SECURITY ACCESS PIN
+          </h3>
+          <div className="flex gap-2">
+            <input 
+              type="password" 
+              value={pin} 
+              onChange={(e) => setPin(e.target.value)} 
+              placeholder="Enter numerical PIN..."
+              className="flex-1 bg-black border border-zinc-800 rounded-2xl px-4 py-3 text-lg tracking-widest text-white font-mono focus:outline-none focus:border-zinc-600"
+            />
+            <button onClick={handleSavePin} className="theme-accent-bg text-black font-bold px-4 py-3 rounded-2xl text-sm shadow">
+              Save PIN
+            </button>
+          </div>
+          {saveMsg && <p className={`text-xs font-bold ${saveMsg.includes('❌') ? 'text-red-400' : 'text-emerald-400'}`}>{saveMsg}</p>}
+        </div>
+
+        {/* ACCENT COLOR */}
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+          <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
+            🎨 ACCENT COLOR PROFILE
+          </h3>
+          <div className="grid grid-cols-4 gap-2">
+            {['cyan', 'amber', 'matrix', 'onion'].map(color => (
+              <button 
+                key={color}
+                onClick={() => { setAccentColor(color); localStorage.setItem('sovereign_accent', color); }}
+                className={`py-3 rounded-2xl text-[10px] font-bold uppercase transition-all ${accentColor === color ? 'bg-zinc-800 text-white border-2 border-white' : 'bg-black text-zinc-500 border border-zinc-800'}`}
+              >
+                {color}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* OFFLINE AI STATUS */}
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl">
+          <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest flex items-center gap-2">
+            🤖 OFFLINE AI MODEL STATUS
+          </h3>
+          <div className="bg-black border border-zinc-800 p-4 rounded-2xl flex justify-between items-center">
+            <span className="text-xs font-mono text-zinc-300 w-32 truncate">{aiModel.split('/').pop()}</span>
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800">
+              <div className={`w-2.5 h-2.5 rounded-full ${aiCached ? 'bg-emerald-500 animate-pulse' : 'bg-zinc-500'}`}></div>
+              <span className="text-[10px] font-bold text-zinc-400 tracking-wide">{aiCached ? 'Active in IndexedDB' : 'Not Downloaded'}</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      
+      <div className="px-5 mt-auto">
+        <button onClick={closeSettings} className="w-full theme-accent-bg text-black font-extrabold py-4 rounded-3xl text-sm shadow-xl">
+          Close Settings
+        </button>
+      </div>
     </div>
   );
 }
