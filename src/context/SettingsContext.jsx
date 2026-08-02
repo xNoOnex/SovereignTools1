@@ -11,7 +11,7 @@ export function SettingsProvider({ children }) {
   const [autoDeleteDays, setAutoDeleteDays] = useState(() => Number(localStorage.getItem('sovereign_autodelete_days')) || 15);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Apply CSS Variables on Root whenever settings change
+  // Apply CSS Variables on Root & Export Safe Fallback Classes
   useEffect(() => {
     localStorage.setItem('sovereign_app_pin', pin);
     localStorage.setItem('sovereign_app_mode', mode);
@@ -51,12 +51,22 @@ export function SettingsProvider({ children }) {
     }
   }, [pin, mode, fontSize, themeColor, autoDeleteEnabled, autoDeleteDays]);
 
+  // Safe object so components reading currentTheme.text or currentTheme.bg don't throw TypeErrors
+  const currentTheme = {
+    text: 'theme-accent-text',
+    bg: 'theme-accent-bg',
+    border: 'theme-accent-border',
+    badge: 'theme-accent-badge'
+  };
+
+  const currentFont = fontSize === 'small' ? 'text-xs' : fontSize === 'large' ? 'text-base' : 'text-sm';
+
   return (
     <SettingsContext.Provider value={{
       pin, setPin,
       mode, setMode,
-      fontSize, setFontSize,
-      themeColor, setThemeColor,
+      fontSize, setFontSize, currentFont,
+      themeColor, setThemeColor, currentTheme,
       autoDeleteEnabled, setAutoDeleteEnabled,
       autoDeleteDays, setAutoDeleteDays,
       isSettingsOpen, setIsSettingsOpen
