@@ -15,10 +15,10 @@ html.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
 .theme-accent-text { color: var(--accent-text) !important; }
 .theme-accent-bg { background-color: var(--accent-bg) !important; color: #000 !important; }
 
-/* FIX: CSS Variables applied to html tag so React instantly scales */
-html.text-scale-Small { font-size: 14px; }
-html.text-scale-Medium { font-size: 16px; }
-html.text-scale-Large { font-size: 18px; }
+/* FIX: Brute-force HTML font-size for instant rem scaling */
+html.text-scale-Small { font-size: 13px !important; }
+html.text-scale-Medium { font-size: 16px !important; }
+html.text-scale-Large { font-size: 19px !important; }
 
 body {
   background-color: #000000; 
@@ -26,10 +26,6 @@ body {
   padding: 0;
 }
 
-/* 
-   Ensure your image in the /public folder is named exactly "Appicon.jpg" 
-   for this to display across the entire app interface.
-*/
 .app-bg-watermark::before {
   content: "";
   position: fixed;
