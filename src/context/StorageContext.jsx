@@ -13,7 +13,7 @@ export function StorageProvider({ children }) {
     try {
       let filesFound = [];
 
-      // 1. Load custom gallery items (Already base64/safe data URLs)
+      // 1. Load Sovereign Custom Gallery items
       const customGallery = JSON.parse(localStorage.getItem('sovereign_custom_gallery') || '[]');
       filesFound.push(...customGallery);
 
@@ -26,16 +26,11 @@ export function StorageProvider({ children }) {
             const fullPath = path ? `${path}/${f.name}` : f.name;
             
             if (f.type === 'directory') {
-               // Skip heavy/hidden OS folders to prevent crashes
                if (f.name === 'Android' || f.name.startsWith('.')) continue;
                await scanDir(fullPath, maxDepth, currentDepth + 1);
             } else {
                const ext = f.name.includes('.') ? f.name.split('.').pop().toLowerCase() : 'file';
-               
-               // FIX: Convert raw file path to secure Capacitor WebView URL
-               const rawPath = `file:///storage/emulated/0/${fullPath}`;
-               const safeSrc = Capacitor.convertFileSrc(rawPath);
-
+               const safeSrc = Capacitor.convertFileSrc(`file:///storage/emulated/0/${fullPath}`);
                filesFound.push({
                  name: f.name,
                  path: fullPath,
@@ -44,10 +39,15 @@ export function StorageProvider({ children }) {
                });
             }
           }
-        } catch (e) {}
+        } catch (e) {} 
       };
 
-      await scanDir('', 4);
+      // FIX: Scan explicit public directories to bypass Android Scoped Storage root blocking
+      const safeRoots = ['DCIM', 'Pictures', 'Movies', 'Music', 'Download', 'Documents', 'Ringtones', 'Podcasts', 'Audiobooks'];
+      
+      for (const root of safeRoots) {
+         await scanDir(root, 4);
+      }
 
       // Deduplicate files by path
       const uniqueFiles = Array.from(new Map(filesFound.map(item => [item.path, item])).values());

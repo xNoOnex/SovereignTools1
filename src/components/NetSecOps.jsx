@@ -9,11 +9,8 @@ export function NetSecOps({ onNavigate }) {
   const [scanResults, setScanResults] = useState(null);
   const [statusMsg, setStatusMsg] = useState('');
   const [showTermuxFallback, setShowTermuxFallback] = useState(false);
-
-  // Leak Shield State
   const [leakData, setLeakData] = useState(null);
 
-  // Mesh State
   const [isNodeActive, setIsNodeActive] = useState(false);
   const [uptimeSeconds, setUptimeSeconds] = useState(0);
   const [relayedBytes, setRelayedBytes] = useState(0);
@@ -70,6 +67,12 @@ export function NetSecOps({ onNavigate }) {
     setTimeout(() => setStatusMsg(''), 3000);
   };
 
+  const copyTermuxCommand = () => {
+    navigator.clipboard.writeText("pkg install socat && socat TCP-LISTEN:8080,fork,reuseaddr -");
+    setStatusMsg('📋 Copied Termux socat command!');
+    setTimeout(() => setStatusMsg(''), 2500);
+  };
+
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen">
       
@@ -90,13 +93,13 @@ export function NetSecOps({ onNavigate }) {
 
       {/* 1. SUBNET */}
       {activeSubTab === 'Subnet' && (
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl animate-fadeIn">
           <div className="flex justify-between items-center">
             <div><h3 className="text-xs font-bold theme-accent-text uppercase">SUBNET DISCOVERY</h3><p className="text-[10px] text-zinc-500 font-mono">Scans local ARP table</p></div>
             <button onClick={() => { setIsScanning(true); setTimeout(() => { setScanResults([{ ip: '192.168.1.1', mac: '74:AC:B9:88:12:01', vendor: 'Gateway', status: 'ACTIVE' }, { ip: '192.168.1.104', mac: 'BC:D1:D3:44:90:FF', vendor: 'This Device', status: 'SELF' }]); setIsScanning(false); }, 1000); }} className="theme-accent-bg text-black font-bold text-xs px-3.5 py-2 rounded-xl">{isScanning ? 'Scanning...' : 'Scan Subnet'}</button>
           </div>
           {scanResults && (
-            <div className="space-y-2 pt-1 font-mono text-xs animate-fadeIn">
+            <div className="space-y-2 pt-1 font-mono text-xs">
               {scanResults.map((host, idx) => (
                 <div key={idx} className="bg-black p-3 rounded-2xl border border-zinc-800 flex justify-between items-center">
                   <div><span className="font-bold text-white block">{host.ip}</span><span className="text-[9px] text-zinc-500 block">{host.mac} • {host.vendor}</span></div>
@@ -110,7 +113,7 @@ export function NetSecOps({ onNavigate }) {
 
       {/* 2. WI-FI */}
       {activeSubTab === 'Wi-Fi' && (
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl animate-fadeIn">
           <h3 className="text-xs font-bold theme-accent-text uppercase">RF SPECTRUM AUDIT</h3>
           <div className="bg-black p-3 rounded-2xl border border-zinc-800 space-y-2 font-mono text-xs">
             <div className="flex justify-between"><span className="text-zinc-400">Access Point:</span><span className="theme-accent-text font-bold">Sovereign_Enclave_5G</span></div>
@@ -123,7 +126,7 @@ export function NetSecOps({ onNavigate }) {
 
       {/* 3. LEAK SHIELD */}
       {activeSubTab === 'Leak Shield' && (
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl">
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-4 shadow-xl animate-fadeIn">
           <h3 className="text-xs font-bold theme-accent-text uppercase">REAL-TIME LEAK AUDITOR</h3>
           <p className="text-[11px] text-zinc-400">Pings external endpoints to verify if your real IP or DNS queries are leaking outside your VPN/Enclave tunnel.</p>
           <button onClick={runLeakTest} disabled={isScanning} className="w-full py-3 theme-accent-bg text-black font-bold text-xs rounded-2xl shadow">
@@ -131,7 +134,7 @@ export function NetSecOps({ onNavigate }) {
           </button>
           
           {leakData && (
-            <div className="bg-black p-3 rounded-2xl border border-zinc-800 space-y-2 font-mono text-xs animate-fadeIn">
+            <div className="bg-black p-3 rounded-2xl border border-zinc-800 space-y-2 font-mono text-xs mt-3">
               <div className="flex justify-between"><span className="text-zinc-500">Public IP Exposed:</span><span className="text-white font-bold">{leakData.publicIp}</span></div>
               <div className="flex justify-between"><span className="text-zinc-500">WebRTC Leak:</span><span className="text-emerald-400 font-bold">{leakData.webrtcLeak}</span></div>
               <div className="flex justify-between"><span className="text-zinc-500">DNS Traffic:</span><span className="text-emerald-400 font-bold">{leakData.dnsStatus}</span></div>
@@ -142,7 +145,7 @@ export function NetSecOps({ onNavigate }) {
 
       {/* 4. SOCKETS */}
       {activeSubTab === 'Sockets' && (
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl font-mono text-xs">
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl font-mono text-xs animate-fadeIn">
           <h3 className="text-xs font-bold theme-accent-text uppercase">ACTIVE SOCKET CONNECTIONS</h3>
           <div className="bg-black p-3 rounded-2xl border border-zinc-800 space-y-2">
             <div className="flex justify-between text-[10px] text-zinc-500 border-b border-zinc-900 pb-1"><span>PROTOCOL</span><span>PORT</span><span>STATE</span></div>
@@ -155,7 +158,7 @@ export function NetSecOps({ onNavigate }) {
 
       {/* 5. MESH */}
       {activeSubTab === 'Mesh' && (
-        <div className="space-y-4">
+        <div className="space-y-4 animate-fadeIn">
           <div className="bg-zinc-900 p-6 rounded-3xl border border-zinc-800 space-y-4 shadow-xl text-center">
             <div className="w-16 h-16 bg-black border border-zinc-800 rounded-2xl mx-auto flex items-center justify-center text-3xl">🕸️</div>
             <h3 className="text-sm font-bold uppercase tracking-wider theme-accent-text">NATIVE KERNEL RELAY</h3>
@@ -166,13 +169,18 @@ export function NetSecOps({ onNavigate }) {
             {showTermuxFallback && (
               <div className="bg-red-950/40 border border-red-900 p-4 rounded-2xl space-y-3 mt-4 text-left">
                 <h4 className="text-xs font-bold text-red-400 uppercase">⚠️ Plugin Compile Error</h4>
-                <p className="text-[10px] text-zinc-300 font-mono leading-relaxed">To run the background Mesh Relay now, execute this command directly in your Termux terminal:</p>
-                <div className="bg-black p-3 rounded-xl border border-zinc-800 font-mono text-xs text-emerald-400 select-all">
+                <p className="text-[10px] text-zinc-300 font-mono leading-relaxed">
+                  To run the background Mesh Relay now, execute this command directly in your Termux terminal:
+                </p>
+                <div className="bg-black p-3 rounded-xl border border-zinc-800 font-mono text-xs text-emerald-400">
                   pkg install socat && socat TCP-LISTEN:8080,fork,reuseaddr -
                 </div>
+                <button onClick={copyTermuxCommand} className="w-full bg-zinc-800 text-white font-bold text-xs py-2 rounded-xl mt-2">
+                  Copy Command
+                </button>
               </div>
             )}
-            
+
             {isNodeActive && (
               <div className="bg-black p-4 rounded-2xl border border-zinc-800 grid grid-cols-2 gap-2 text-center font-mono">
                 <div><span className="text-[9px] text-zinc-500 block">UPTIME</span><span className="text-xs font-bold theme-accent-text">{uptimeSeconds}s</span></div>
@@ -185,7 +193,7 @@ export function NetSecOps({ onNavigate }) {
 
       {/* 6. MAC MASK */}
       {activeSubTab === 'MAC Mask' && (
-        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl">
+        <div className="bg-zinc-900 p-5 rounded-3xl border border-zinc-800 space-y-3 shadow-xl animate-fadeIn">
           <h3 className="text-xs font-bold theme-accent-text uppercase">HARDWARE MAC ADDRESS SPOOFER</h3>
           <p className="text-[11px] text-zinc-400">Use this randomized hardware MAC string for execution in Termux to mask your physical device identity on local networks.</p>
           <div className="bg-black p-4 rounded-2xl border border-zinc-800 text-center font-mono font-bold text-base theme-accent-text select-all">
