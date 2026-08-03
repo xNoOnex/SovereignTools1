@@ -43,25 +43,10 @@ function AppContent() {
     return <LockScreen onUnlock={() => setIsLocked(false)} />;
   }
 
-  const allDockTabs = [
-    { id: 'home', label: 'Home', icon: '🏠', reqExpert: false },
-    { id: 'camera', label: 'Camera', icon: '📷', reqExpert: false },
-    { id: 'gallery', label: 'Gallery', icon: '🖼️', reqExpert: false },
-    { id: 'vault', label: 'Vault', icon: '🔐', reqExpert: false },
-    { id: 'comms', label: 'Comms', icon: '📡', reqExpert: true },
-    { id: 'docs', label: 'Docs', icon: '📝', reqExpert: false },
-    { id: 'fileviewer', label: 'Files', icon: '📂', reqExpert: false },
-    { id: 'audio', label: 'Audio', icon: '🎵', reqExpert: false },
-    { id: 'calc', label: 'Calc', icon: '🧮', reqExpert: false },
-    { id: 'calendar', label: 'Calendar', icon: '📅', reqExpert: false },
-    { id: 'ai', label: 'AI', icon: '🤖', reqExpert: true },
-    { id: 'netsec', label: 'Net/Sys', icon: '⚡', reqExpert: true }
-  ];
-  
-  const activeDockTabs = mode === 'EXPERT' ? allDockTabs : allDockTabs.filter(t => !t.reqExpert);
-
   return (
     <div className="min-h-screen text-white font-sans select-none pb-24 relative z-10">
+      
+      {/* TOP STATUS BAR */}
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
           <h1 className="text-sm font-black tracking-widest text-white uppercase">SOVEREIGN TOOLS</h1>
@@ -77,6 +62,7 @@ function AppContent() {
         </div>
       </div>
 
+      {/* MODULE ROUTER */}
       {currentScreen === 'home' && <Home onNavigate={navigateTo} appMode={mode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
@@ -94,18 +80,21 @@ function AppContent() {
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
+      {/* SETTINGS MODAL */}
       {showSettings && (
         <Settings closeSettings={() => setShowSettings(false)} appMode={mode} setAppMode={setMode} accentColor={accentColor} setAccentColor={setAccentColor} textSize={textSize} setTextSize={setTextSize} />
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-900/80 p-2 flex justify-start gap-4 items-center z-50 overflow-x-auto no-scrollbar px-4 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
-        {activeDockTabs.map(tab => (
-          <button key={tab.id} onClick={() => navigateTo(tab.id)} className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold drop-shadow-[0_0_8px_var(--accent-text)]' : 'text-zinc-500 hover:text-zinc-300'}`}>
-            <span className="text-lg mb-1">{tab.icon}</span>
-            <span className="text-[9px] tracking-widest uppercase font-mono">{tab.label}</span>
-          </button>
-        ))}
-      </div>
+      {/* FLOATING HOME BUTTON (Replaces Bottom Dock) */}
+      {currentScreen !== 'home' && (
+        <button 
+          onClick={() => navigateTo('home')} 
+          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-14 h-14 bg-black/80 backdrop-blur-xl border border-zinc-700 rounded-full flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(0,0,0,0.8)] z-50 active:scale-95 transition-transform hover:border-[var(--accent-text)] group"
+        >
+          <span className="opacity-80 group-hover:opacity-100 transition-opacity">🏠</span>
+        </button>
+      )}
+
     </div>
   );
 }
