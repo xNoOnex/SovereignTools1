@@ -31,7 +31,20 @@ function AppContent() {
 
   useEffect(() => {
     document.documentElement.className = `theme-${accentColor} text-scale-${textSize}`;
-    document.body.className = 'app-bg-watermark';
+    
+    // Dynamic Wallpaper Engine
+    const bgImages = {
+      cyan: 'url(https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1080&auto=format&fit=crop)',
+      emerald: 'url(https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1080&auto=format&fit=crop)',
+      amber: 'url(https://images.unsplash.com/photo-1614064016629-8798cb3d77ad?q=80&w=1080&auto=format&fit=crop)',
+      purple: 'url(https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1080&auto=format&fit=crop)',
+      rose: 'url(https://images.unsplash.com/photo-1618044733300-9472054094ee?q=80&w=1080&auto=format&fit=crop)'
+    };
+    
+    document.body.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.95)), ${bgImages[accentColor] || bgImages.cyan}`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
   }, [accentColor, textSize]);
 
   const navigateTo = (screen) => {
@@ -79,7 +92,6 @@ function AppContent() {
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
-      {/* PROPER SETTINGS COMPONENT ROUTING */}
       {showSettings && (
         <Settings 
           closeSettings={() => setShowSettings(false)} 
@@ -101,7 +113,6 @@ function AppContent() {
           <span className="opacity-80 group-hover:opacity-100 transition-opacity">🏠</span>
         </button>
       )}
-
     </div>
   );
 }

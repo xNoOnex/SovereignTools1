@@ -11,7 +11,6 @@ export function NetSecOps({ onNavigate }) {
   const [activeMainTab, setActiveMainTab] = useState('NETWORK');
   const [activeNetTab, setActiveNetTab] = useState('Subnet');
   
-  // APK Downgrader State
   const [showPicker, setShowPicker] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -133,8 +132,17 @@ export function NetSecOps({ onNavigate }) {
             ))}
           </div>
 
-          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-cyan-400 whitespace-pre-wrap shadow-inner h-[40vh]">
+          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-cyan-400 whitespace-pre-wrap shadow-inner h-[30vh]">
             {logs}
+          </div>
+          
+          <div className="shrink-0 mt-4 bg-black/60 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-lg">
+            <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> Network Module Disclaimers</h4>
+            <ul className="text-[9px] text-zinc-400 font-mono space-y-2 list-disc pl-4">
+              <li><strong className="text-white">100% Functional:</strong> Leak Shield (Standard ICMP Pings) and Sockets (netstat queries).</li>
+              <li><strong className="text-amber-400">Limited (UID 2000):</strong> Subnet/ARP and Wi-Fi stats pull raw shell data, but modern Android heavily obfuscates ARP tables for non-root apps.</li>
+              <li><strong className="text-red-400">Audit Only:</strong> MAC Mask queries your current address and randomization settings, but cannot force a hardware spoof without true Magisk root.</li>
+            </ul>
           </div>
         </div>
       )}
@@ -175,7 +183,6 @@ export function NetSecOps({ onNavigate }) {
             </button>
           </div>
 
-          {/* APK DOWNGRADER WITH LOCAL PICKER */}
           <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-3xl space-y-3 shadow-xl">
             <div className="flex justify-between items-center">
               <div>
@@ -210,6 +217,14 @@ export function NetSecOps({ onNavigate }) {
 
           <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-32">
             {logs}
+          </div>
+          
+          <div className="shrink-0 mt-4 bg-black/60 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-lg">
+            <h4 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> SysOps Module Disclaimers</h4>
+            <ul className="text-[9px] text-zinc-400 font-mono space-y-2 list-disc pl-4">
+              <li><strong className="text-emerald-400">100% Functional:</strong> All buttons in this grid are directly wired to raw ADB shell execution and will function perfectly as long as Shizuku is authorized.</li>
+              <li><strong className="text-amber-400">Note on Downgrader:</strong> Android 14+ restricts downgrading system apps even with ADB. Standard user apps will downgrade successfully.</li>
+            </ul>
           </div>
 
         </div>
