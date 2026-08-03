@@ -36,7 +36,7 @@ function AppContent() {
 
   const navigateTo = (screen) => {
     setCurrentScreen(screen);
-    setShowSettings(false); // Close settings if navigating from it
+    setShowSettings(false);
     window.scrollTo(0, 0);
   };
 
@@ -79,50 +79,18 @@ function AppContent() {
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
-      {/* SETTINGS MODAL */}
+      {/* PROPER SETTINGS COMPONENT ROUTING */}
       {showSettings && (
-        <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] p-6 animate-fadeIn overflow-y-auto">
-          <div className="flex justify-between items-center mb-8 border-b border-zinc-800 pb-4">
-            <h2 className="text-xl font-bold text-white uppercase tracking-widest">Settings</h2>
-            <button onClick={() => setShowSettings(false)} className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-xl font-bold border border-zinc-700 active:scale-95">✕</button>
-          </div>
-          
-          <div className="space-y-8">
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Interface Mode</h3>
-              <div className="flex gap-2">
-                <button onClick={() => setAppMode('BASIC')} className={`flex-1 py-4 rounded-2xl font-bold text-xs tracking-widest border transition-all ${mode === 'BASIC' ? 'theme-accent-bg text-black shadow-lg border-transparent' : 'bg-black text-zinc-400 border-zinc-800'}`}>BASIC</button>
-                <button onClick={() => setAppMode('EXPERT')} className={`flex-1 py-4 rounded-2xl font-bold text-xs tracking-widest border transition-all ${mode === 'EXPERT' ? 'theme-accent-bg text-black shadow-lg border-transparent' : 'bg-black text-zinc-400 border-zinc-800'}`}>EXPERT</button>
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Accent Color</h3>
-              <div className="grid grid-cols-5 gap-3">
-                {['cyan', 'emerald', 'purple', 'rose', 'amber'].map(color => (
-                  <button key={color} onClick={() => setAccentColor(color)} className={`aspect-square rounded-2xl border-2 transition-all ${accentColor === color ? 'border-white scale-110 shadow-xl' : 'border-transparent scale-100'} theme-${color} theme-accent-bg`}></button>
-                ))}
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Text Scale</h3>
-              <input type="range" min="0" max="2" value={textSize} onChange={e => setTextSize(Number(e.target.value))} className="w-full h-2 bg-zinc-800 rounded-lg appearance-none accent-[var(--accent-text)]" />
-              <div className="flex justify-between text-[10px] text-zinc-500 font-mono">
-                <span>Small</span>
-                <span>Normal</span>
-                <span>Large</span>
-              </div>
-            </div>
-
-            {/* SUPPORT BUTTON RELOCATED HERE */}
-            <div className="pt-8 border-t border-zinc-900">
-               <button onClick={() => navigateTo('support')} className="w-full py-5 bg-zinc-900/50 border border-zinc-800 hover:border-zinc-700 rounded-2xl flex items-center justify-center gap-3 text-sm font-bold text-white uppercase tracking-widest active:scale-95 transition-all">
-                 <span className="text-xl">☕</span> Support The Creator
-               </button>
-            </div>
-          </div>
-        </div>
+        <Settings 
+          closeSettings={() => setShowSettings(false)} 
+          appMode={mode} 
+          setAppMode={setMode} 
+          accentColor={accentColor} 
+          setAccentColor={setAccentColor} 
+          textSize={textSize} 
+          setTextSize={setTextSize}
+          onNavigate={navigateTo} 
+        />
       )}
 
       {currentScreen !== 'home' && !showSettings && (
