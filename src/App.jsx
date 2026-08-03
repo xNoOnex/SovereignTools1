@@ -27,9 +27,8 @@ function AppContent() {
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
   
-  const { mode, accentColor, setAccentColor, setMode, textSize, setTextSize } = useSettings();
+  const { mode, accentColor, textSize, setAccentColor, setMode, setTextSize } = useSettings();
 
-  // FIX: Force React to physically update the root HTML tag for true CSS scaling
   useEffect(() => {
     document.documentElement.className = `theme-${accentColor} text-scale-${textSize}`;
     document.body.className = 'app-bg-watermark';
@@ -69,10 +68,10 @@ function AppContent() {
           <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full uppercase">{mode}</span>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowSettings(true)} className="bg-zinc-900 border border-zinc-800 text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
+          <button onClick={() => setShowSettings(true)} className="theme-glass-panel text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5 shadow">
             <span className="text-sm">⚙️</span> Settings
           </button>
-          <button onClick={() => { setIsLocked(true); setCurrentScreen('home'); }} className="bg-zinc-900 border border-zinc-800 text-amber-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5">
+          <button onClick={() => { setIsLocked(true); setCurrentScreen('home'); }} className="bg-red-950/40 border border-red-900/50 text-red-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5 shadow">
             <span className="text-sm">🔒</span> Lock
           </button>
         </div>
@@ -99,11 +98,11 @@ function AppContent() {
         <Settings closeSettings={() => setShowSettings(false)} appMode={mode} setAppMode={setMode} accentColor={accentColor} setAccentColor={setAccentColor} textSize={textSize} setTextSize={setTextSize} />
       )}
 
-      <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur border-t border-zinc-900 p-2 flex justify-start gap-4 items-center z-40 overflow-x-auto no-scrollbar px-4">
+      <div className="fixed bottom-0 left-0 right-0 bg-black/95 backdrop-blur-xl border-t border-zinc-900/80 p-2 flex justify-start gap-4 items-center z-50 overflow-x-auto no-scrollbar px-4 shadow-[0_-5px_20px_rgba(0,0,0,0.5)]">
         {activeDockTabs.map(tab => (
-          <button key={tab.id} onClick={() => navigateTo(tab.id)} className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold' : 'text-zinc-500 hover:text-zinc-300'}`}>
-            <span className="text-lg">{tab.icon}</span>
-            <span className="text-[9px] tracking-wider mt-0.5">{tab.label}</span>
+          <button key={tab.id} onClick={() => navigateTo(tab.id)} className={`flex flex-col items-center p-2 rounded-2xl transition-all shrink-0 ${currentScreen === tab.id ? 'theme-accent-text scale-110 font-bold drop-shadow-[0_0_8px_var(--accent-text)]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+            <span className="text-lg mb-1">{tab.icon}</span>
+            <span className="text-[9px] tracking-widest uppercase font-mono">{tab.label}</span>
           </button>
         ))}
       </div>
@@ -116,7 +115,9 @@ export default function App() {
     <SettingsProvider>
       <StorageProvider>
         <AudioProvider>
-          <CommsProvider><AppContent /></CommsProvider>
+          <CommsProvider>
+            <AppContent />
+          </CommsProvider>
         </AudioProvider>
       </StorageProvider>
     </SettingsProvider>
