@@ -15,39 +15,16 @@ import java.lang.reflect.Method;
 public class ShizukuRunner extends Plugin {
     
     private static final int SHIZUKU_CODE = 88;
-    private static final String PERMISSION = "moe.shizuku.manager.permission.API_V23";
 
     @PluginMethod
     public void checkStatus(PluginCall call) {
         try {
             if (Shizuku.pingBinder()) {
-                if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
-                    JSObject ret = new JSObject();
-                    ret.put("active", true);
-                    ret.put("granted", true);
-                    call.resolve(ret);
-                } else {
-                    // FIX: Explicitly check and request the exact permission string Android requires
-                    if (Shizuku.shouldShowRequestPermissionRationale()) {
-                        call.reject("User previously denied Shizuku permission. Please grant it in Android Settings.");
-                        return;
-                    }
-                    
-                    Shizuku.OnRequestPermissionResultListener listener = new Shizuku.OnRequestPermissionResultListener() {
-                        @Override
-                        public void onRequestPermissionResult(int requestCode, int grantResult) {
-                            if (requestCode == SHIZUKU_CODE) {
-                                JSObject ret = new JSObject();
-                                ret.put("active", true);
-                                ret.put("granted", grantResult == PackageManager.PERMISSION_GRANTED);
-                                call.resolve(ret);
-                                Shizuku.removeRequestPermissionResultListener(this);
-                            }
-                        }
-                    };
-                    Shizuku.addRequestPermissionResultListener(listener);
-                    Shizuku.requestPermission(SHIZUKU_CODE); // Trigger prompt
-                }
+                boolean granted = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
+                JSObject ret = new JSObject();
+                ret.put("active", true);
+                ret.put("granted", granted);
+                call.resolve(ret);
             } else {
                 JSObject ret = new JSObject();
                 ret.put("active", false);
@@ -59,6 +36,40 @@ public class ShizukuRunner extends Plugin {
             ret.put("active", false);
             ret.put("granted", false);
             call.resolve(ret);
+        }
+    }
+
+    @PluginMethod
+    public void requestPermission(PluginCall call) {
+        try {
+            if (!Shizuku.pingBinder()) {
+                call.reject("Shizuku is not running on the device.");
+                return;
+            }
+            
+            if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                JSObject ret = new JSObject();
+                ret.put("granted", true);
+                call.resolve(ret);
+                return;
+            }
+
+            Shizuku.OnRequestPermissionResultListener listener = new Shizuku.OnRequestPermissionResultListener() {
+                @Override
+                public void onRequestPermissionResult(int requestCode, int grantResult) {
+                    if (requestCode == SHIZUKU_CODE) {
+                        JSObject ret = new JSObject();
+                        ret.put("granted", grantResult == PackageManager.PERMISSION_GRANTED);
+                        call.resolve(ret);
+                        Shizuku.removeRequestPermissionResultListener(this);
+                    }
+                }
+            };
+            Shizuku.addRequestPermissionResultListener(listener);
+            Shizuku.requestPermission(SHIZUKU_CODE);
+            
+        } catch (Exception e) {
+            call.reject("Failed to request Shizuku permission: " + e.getMessage());
         }
     }
 

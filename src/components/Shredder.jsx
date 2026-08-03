@@ -26,6 +26,20 @@ export function Shredder({ onNavigate }) {
     }
   };
 
+  const forceRequestShizuku = async () => {
+    try {
+      const res = await ShizukuRunner.requestPermission();
+      setShizukuGranted(res.granted);
+      if (res.granted) {
+          alert("Shizuku Permission Granted!");
+      } else {
+          alert("Permission denied or prompt failed. Ensure Shizuku is running.");
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+  };
+
   const log = (msg) => setLogs(prev => prev + `> ${msg}\n`);
 
   const executeNuke = async () => {
@@ -65,7 +79,7 @@ export function Shredder({ onNavigate }) {
       const res = await ShizukuRunner.executeCommand({ command: wipeScript });
       setLogs(prev => prev + res.output);
       setFilePath('');
-      runGlobalScan(); // Refresh storage index
+      runGlobalScan(); 
     } catch (e) {
       log(`CRITICAL FAILURE: ${e.message}`);
     } finally {
@@ -83,14 +97,21 @@ export function Shredder({ onNavigate }) {
         <p className="text-xs text-zinc-400 mt-2">Logical sector overwrite and metadata obfuscation.</p>
       </div>
 
-      <div className={`p-4 rounded-3xl flex justify-between items-center shadow-lg ${shizukuGranted ? 'bg-emerald-950/30 border border-emerald-900/50' : 'bg-red-950/30 border border-red-900/50'}`}>
-        <div>
-          <h4 className="text-xs font-bold text-white uppercase tracking-widest">Execution Engine</h4>
-          <p className="text-[10px] font-mono mt-1 text-zinc-400">Shizuku Root Bridge</p>
+      <div className={`p-4 rounded-3xl flex flex-col gap-3 shadow-lg ${shizukuGranted ? 'bg-emerald-950/30 border border-emerald-900/50' : 'bg-red-950/30 border border-red-900/50'}`}>
+        <div className="flex justify-between items-center">
+            <div>
+            <h4 className="text-xs font-bold text-white uppercase tracking-widest">Execution Engine</h4>
+            <p className="text-[10px] font-mono mt-1 text-zinc-400">Shizuku Root Bridge</p>
+            </div>
+            <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600' : 'bg-red-600'}`}>
+            {shizukuGranted ? 'CONNECTED' : 'CHECK STATUS'}
+            </button>
         </div>
-        <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600' : 'bg-red-600'}`}>
-          {shizukuGranted ? 'CONNECTED' : 'OFFLINE'}
-        </button>
+        {!shizukuGranted && (
+            <button onClick={forceRequestShizuku} className="w-full py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-xs font-bold text-white uppercase tracking-widest active:scale-95 shadow">
+                Force Permission Request
+            </button>
+        )}
       </div>
 
       <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-6 rounded-3xl space-y-5 shadow-xl">
@@ -104,13 +125,15 @@ export function Shredder({ onNavigate }) {
           </button>
         </div>
 
-        {/* FILE PICKER DRAWER */}
         {showPicker && (
           <div className="bg-black/90 border border-zinc-800 rounded-2xl p-4 space-y-3 animate-fadeIn">
             <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Search indexed files..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-mono focus:outline-none" />
             <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
               {filteredFiles.length === 0 ? (
-                <div className="text-center text-zinc-600 font-mono text-xs py-6">No files found. Run a global rescan.</div>
+                <div className="flex flex-col gap-2 items-center text-center text-zinc-600 font-mono text-xs py-4">
+                    <span>No files found.</span>
+                    <button onClick={runGlobalScan} className="bg-zinc-800 text-white px-4 py-2 rounded-lg text-[10px] uppercase font-bold border border-zinc-700">Run Global Rescan</button>
+                </div>
               ) : (
                 filteredFiles.map((file, idx) => (
                   <div key={idx} onClick={() => { setFilePath(file.path); setShowPicker(false); }} className="bg-zinc-900/90 border border-zinc-800 p-3 rounded-xl cursor-pointer hover:border-red-500/50 flex justify-between items-center active:scale-95 transition-all">
@@ -143,14 +166,6 @@ export function Shredder({ onNavigate }) {
       <div className="bg-black border border-zinc-800 rounded-2xl p-4 overflow-y-auto font-mono text-[9px] text-zinc-400 whitespace-pre-wrap shadow-inner h-40">
         {logs}
       </div>
-
-      <div className="shrink-0 mt-4 theme-glass-panel backdrop-blur border border-[var(--glass-border)] p-4 rounded-3xl shadow-lg border-l-4 border-l-red-500">
-        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-2"><span>ℹ️</span> Shredder Diagnostics</h4>
-        <p className="text-[9px] text-zinc-300 font-mono leading-relaxed text-justify">
-          Due to Android's UFS hardware wear-leveling (FTL), physical silicon zero-filling is impossible at the software layer. This protocol bypasses that limitation by utterly destroying the logical structure. It forces standard storage APIs to overwrite the file's binary footprint with zeros and cryptographic noise, renames the file to a randomized hash to permanently corrupt the OS metadata table, and forcefully unlinks the file from the drive index.
-        </p>
-      </div>
-
     </div>
   );
 }
