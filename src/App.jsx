@@ -20,6 +20,7 @@ import { Settings } from './components/Settings';
 import { StorageProvider } from './context/StorageContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AudioProvider } from './context/AudioContext';
+import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
   const [isLocked, setIsLocked] = useState(true);
@@ -115,7 +116,7 @@ export default function App() {
     <SettingsProvider>
       <StorageProvider>
         <AudioProvider>
-          <AppContent />
+          <CommsProvider><AppContent /></CommsProvider>
         </AudioProvider>
       </StorageProvider>
     </SettingsProvider>
