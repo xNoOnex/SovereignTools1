@@ -16,21 +16,42 @@ public class ShizukuRunner extends Plugin {
     
     @PluginMethod
     public void checkStatus(PluginCall call) {
-        JSObject ret = new JSObject();
         try {
             if (Shizuku.pingBinder()) {
-                boolean granted = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
-                ret.put("active", true);
-                ret.put("granted", granted);
+                if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+                    JSObject ret = new JSObject();
+                    ret.put("active", true);
+                    ret.put("granted", true);
+                    call.resolve(ret);
+                } else {
+                    // Trigger the Shizuku Permission Pop-Up
+                    Shizuku.OnRequestPermissionResultListener listener = new Shizuku.OnRequestPermissionResultListener() {
+                        @Override
+                        public void onRequestPermissionResult(int requestCode, int grantResult) {
+                            if (requestCode == 88) {
+                                JSObject ret = new JSObject();
+                                ret.put("active", true);
+                                ret.put("granted", grantResult == PackageManager.PERMISSION_GRANTED);
+                                call.resolve(ret);
+                                Shizuku.removeRequestPermissionResultListener(this);
+                            }
+                        }
+                    };
+                    Shizuku.addRequestPermissionResultListener(listener);
+                    Shizuku.requestPermission(88);
+                }
             } else {
+                JSObject ret = new JSObject();
                 ret.put("active", false);
                 ret.put("granted", false);
+                call.resolve(ret);
             }
         } catch (Exception e) {
+            JSObject ret = new JSObject();
             ret.put("active", false);
             ret.put("granted", false);
+            call.resolve(ret);
         }
-        call.resolve(ret);
     }
 
     @PluginMethod
@@ -43,7 +64,6 @@ public class ShizukuRunner extends Plugin {
                 return;
             }
             
-            // BYPASS: Use Java Reflection to unhide and invoke the private newProcess method
             Class<?> clazz = Class.forName("rikka.shizuku.Shizuku");
             Method method = clazz.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
             method.setAccessible(true);
