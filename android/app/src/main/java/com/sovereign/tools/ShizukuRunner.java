@@ -14,6 +14,9 @@ import java.lang.reflect.Method;
 @CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
     
+    private static final int SHIZUKU_CODE = 88;
+    private static final String PERMISSION = "moe.shizuku.manager.permission.API_V23";
+
     @PluginMethod
     public void checkStatus(PluginCall call) {
         try {
@@ -24,11 +27,16 @@ public class ShizukuRunner extends Plugin {
                     ret.put("granted", true);
                     call.resolve(ret);
                 } else {
-                    // Trigger the Shizuku Permission Pop-Up
+                    // FIX: Explicitly check and request the exact permission string Android requires
+                    if (Shizuku.shouldShowRequestPermissionRationale()) {
+                        call.reject("User previously denied Shizuku permission. Please grant it in Android Settings.");
+                        return;
+                    }
+                    
                     Shizuku.OnRequestPermissionResultListener listener = new Shizuku.OnRequestPermissionResultListener() {
                         @Override
                         public void onRequestPermissionResult(int requestCode, int grantResult) {
-                            if (requestCode == 88) {
+                            if (requestCode == SHIZUKU_CODE) {
                                 JSObject ret = new JSObject();
                                 ret.put("active", true);
                                 ret.put("granted", grantResult == PackageManager.PERMISSION_GRANTED);
@@ -38,7 +46,7 @@ public class ShizukuRunner extends Plugin {
                         }
                     };
                     Shizuku.addRequestPermissionResultListener(listener);
-                    Shizuku.requestPermission(88);
+                    Shizuku.requestPermission(SHIZUKU_CODE); // Trigger prompt
                 }
             } else {
                 JSObject ret = new JSObject();
