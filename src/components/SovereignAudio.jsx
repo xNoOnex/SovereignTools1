@@ -1,307 +1,215 @@
 import React, { useState } from 'react';
-import { useStorage } from '../context/StorageContext';
 import { useAudio } from '../context/AudioContext';
+import { useStorage } from '../context/StorageContext';
 
 export function SovereignAudio({ onNavigate }) {
-  const { isScanning, runGlobalScan } = useStorage();
-  const {
-    currentTrack, isPlaying, progress, duration, isShuffle, isRepeat,
-    audioTracks, favorites, statusMsg,
-    togglePlay, playTrack, skipTrack, jumpTime, seekTo,
-    setIsShuffle, setIsRepeat, toggleFavorite, nukeTrack
+  const { runGlobalScan } = useStorage();
+  const { 
+    getAudioFiles, currentTrack, isPlaying, progress, duration, 
+    playTrack, play, pause, seek, nextTrack, prevTrack,
+    playlists, createPlaylist, deletePlaylist, toggleTrackInPlaylist
   } = useAudio();
+  
+  const [activeTab, setActiveTab] = useState('Library');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [activePlaylistView, setActivePlaylistView] = useState(null);
+  const [showAddToMenu, setShowAddToMenu] = useState(null); // track.src
 
-  const [activeSubTab, setActiveSubTab] = useState('Now Playing');
-  const [searchQuery, setSearchQuery] = useState('');
+  const libraryFiles = getAudioFiles();
+  const filteredLibrary = libraryFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
-  const formatTime = (secs) => {
-    if (isNaN(secs) || secs === 0) return '0:00';
-    const m = Math.floor(secs / 60);
-    const s = Math.floor(secs % 60);
-    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  const formatTime = (time) => {
+    if (!time || isNaN(time)) return "0:00";
+    const mins = Math.floor(time / 60);
+    const secs = Math.floor(time % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const displayedTracks = audioTracks.filter(t => 
-    t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    t.path.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleCreatePlaylist = () => {
+    const name = prompt("Enter new playlist name:");
+    if (name) createPlaylist(name);
+  };
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen">
+    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-32 select-none font-sans text-white min-h-screen flex flex-col relative z-10 animate-fadeIn">
       
-      {/* HEADER */}
-      <div className="flex justify-between items-center border-b border-zinc-900 pb-3 pt-2">
+      <div className="flex justify-between items-center border-b border-zinc-900 pb-3 pt-2 shrink-0">
         <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            🎧 Sovereign Audio
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Offline background audio engine ({audioTracks.length} tracks indexed)
-          </p>
+          <h2 className="text-xl font-bold text-white flex items-center gap-2"><span className="text-2xl drop-shadow">🎧</span> Sovereign Audio</h2>
+          <p className="text-[10px] text-zinc-400 mt-1 font-mono">Native background media engine.</p>
         </div>
-        <button 
-          onClick={runGlobalScan}
-          disabled={isScanning}
-          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-cyan-400 text-xs px-3 py-1.5 rounded-xl font-bold shadow transition-all active:scale-95"
-        >
-          {isScanning ? 'Scanning...' : 'Refresh'}
-        </button>
+        <button onClick={runGlobalScan} className="bg-zinc-900 border border-zinc-700 text-cyan-400 px-4 py-2 rounded-xl text-xs font-bold active:scale-95 shadow">Rescan</button>
       </div>
 
-      {/* TOAST NOTIFICATION */}
-      {statusMsg && (
-        <div className="bg-red-950/90 border border-red-500/50 text-red-300 text-xs font-bold py-2 px-3 rounded-xl text-center shadow-lg animate-fadeIn">
-          {statusMsg}
-        </div>
-      )}
-
-      {/* SUBTAB TRAY */}
-      <div className="flex space-x-2 bg-zinc-950 p-1.5 rounded-2xl border border-zinc-900">
-        {['Now Playing', `Library (${audioTracks.length})`, 'Playlists'].map(tab => {
-          const tabKey = tab.startsWith('Library') ? 'Library' : tab;
-          const isActive = activeSubTab === tabKey;
-          return (
-            <button
-              key={tab}
-              onClick={() => setActiveSubTab(tabKey)}
-              className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-                isActive 
-                  ? 'bg-cyan-500 text-black shadow-md scale-105' 
-                  : 'text-zinc-400 hover:text-white'
-              }`}
-            >
-              {tab}
-            </button>
-          );
-        })}
+      {/* TABS */}
+      <div className="flex gap-2 bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 shrink-0">
+        {['Now Playing', 'Library', 'Playlists'].map(tab => (
+          <button key={tab} onClick={() => { setActiveTab(tab); setActivePlaylistView(null); }} className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeTab === tab ? 'theme-accent-bg text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
+            {tab} {tab === 'Library' && `(${libraryFiles.length})`}
+          </button>
+        ))}
       </div>
 
-      {/* SUBTAB 1: NOW PLAYING */}
-      {activeSubTab === 'Now Playing' && (
-        <div className="bg-zinc-900/80 p-6 rounded-3xl border border-zinc-800 space-y-6 text-center shadow-2xl relative overflow-hidden">
-          <div className="w-48 h-48 bg-black border border-zinc-800 rounded-3xl mx-auto flex flex-col items-center justify-center relative shadow-inner group">
-            <div className={`text-6xl transition-transform duration-500 ${isPlaying ? 'scale-110' : 'scale-100 opacity-60'}`}>
-              🎵
-            </div>
-            {isPlaying && (
-              <div className="flex gap-1 items-end h-4 mt-3">
-                <div className="w-1 bg-cyan-400 animate-pulse h-full"></div>
-                <div className="w-1 bg-cyan-400 animate-pulse h-2/3 delay-75"></div>
-                <div className="w-1 bg-cyan-400 animate-pulse h-4/5 delay-150"></div>
-                <div className="w-1 bg-cyan-400 animate-pulse h-1/2 delay-100"></div>
-              </div>
+      {/* NOW PLAYING TAB */}
+      {activeTab === 'Now Playing' && (
+        <div className="flex-1 flex flex-col justify-center space-y-8 px-4 animate-fadeIn">
+          <div className="aspect-square w-full max-w-[280px] mx-auto rounded-3xl bg-black border border-zinc-800 shadow-[0_0_30px_var(--glass-border)] flex items-center justify-center overflow-hidden relative group">
+            {currentTrack ? (
+              <>
+                <div className="absolute inset-0 bg-gradient-to-tr from-cyan-900/20 to-purple-900/20 opacity-50 z-0"></div>
+                <span className="text-8xl drop-shadow-2xl z-10 group-hover:scale-110 transition-transform duration-500">🎵</span>
+              </>
+            ) : (
+              <span className="text-6xl opacity-20">🔇</span>
             )}
           </div>
-
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-white truncate max-w-xs mx-auto">
-              {currentTrack ? currentTrack.name : 'No Track Selected'}
-            </h3>
-            <p className="text-xs text-cyan-400 font-mono truncate max-w-xs mx-auto">
-              {currentTrack ? currentTrack.path : 'Select a track from library'}
-            </p>
+          
+          <div className="text-center space-y-2">
+            <h3 className="text-lg font-bold text-white truncate px-4">{currentTrack ? currentTrack.name : 'No Track Selected'}</h3>
+            <p className="text-[10px] text-zinc-500 font-mono tracking-widest uppercase">{currentTrack ? 'Playing from Local Storage' : 'Select a track from Library'}</p>
           </div>
 
-          <div className="space-y-1 pt-2">
-            <input
-              type="range"
-              min="0"
-              max={duration || 100}
-              value={progress}
-              onChange={(e) => seekTo(parseFloat(e.target.value))}
-              disabled={!currentTrack}
-              className="w-full accent-cyan-400 bg-black rounded-lg h-1.5 cursor-pointer"
-            />
-            <div className="flex justify-between text-[10px] font-mono text-zinc-500 px-1">
+          <div className="space-y-3 px-2">
+            <input type="range" min="0" max={duration || 100} value={progress} onChange={(e) => seek(Number(e.target.value))} className="w-full accent-[var(--accent-text)] h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer" />
+            <div className="flex justify-between text-[10px] font-mono text-zinc-400 font-bold">
               <span>{formatTime(progress)}</span>
               <span>{formatTime(duration)}</span>
             </div>
           </div>
 
-          <div className="flex justify-between items-center max-w-xs mx-auto pt-2">
-            <button
-              onClick={() => setIsShuffle(!isShuffle)}
-              className={`p-2 rounded-xl text-lg transition-all ${
-                isShuffle ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'text-zinc-600'
-              }`}
-              title="Shuffle"
-            >
-              🔀
+          <div className="flex justify-center items-center gap-8 pt-4">
+            <button onClick={prevTrack} className="text-2xl text-zinc-400 hover:text-white active:scale-95 transition-all">⏮</button>
+            <button onClick={() => isPlaying ? pause() : play()} className="w-20 h-20 flex items-center justify-center theme-accent-bg text-black rounded-full text-3xl shadow-[0_0_20px_var(--glass-border)] active:scale-95 transition-transform">
+              {isPlaying ? '⏸' : '▶'}
             </button>
-
-            <button
-              onClick={() => skipTrack('prev')}
-              disabled={!currentTrack}
-              className="text-2xl text-zinc-300 hover:text-white active:scale-90 transition-transform disabled:opacity-30"
-            >
-              ⏮️
-            </button>
-
-            <button
-              onClick={() => jumpTime(-10)}
-              disabled={!currentTrack}
-              className="text-lg text-zinc-400 hover:text-white active:scale-90 transition-transform disabled:opacity-30"
-              title="-10 Seconds"
-            >
-              ⏪
-            </button>
-
-            <button
-              onClick={togglePlay}
-              className={`w-14 h-14 rounded-full flex items-center justify-center text-xl font-bold shadow-lg transition-all active:scale-90 border ${
-                isPlaying
-                  ? 'bg-amber-500 text-black border-amber-400 shadow-amber-500/20'
-                  : 'bg-cyan-500 text-black border-cyan-400 shadow-cyan-500/20'
-              }`}
-            >
-              {isPlaying ? '⏸️' : '▶️'}
-            </button>
-
-            <button
-              onClick={() => jumpTime(10)}
-              disabled={!currentTrack}
-              className="text-lg text-zinc-400 hover:text-white active:scale-90 transition-transform disabled:opacity-30"
-              title="+10 Seconds"
-            >
-              ⏩
-            </button>
-
-            <button
-              onClick={() => skipTrack('next')}
-              disabled={!currentTrack}
-              className="text-2xl text-zinc-300 hover:text-white active:scale-90 transition-transform disabled:opacity-30"
-            >
-              ⏭️
-            </button>
-
-            <button
-              onClick={() => setIsRepeat(!isRepeat)}
-              className={`p-2 rounded-xl text-lg transition-all ${
-                isRepeat ? 'bg-amber-500/20 text-amber-400 border border-amber-500/50' : 'text-zinc-600'
-              }`}
-              title="Repeat Track"
-            >
-              🔁
-            </button>
+            <button onClick={nextTrack} className="text-2xl text-zinc-400 hover:text-white active:scale-95 transition-all">⏭</button>
           </div>
         </div>
       )}
 
-      {/* SUBTAB 2: LIBRARY */}
-      {activeSubTab === 'Library' && (
-        <div className="space-y-3">
-          <div className="bg-black border border-zinc-800 rounded-2xl px-3 py-2 flex items-center gap-2">
-            <span className="text-xs text-zinc-500">🔍</span>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search indexed tracks by name or path..."
-              className="w-full bg-transparent text-xs text-white font-mono focus:outline-none placeholder-zinc-600"
-            />
-            {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="text-xs text-zinc-500 font-bold">✕</button>
-            )}
-          </div>
-
-          <div className="bg-zinc-900/80 p-3 rounded-3xl border border-zinc-800 min-h-[300px]">
-            {isScanning ? (
-              <div className="text-center py-20 text-xs text-cyan-400 animate-pulse font-mono">
-                🎧 Indexing local audio streams...
-              </div>
-            ) : displayedTracks.length === 0 ? (
-              <div className="text-center py-20 text-xs text-zinc-500 font-mono">
-                No audio files found.
-              </div>
+      {/* LIBRARY TAB */}
+      {activeTab === 'Library' && (
+        <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
+          <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search local audio..." className="w-full bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl px-5 py-4 text-xs text-white font-mono focus:outline-none shrink-0 shadow-inner" />
+          
+          <div className="flex-1 space-y-2 overflow-y-auto pb-4">
+            {filteredLibrary.length === 0 ? (
+              <div className="text-center text-zinc-500 font-mono text-xs py-12">No audio files found.</div>
             ) : (
-              <div className="space-y-2 max-h-[420px] overflow-y-auto pr-1">
-                {displayedTracks.map((track, idx) => {
-                  const isThisActive = currentTrack?.path === track.path;
-                  const isFav = favorites.some(f => f.path === track.path);
-
-                  return (
-                    <div
-                      key={idx}
-                      onClick={() => playTrack(track)}
-                      className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition-all ${
-                        isThisActive
-                          ? 'bg-cyan-950/80 border-cyan-500/60 text-cyan-300 shadow-md'
-                          : 'bg-black/60 border-zinc-800 hover:border-zinc-700 text-white'
-                      }`}
-                    >
-                      <div className="overflow-hidden flex-1 mr-3">
-                        <p className="text-xs font-bold truncate">{track.name}</p>
-                        <p className="text-[9px] font-mono text-zinc-500 truncate mt-0.5">{track.path}</p>
+              filteredLibrary.map((file, idx) => (
+                <div key={idx} className={`bg-zinc-900/80 backdrop-blur border rounded-3xl p-4 flex justify-between items-center shadow transition-all ${currentTrack?.src === file.src ? 'border-[var(--accent-text)]' : 'border-zinc-800'}`}>
+                  <div className="overflow-hidden pr-4 flex-1 cursor-pointer" onClick={() => { playTrack(file, filteredLibrary); setActiveTab('Now Playing'); }}>
+                    <h4 className={`text-xs font-bold truncate ${currentTrack?.src === file.src ? 'theme-accent-text' : 'text-white'}`}>{file.name}</h4>
+                    <p className="text-[9px] text-zinc-500 font-mono truncate mt-1">{file.path || 'Local Storage'}</p>
+                  </div>
+                  
+                  <div className="relative shrink-0">
+                    <button onClick={() => setShowAddToMenu(showAddToMenu === file.src ? null : file.src)} className="w-10 h-10 flex items-center justify-center bg-black border border-zinc-700 rounded-xl text-lg hover:border-zinc-500 active:scale-95">
+                      +
+                    </button>
+                    
+                    {/* Add to Playlist Dropdown */}
+                    {showAddToMenu === file.src && (
+                      <div className="absolute right-0 mt-2 w-48 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                        <div className="bg-zinc-900 p-2 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Add to Playlist</div>
+                        {Object.keys(playlists).map(pName => {
+                          const inPlaylist = playlists[pName].find(t => t.src === file.src);
+                          return (
+                            <button key={pName} onClick={() => { toggleTrackInPlaylist(pName, file); setShowAddToMenu(null); }} className="w-full text-left px-4 py-3 text-xs text-white hover:bg-zinc-800 flex justify-between border-t border-zinc-900">
+                              <span className="truncate">{pName}</span>
+                              {inPlaylist && <span className="theme-accent-text">✓</span>}
+                            </button>
+                          );
+                        })}
                       </div>
-
-                      <div className="flex items-center gap-2 shrink-0">
-                        <button
-                          onClick={(e) => toggleFavorite(track, e)}
-                          className={`text-xs p-1 ${isFav ? 'text-amber-400' : 'text-zinc-600'}`}
-                        >
-                          ★
-                        </button>
-
-                        <span className="text-xs font-bold px-2 py-1 bg-zinc-800 rounded-lg">
-                          {isThisActive && isPlaying ? '⏸️' : '▶️'}
-                        </span>
-
-                        <button
-                          onClick={(e) => nukeTrack(track.path, e)}
-                          className="bg-red-600/80 hover:bg-red-600 text-white text-[9px] font-bold px-2 py-1 rounded-lg border border-red-500/40 active:scale-95 transition-transform"
-                        >
-                          NUKE
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    )}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>
       )}
 
-      {/* SUBTAB 3: PLAYLISTS */}
-      {activeSubTab === 'Playlists' && (
-        <div className="bg-zinc-900/80 p-4 rounded-3xl border border-zinc-800 space-y-4">
-          <div className="flex justify-between items-center border-b border-zinc-800 pb-2">
-            <h3 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
-              Favorites & Custom Playlists ({favorites.length})
-            </h3>
+      {/* PLAYLISTS TAB */}
+      {activeTab === 'Playlists' && !activePlaylistView && (
+        <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
+          <button onClick={handleCreatePlaylist} className="w-full py-4 theme-glass-panel border border-[var(--glass-border)] text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow active:scale-95">
+            + Create New Playlist
+          </button>
+
+          <div className="flex-1 space-y-3 overflow-y-auto">
+            {Object.keys(playlists).map(pName => (
+              <div key={pName} onClick={() => setActivePlaylistView(pName)} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-3xl p-5 flex justify-between items-center shadow cursor-pointer hover:border-zinc-700 transition-all group">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-black border border-zinc-700 flex items-center justify-center text-xl shadow-inner group-hover:scale-105 transition-transform">
+                    {pName === 'Favorites' ? '⭐' : '💿'}
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-white">{pName}</h4>
+                    <p className="text-[10px] text-zinc-500 font-mono mt-1">{playlists[pName].length} Tracks</p>
+                  </div>
+                </div>
+                <span className="text-zinc-600 font-bold px-2">❯</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ACTIVE PLAYLIST VIEW */}
+      {activeTab === 'Playlists' && activePlaylistView && (
+        <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
+          <div className="flex items-center justify-between bg-zinc-900/90 backdrop-blur p-4 rounded-3xl border border-zinc-800 shadow-xl shrink-0">
+            <div className="flex items-center gap-3">
+              <button onClick={() => setActivePlaylistView(null)} className="text-xl px-3 py-2 bg-black rounded-xl border border-zinc-700 active:scale-95">⬅️</button>
+              <div>
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">{activePlaylistView}</h3>
+                <p className="text-[9px] text-zinc-400 font-mono">{playlists[activePlaylistView].length} Tracks</p>
+              </div>
+            </div>
+            {activePlaylistView !== 'Favorites' && (
+              <button onClick={() => { if(window.confirm('Delete playlist?')) { deletePlaylist(activePlaylistView); setActivePlaylistView(null); } }} className="bg-red-950/40 text-red-500 px-3 py-2 rounded-xl text-[10px] font-bold border border-red-900/50">Delete</button>
+            )}
           </div>
 
-          {favorites.length === 0 ? (
-            <div className="text-center py-16 text-xs text-zinc-500 font-mono space-y-1">
-              <p className="text-lg">⭐</p>
-              <p>No favorites added yet.</p>
-              <p className="text-[10px] text-zinc-600">Tap the ★ icon on any track in your library to add it here.</p>
-            </div>
-          ) : (
-            <div className="space-y-2 max-h-[380px] overflow-y-auto">
-              {favorites.map((track, idx) => (
-                <div
-                  key={idx}
-                  onClick={() => playTrack(track)}
-                  className="bg-black p-3 rounded-2xl border border-zinc-800 flex items-center justify-between cursor-pointer"
-                >
-                  <div className="overflow-hidden flex-1 mr-2">
-                    <p className="text-xs font-bold text-white truncate">{track.name}</p>
-                    <p className="text-[9px] font-mono text-zinc-500 truncate">{track.path}</p>
+          <div className="flex-1 space-y-2 overflow-y-auto">
+            {playlists[activePlaylistView].length === 0 ? (
+              <div className="text-center text-zinc-500 font-mono text-xs py-12">Playlist is empty.</div>
+            ) : (
+              playlists[activePlaylistView].map((file, idx) => (
+                <div key={idx} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-3xl p-4 flex justify-between items-center shadow">
+                  <div className="overflow-hidden pr-4 flex-1 cursor-pointer" onClick={() => { playTrack(file, playlists[activePlaylistView]); setActiveTab('Now Playing'); }}>
+                    <h4 className="text-xs font-bold truncate text-white">{file.name}</h4>
                   </div>
-                  <button
-                    onClick={(e) => toggleFavorite(track, e)}
-                    className="text-xs text-red-400 font-bold px-2 py-1"
-                  >
+                  <button onClick={() => toggleTrackInPlaylist(activePlaylistView, file)} className="w-10 h-10 flex items-center justify-center bg-red-950/30 border border-red-900/50 text-red-500 rounded-xl text-[10px] font-bold active:scale-95">
                     Remove
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+            )}
+          </div>
         </div>
       )}
 
+      {/* GLOBAL MINI-PLAYER (Always visible if playing and not on 'Now Playing' tab) */}
+      {currentTrack && activeTab !== 'Now Playing' && (
+        <div onClick={() => setActiveTab('Now Playing')} className="absolute bottom-4 left-4 right-4 theme-glass-panel backdrop-blur-xl border border-[var(--glass-border)] rounded-2xl p-3 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.5)] cursor-pointer z-50 overflow-hidden">
+          {/* Background progress bar indicator */}
+          <div className="absolute left-0 bottom-0 h-1 theme-accent-bg opacity-50 transition-all duration-1000" style={{ width: `${(progress / duration) * 100}%` }}></div>
+          
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-lg border border-zinc-700 shrink-0">🎵</div>
+            <div className="overflow-hidden">
+              <h4 className="text-[11px] font-bold text-white truncate">{currentTrack.name}</h4>
+              <p className="text-[9px] theme-accent-text font-mono truncate uppercase tracking-widest">{isPlaying ? 'Now Playing' : 'Paused'}</p>
+            </div>
+          </div>
+          <button onClick={(e) => { e.stopPropagation(); isPlaying ? pause() : play(); }} className="w-10 h-10 shrink-0 flex items-center justify-center theme-accent-bg text-black rounded-xl text-lg font-black active:scale-95">
+            {isPlaying ? '⏸' : '▶'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
