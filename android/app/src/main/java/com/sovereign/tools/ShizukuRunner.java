@@ -18,21 +18,18 @@ public class ShizukuRunner extends Plugin {
 
     @PluginMethod
     public void checkStatus(PluginCall call) {
+        JSObject ret = new JSObject();
         try {
             if (Shizuku.pingBinder()) {
                 boolean granted = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
-                JSObject ret = new JSObject();
                 ret.put("active", true);
                 ret.put("granted", granted);
-                call.resolve(ret);
             } else {
-                JSObject ret = new JSObject();
                 ret.put("active", false);
                 ret.put("granted", false);
-                call.resolve(ret);
             }
+            call.resolve(ret);
         } catch (Exception e) {
-            JSObject ret = new JSObject();
             ret.put("active", false);
             ret.put("granted", false);
             call.resolve(ret);
@@ -43,7 +40,7 @@ public class ShizukuRunner extends Plugin {
     public void requestPermission(PluginCall call) {
         try {
             if (!Shizuku.pingBinder()) {
-                call.reject("Shizuku is not running on the device.");
+                call.reject("Shizuku binder not active. Ensure Shizuku is running.");
                 return;
             }
             
@@ -69,7 +66,7 @@ public class ShizukuRunner extends Plugin {
             Shizuku.requestPermission(SHIZUKU_CODE);
             
         } catch (Exception e) {
-            call.reject("Failed to request Shizuku permission: " + e.getMessage());
+            call.reject("Shizuku error: " + e.getMessage());
         }
     }
 
@@ -79,7 +76,7 @@ public class ShizukuRunner extends Plugin {
         JSObject ret = new JSObject();
         try {
             if (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-                call.reject("Shizuku is not active or permission is denied.");
+                call.reject("Shizuku permission not granted.");
                 return;
             }
             

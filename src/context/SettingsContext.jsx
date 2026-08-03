@@ -1,11 +1,17 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
-  const [mode, setMode] = useState(() => localStorage.getItem('sovereign_mode') || 'EXPERT');
-  const [accentColor, setAccentColor] = useState(() => localStorage.getItem('sovereign_accent') || 'cyan');
-  const [textSize, setTextSize] = useState(() => localStorage.getItem('sovereign_text') || 'Medium');
+  const [mode, setMode] = useState('EXPERT');
+  const [accentColor, setAccentColor] = useState('cyan');
+  const [textSize, setTextSize] = useState(1); // 0: Small, 1: Normal, 2: Large
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', accentColor);
+    root.setAttribute('data-text-scale', textSize);
+  }, [accentColor, textSize]);
 
   return (
     <SettingsContext.Provider value={{ mode, setMode, accentColor, setAccentColor, textSize, setTextSize }}>
@@ -14,10 +20,4 @@ export function SettingsProvider({ children }) {
   );
 }
 
-export const useSettings = () => {
-  const context = useContext(SettingsContext);
-  if (!context) {
-    return { mode: 'EXPERT', setMode: () => {}, accentColor: 'cyan', setAccentColor: () => {}, textSize: 'Medium', setTextSize: () => {} };
-  }
-  return context;
-};
+export const useSettings = () => useContext(SettingsContext);
