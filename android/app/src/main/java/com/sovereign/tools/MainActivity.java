@@ -14,9 +14,24 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebView;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+
+import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.Plugin;
+import java.util.ArrayList;
+
 
 public class MainActivity extends BridgeActivity {
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // Register Custom Native Bridges
+        registerPlugin(ShizukuRunner.class);
+        registerPlugin(WakeLockBridge.class);
+    }
+
     
     private static final int PERMISSION_REQUEST_CODE = 1001;
 
