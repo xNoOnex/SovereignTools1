@@ -8,11 +8,16 @@ export function StealthCalc({ onNavigate }) {
 
   // Timesheet State
   const [shifts, setShifts] = useState([{ id: Date.now(), start: '16:00', end: '22:00' }]);
+  const [hourlyRate, setHourlyRate] = useState('');
 
   // Tax State
+  const [taxMode, setTaxMode] = useState('INCOME'); // 'INCOME' or 'FLAT'
   const [income, setIncome] = useState('');
   const [fedRate, setFedRate] = useState('12.0'); 
   const [stateRate, setStateRate] = useState('2.5');
+  
+  const [basicAmount, setBasicAmount] = useState('');
+  const [basicRate, setBasicRate] = useState('');
 
   // --- MATH LOGIC ---
   const handleNum = (n) => {      
@@ -22,7 +27,6 @@ export function StealthCalc({ onNavigate }) {
   
   const evalMath = () => {
     try {
-      // Safely replace scientific notations for JS evaluation
       let eq = display
         .replace(/sin\(/g, 'Math.sin(')
         .replace(/cos\(/g, 'Math.cos(')
@@ -32,10 +36,7 @@ export function StealthCalc({ onNavigate }) {
         .replace(/\^/g, '**');
       
       const result = new Function('return ' + eq)();
-      
       if (!isFinite(result) || isNaN(result)) throw new Error('Math Error');
-      
-      // Format to 6 decimal places max to prevent overflow
       setDisplay(String(Math.round(result * 1000000) / 1000000));
     } catch {
       setDisplay('Error');
@@ -45,7 +46,7 @@ export function StealthCalc({ onNavigate }) {
 
   // --- TIMESHEET LOGIC ---
   const addShift = () => {
-    setShifts([...shifts, { id: Date.now(), start: '08:00', end: '17:00' }]);
+    setShifts([...shifts, { id: Date.now(), start: '16:00', end: '22:00' }]);
   };
 
   const updateShift = (id, field, value) => {
@@ -58,31 +59,50 @@ export function StealthCalc({ onNavigate }) {
     }
   };
 
-  const calculateTotalHours = () => {
+  const calculateTimesheetData = () => {
     let totalMinutes = 0;
     shifts.forEach(shift => {
       if (shift.start && shift.end) {
         const [startH, startM] = shift.start.split(':').map(Number);
         const [endH, endM] = shift.end.split(':').map(Number);
         let diff = (endH * 60 + endM) - (startH * 60 + startM);
-        if (diff < 0) diff += 24 * 60; // handle overnight shifts
+        if (diff < 0) diff += 24 * 60; // handle overnight
         totalMinutes += diff;
       }
     });
+    
     const hours = Math.floor(totalMinutes / 60);
     const mins = totalMinutes % 60;
-    return `${hours}h ${mins}m`;
+    const timeString = `${hours}h ${mins}m`;
+    
+    const rate = parseFloat(hourlyRate) || 0;
+    const grossPay = (totalMinutes / 60) * rate;
+    
+    return { timeString, grossPay };
   };
+  const timesheetData = calculateTimesheetData();
 
   // --- TAX LOGIC ---
-  const calculateTaxes = () => {
+  const calculateIncomeTaxes = () => {
     const gross = parseFloat(income) || 0;
     const fed = gross * ((parseFloat(fedRate) || 0) / 100);
     const state = gross * ((parseFloat(stateRate) || 0) / 100);
     const net = gross - fed - state;
     return { gross, fed, state, net };
   };
-  const taxData = calculateTaxes();
+  const incomeTaxData = calculateIncomeTaxes();
+
+  const calculateFlatTax = () => {
+    const base = parseFloat(basicAmount) || 0;
+    const rate = parseFloat(basicRate) || 0;
+    const taxAmount = base * (rate / 100);
+    return {
+      taxAmount,
+      plusTax: base + taxAmount,
+      minusTax: base - taxAmount
+    };
+  };
+  const flatTaxData = calculateFlatTax();
 
   return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white min-h-screen flex flex-col relative z-10 animate-fadeIn">
@@ -139,12 +159,20 @@ export function StealthCalc({ onNavigate }) {
       {/* TIMESHEET MODULE */}
       {activeTab === 'TIMESHEET' && (
         <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
-          <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl flex justify-between items-center shrink-0">
-            <div>
-              <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest">Total Hours</h3>
-              <p className="text-[10px] text-zinc-500 font-mono">Accumulated across {shifts.length} days</p>
+          
+          <div className="flex gap-3 shrink-0">
+            <div className="flex-1 bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl shadow-xl flex flex-col justify-between">
+              <h3 className="text-[10px] font-bold theme-accent-text uppercase tracking-widest">Total Hours</h3>
+              <span className="text-2xl font-mono font-bold text-white mt-1">{timesheetData.timeString}</span>
             </div>
-            <span className="text-2xl font-mono font-bold text-white">{calculateTotalHours()}</span>
+            
+            <div className="flex-1 bg-black/60 border border-zinc-800 p-4 rounded-3xl shadow-inner flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Est. Gross</h3>
+                <input type="number" value={hourlyRate} onChange={e => setHourlyRate(e.target.value)} placeholder="Wage/hr" className="w-20 bg-zinc-900 border border-zinc-700 rounded-lg px-2 py-1 text-[10px] text-white font-mono focus:outline-none" />
+              </div>
+              <span className="text-2xl font-mono font-bold text-emerald-400">${timesheetData.grossPay.toFixed(2)}</span>
+            </div>
           </div>
 
           <div className="flex-1 space-y-3 overflow-y-auto pb-4">
@@ -166,40 +194,76 @@ export function StealthCalc({ onNavigate }) {
 
       {/* TAX AUDITOR MODULE */}
       {activeTab === 'TAX' && (
-        <div className="flex-1 space-y-4 animate-fadeIn overflow-y-auto">
-          <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl space-y-4">
-            <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest">Gross Income</h3>
-            <div className="relative">
-              <span className="absolute left-4 top-4 text-zinc-500 font-mono font-bold">$</span>
-              <input type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="0.00" className="w-full bg-black border border-zinc-800 rounded-xl pl-8 pr-4 py-4 text-sm text-white font-mono focus:outline-none shadow-inner" />
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <span className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Est. Federal (%)</span>
-                <input type="number" value={fedRate} onChange={(e) => setFedRate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-mono focus:outline-none shadow-inner" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Est. State (%)</span>
-                <input type="number" value={stateRate} onChange={(e) => setStateRate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-mono focus:outline-none shadow-inner" />
-              </div>
-            </div>
+        <div className="flex-1 flex flex-col space-y-4 animate-fadeIn overflow-y-auto">
+          
+          <div className="flex gap-2 bg-black border border-zinc-800 p-1 rounded-2xl shrink-0 shadow-inner">
+            <button onClick={() => setTaxMode('INCOME')} className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${taxMode === 'INCOME' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>Income Auditor</button>
+            <button onClick={() => setTaxMode('FLAT')} className={`flex-1 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${taxMode === 'FLAT' ? 'bg-zinc-800 text-white shadow' : 'text-zinc-500 hover:text-zinc-300'}`}>Flat / Sales</button>
           </div>
 
-          <div className="bg-black/80 border border-zinc-800 p-6 rounded-3xl space-y-4 shadow-inner">
-            <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Net Take-Home Yield</h3>
-            <div className="flex justify-between font-mono text-xs"><span className="text-zinc-500">Gross:</span><span className="text-zinc-300">${taxData.gross.toFixed(2)}</span></div>
-            <div className="flex justify-between font-mono text-xs"><span className="text-red-400">Fed Deduction:</span><span className="text-red-400">-${taxData.fed.toFixed(2)}</span></div>
-            <div className="flex justify-between font-mono text-xs"><span className="text-red-400">State Deduction:</span><span className="text-red-400">-${taxData.state.toFixed(2)}</span></div>
-            <div className="flex justify-between font-mono text-lg font-bold border-t border-zinc-800 pt-3"><span className="theme-accent-text">Net Income:</span><span className="text-white">${taxData.net.toFixed(2)}</span></div>
-          </div>
-          
-          <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl shadow">
-            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1 flex items-center gap-2"><span>ℹ️</span> Tax Info</h4>
-            <p className="text-[9px] text-zinc-500 font-mono leading-relaxed text-justify">
-              Federal taxes operate on progressive brackets starting at 10% and scaling upward based on filing status. State taxes vary by region; for example, residents in Arizona face a flat state income tax rate of 2.5%, regardless of income level. Modify the percentages above to match your specific regional bracket.
-            </p>
-          </div>
+          {taxMode === 'INCOME' ? (
+            <div className="space-y-4 animate-fadeIn">
+              <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl space-y-4">
+                <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest">Gross Income</h3>
+                <div className="relative">
+                  <span className="absolute left-4 top-4 text-zinc-500 font-mono font-bold">$</span>
+                  <input type="number" value={income} onChange={(e) => setIncome(e.target.value)} placeholder="0.00" className="w-full bg-black border border-zinc-800 rounded-xl pl-8 pr-4 py-4 text-sm text-white font-mono focus:outline-none shadow-inner" />
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Est. Federal (%)</span>
+                    <input type="number" value={fedRate} onChange={(e) => setFedRate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-mono focus:outline-none shadow-inner" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-zinc-500 uppercase mb-1 block">Est. State (%)</span>
+                    <input type="number" value={stateRate} onChange={(e) => setStateRate(e.target.value)} className="w-full bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-mono focus:outline-none shadow-inner" />
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-black/80 border border-zinc-800 p-6 rounded-3xl space-y-4 shadow-inner">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">Net Take-Home Yield</h3>
+                <div className="flex justify-between font-mono text-xs"><span className="text-zinc-500">Gross:</span><span className="text-zinc-300">${incomeTaxData.gross.toFixed(2)}</span></div>
+                <div className="flex justify-between font-mono text-xs"><span className="text-red-400">Fed Deduction:</span><span className="text-red-400">-${incomeTaxData.fed.toFixed(2)}</span></div>
+                <div className="flex justify-between font-mono text-xs"><span className="text-red-400">State Deduction:</span><span className="text-red-400">-${incomeTaxData.state.toFixed(2)}</span></div>
+                <div className="flex justify-between font-mono text-lg font-bold border-t border-zinc-800 pt-3"><span className="theme-accent-text">Net Income:</span><span className="text-white">${incomeTaxData.net.toFixed(2)}</span></div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 animate-fadeIn">
+              <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl space-y-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-2">
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Base Amount</h3>
+                    <div className="relative">
+                      <span className="absolute left-4 top-3.5 text-zinc-500 font-mono font-bold">$</span>
+                      <input type="number" value={basicAmount} onChange={(e) => setBasicAmount(e.target.value)} placeholder="0.00" className="w-full bg-black border border-zinc-800 rounded-xl pl-8 pr-4 py-3 text-sm text-white font-mono focus:outline-none shadow-inner" />
+                    </div>
+                  </div>
+                  <div className="col-span-1">
+                    <h3 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Rate (%)</h3>
+                    <div className="relative">
+                      <input type="number" value={basicRate} onChange={(e) => setBasicRate(e.target.value)} placeholder="0.0" className="w-full bg-black border border-zinc-800 rounded-xl pr-6 pl-3 py-3 text-sm text-white font-mono focus:outline-none shadow-inner text-right" />
+                      <span className="absolute right-3 top-3.5 text-zinc-500 font-mono font-bold">%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-black/80 border border-zinc-800 p-6 rounded-3xl space-y-4 shadow-inner">
+                <div className="flex justify-between font-mono text-xs border-b border-zinc-800 pb-3"><span className="text-zinc-500">Calculated Tax Amount:</span><span className="text-zinc-300">${flatTaxData.taxAmount.toFixed(2)}</span></div>
+                <div className="flex justify-between font-mono text-sm font-bold items-center">
+                  <span className="text-emerald-400 uppercase tracking-widest text-[10px]">Add (+)</span>
+                  <span className="text-white">${flatTaxData.plusTax.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-mono text-sm font-bold items-center">
+                  <span className="text-red-400 uppercase tracking-widest text-[10px]">Subtract (-)</span>
+                  <span className="text-white">${flatTaxData.minusTax.toFixed(2)}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
