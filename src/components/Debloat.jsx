@@ -6,6 +6,7 @@ const ShizukuRunner = registerPlugin('ShizukuRunner');
 export function Debloat({ onNavigate }) {
   const [shizukuState, setShizukuState] = useState({ active: false, granted: false });
   const [executingId, setExecutingId] = useState(null);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
   
   const [packages, setPackages] = useState([
     { id: 1, name: 'com.samsung.android.bixby.wakeup', status: 'Active', category: 'BLOATWARE', risk: 'HIGH', cmd: 'pm uninstall -k --user 0 com.samsung.android.bixby.wakeup' },
@@ -15,9 +16,7 @@ export function Debloat({ onNavigate }) {
   ]);
   const [expandedId, setExpandedId] = useState(null);
 
-  useEffect(() => {
-    checkShizuku();
-  }, []);
+  useEffect(() => { checkShizuku(); }, []);
 
   const checkShizuku = async () => {
     try {
@@ -33,7 +32,6 @@ export function Debloat({ onNavigate }) {
       alert("Shizuku is not running or permission was denied. Start the Shizuku app via Wireless Debugging first.");
       return;
     }
-    
     setExecutingId(pkg.id);
     try {
       const res = await ShizukuRunner.executeCommand({ command: pkg.cmd });
@@ -56,13 +54,12 @@ export function Debloat({ onNavigate }) {
         <p className="text-xs text-zinc-400 mt-2">Isolate and neutralize background telemetry packages.</p>
       </div>
 
-      {/* SHIZUKU STATUS BADGE */}
       <div className={`p-4 rounded-2xl border flex justify-between items-center shadow-inner shrink-0 ${shizukuState.granted ? 'bg-emerald-950/20 border-emerald-900/50' : 'bg-red-950/20 border-red-900/50'}`}>
         <div>
           <h4 className="text-xs font-bold text-white uppercase tracking-widest">Shizuku Bridge</h4>
           <p className="text-[9px] font-mono mt-1 text-zinc-400">Native Shell Privilege Broker</p>
         </div>
-        <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuState.granted ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+        <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuState.granted ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-red-600 hover:bg-red-500 text-white'}`}>
           {shizukuState.granted ? 'CONNECTED' : 'OFFLINE'}
         </button>
       </div>
@@ -70,7 +67,6 @@ export function Debloat({ onNavigate }) {
       <div className="flex-1 space-y-4 overflow-y-auto pt-2">
         {packages.map(pkg => (
           <div key={pkg.id} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-3xl overflow-hidden shadow-lg transition-all">
-            
             <div className="p-5 flex justify-between items-center cursor-pointer hover:bg-zinc-800" onClick={() => setExpandedId(expandedId === pkg.id ? null : pkg.id)}>
               <div className="overflow-hidden pr-4">
                 <h4 className={`text-[13px] font-mono font-bold truncate ${pkg.status === 'Neutralized' ? 'text-zinc-600 line-through' : 'text-white'}`}>{pkg.name}</h4>
@@ -88,25 +84,36 @@ export function Debloat({ onNavigate }) {
                    <span className={`text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-lg border ${pkg.risk === 'HIGH' ? 'bg-red-950/50 text-red-400 border-red-900' : pkg.risk === 'MEDIUM' ? 'bg-amber-950/50 text-amber-400 border-amber-900' : 'bg-emerald-950/50 text-emerald-400 border-emerald-900'}`}>{pkg.risk}</span>
                 </div>
                 
-                <button 
-                  onClick={() => executeNeutralize(pkg)} 
-                  disabled={executingId === pkg.id || !shizukuState.granted}
-                  className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2"
-                >
+                <button onClick={() => executeNeutralize(pkg)} disabled={executingId === pkg.id || !shizukuState.granted} className="w-full py-4 bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
                   {executingId === pkg.id ? 'EXECUTING...' : '🔥 NUKE VIA SHIZUKU'}
                 </button>
               </div>
             )}
-
           </div>
         ))}
       </div>
 
-      <div className="shrink-0 mt-4 bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl">
-        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-2"><span>ℹ️</span> Module Info & Disclaimers</h4>
-        <p className="text-[10px] text-zinc-500 font-mono leading-relaxed text-justify">
-          This module is bound to the Shizuku API. Shizuku utilizes Android's Wireless Debugging protocol to grant the app elevated ADB shell permissions without requiring root access. Packages neutralized via this method are un-provisioned for user 0 and permanently halt telemetry.
-        </p>
+      <div className="shrink-0 mt-4 bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl space-y-3">
+        <div className="flex justify-between items-center cursor-pointer" onClick={() => setShowDisclaimer(!showDisclaimer)}>
+          <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest flex items-center gap-2">
+            <span>ℹ️</span> Shizuku Bridge & Security Disclaimers
+          </h4>
+          <span className="text-zinc-500 text-xs">{showDisclaimer ? '▼' : '▶'}</span>
+        </div>
+        
+        {showDisclaimer && (
+          <div className="space-y-3 animate-fadeIn pt-2 border-t border-zinc-800/50">
+            <p className="text-[10px] text-zinc-300 font-mono leading-relaxed text-justify">
+              <strong className="text-emerald-400">What is Shizuku?</strong> It is a background service that safely leverages Android's built-in Wireless Debugging protocol to grant Sovereign Tools elevated ADB (shell) permissions, entirely bypassing the need for a PC or root access.
+            </p>
+            <p className="text-[10px] text-zinc-300 font-mono leading-relaxed text-justify">
+              <strong className="text-amber-400">How it Works:</strong> When connected, Sovereign Tools can execute direct system commands (like un-provisioning bloatware for user 0) directly on the hardware. Packages neutralized via this method are instantly stripped of background processing rights and permanently halt telemetry.
+            </p>
+            <p className="text-[10px] text-zinc-300 font-mono leading-relaxed text-justify">
+              <strong className="text-red-400">Security Warning:</strong> Leaving Wireless Debugging active indefinitely creates a local attack vector on untrusted networks. It is highly recommended to disable "Wireless Debugging" in Android Developer Options once you have finished neutralizing target packages.
+            </p>
+          </div>
+        )}
       </div>
 
     </div>
