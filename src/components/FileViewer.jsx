@@ -1,65 +1,130 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStorage } from '../context/StorageContext';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+
+const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function FileViewer({ onNavigate }) {
-  const { indexedFiles = [], runGlobalScan } = useStorage();
-  const [activeFile, setActiveFile] = useState(null);
-  const [currentFolder, setCurrentFolder] = useState('ROOT');
+  const { indexedFiles, runGlobalScan } = useStorage();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileContent, setFileContent] = useState(null);
+  const [isNuking, setIsNuking] = useState(false);
+  const [shizukuGranted, setShizukuGranted] = useState(false);
 
-  const filesToRender = indexedFiles.length > 0 ? indexedFiles : [];
+  useEffect(() => {
+    checkShizuku();
+  }, []);
 
-  const getFilteredFiles = () => {
-    if (currentFolder === 'ROOT') return [];
-    if (currentFolder === 'Images') return filesToRender.filter(f => ['jpg', 'png', 'webp', 'jpeg', 'gif'].includes(f.ext));
-    if (currentFolder === 'Videos') return filesToRender.filter(f => ['mp4', 'webm', 'mkv', 'avi'].includes(f.ext));
-    if (currentFolder === 'Audio') return filesToRender.filter(f => ['mp3', 'wav', 'ogg'].includes(f.ext));
-    if (currentFolder === 'Documents') return filesToRender.filter(f => ['pdf', 'txt', 'md', 'doc', 'docx', 'csv', 'xls'].includes(f.ext));
-    if (currentFolder === 'Downloads') return filesToRender.filter(f => f.src?.includes('Download') || f.name.includes('Download'));
-    if (currentFolder === 'Internal Storage') return filesToRender;
-    return filesToRender;
+  const checkShizuku = async () => {
+    try {
+      const res = await ShizukuRunner.checkStatus();
+      setShizukuGranted(res.granted);
+    } catch (e) {
+      setShizukuGranted(false);
+    }
   };
 
-  const currentList = getFilteredFiles();
+  const filteredFiles = indexedFiles.filter(f => 
+    f.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  const openExternally = (file) => {
-    const a = document.createElement('a');
-    a.href = file.src;
-    a.download = file.name;
-    a.target = '_blank';
-    a.click();
+  const getFileType = (ext) => {
+    const e = ext?.toLowerCase();
+    if (['mp4', 'webm', 'ogg'].includes(e)) return 'VIDEO';
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(e)) return 'IMAGE';
+    if (['txt', 'json', 'md', 'csv', 'log'].includes(e)) return 'TEXT';
+    if (['mp3', 'wav', 'm4a'].includes(e)) return 'AUDIO';
+    return 'BINARY';
   };
 
-  const renderNativeFile = (file) => {
-    const ext = file.ext.toLowerCase();
-    
-    if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
+  const openFile = async (file) => {
+    setSelectedFile(file);
+    setFileContent(null);
+    const type = getFileType(file.ext);
+
+    if (type === 'VIDEO' || type === 'IMAGE' || type === 'AUDIO') {
+      // Create a secure local HTTP stream URL to bypass RAM limits
+      setFileContent(Capacitor.convertFileSrc(file.path));
+    } else if (type === 'TEXT') {
+      try {
+        const contents = await Filesystem.readFile({ path: file.path });
+        setFileContent(contents.data);
+      } catch (e) {
+        setFileContent('Error reading text payload.');
+      }
+    }
+  };
+
+  const nukeFile = async () => {
+    if (!selectedFile) return;
+    if (!shizukuGranted) return alert("Shizuku Root Bridge required for 3-pass logical wipe.");
+    if (!window.confirm(`Permanently annihilate ${selectedFile.name}? This cannot be undone.`)) return;
+
+    setIsNuking(true);
+    const wipeScript = `
+      FILE="${selectedFile.path}"
+      if [ -f "$FILE" ]; then
+        SIZE=$(stat -c%s "$FILE")
+        BLOCKS=$((SIZE / 4096 + 1))
+        dd if=/dev/zero of="$FILE" bs=4096 count=$BLOCKS 2>/dev/null
+        dd if=/dev/urandom of="$FILE" bs=4096 count=$BLOCKS 2>/dev/null
+        DIR=$(dirname "$FILE")
+        RAND_NAME="obliterated_$(date +%s%N).tmp"
+        mv "$FILE" "$DIR/$RAND_NAME"
+        rm -f "$DIR/$RAND_NAME"
+        echo "SUCCESS"
+      else
+        echo "FAILED"
+      fi
+    `;
+
+    try {
+      await ShizukuRunner.executeCommand({ command: wipeScript });
+      alert("Target Annihilated.");
+      setSelectedFile(null);
+      runGlobalScan(); // Refresh list
+    } catch (e) {
+      alert(`Wipe failed: ${e.message}`);
+    } finally {
+      setIsNuking(false);
+    }
+  };
+
+  const renderViewer = () => {
+    const type = getFileType(selectedFile.ext);
+
+    if (type === 'VIDEO') {
+      return <video controls src={fileContent} className="w-full max-h-[40vh] bg-black rounded-xl border border-zinc-800 shadow-inner" autoPlay />;
+    }
+    if (type === 'IMAGE') {
+      return <img src={fileContent} alt={selectedFile.name} className="w-full max-h-[40vh] object-contain rounded-xl" />;
+    }
+    if (type === 'AUDIO') {
       return (
-        <div className="w-full h-full flex items-center justify-center">
-          <img src={file.src} alt={file.name} className="max-w-full max-h-[60vh] object-contain rounded-xl shadow-2xl" 
-               onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }}/>
-          <div style={{display: 'none'}} className="text-center p-4">
-            <span className="text-5xl drop-shadow-md">⚠️</span>
-            <p className="text-[10px] text-red-400 font-mono mt-4 leading-relaxed uppercase tracking-widest">Image path broken. Click "Open External".</p>
-          </div>
+        <div className="flex flex-col items-center justify-center p-8 bg-black border border-zinc-800 rounded-xl space-y-6 shadow-inner">
+          <span className="text-6xl drop-shadow-lg">🎵</span>
+          <audio controls src={fileContent} className="w-full" autoPlay />
+        </div>
+      );
+    }
+    if (type === 'TEXT') {
+      return (
+        <div className="bg-black border border-zinc-800 rounded-xl p-4 h-[40vh] overflow-y-auto font-mono text-[9px] text-emerald-400 whitespace-pre-wrap shadow-inner text-left">
+          {fileContent || 'Loading payload...'}
         </div>
       );
     }
     
-    if (['txt', 'md', 'json', 'csv'].includes(ext)) {
-      return (
-         <div className="w-full h-full font-mono text-[10px] text-emerald-400 whitespace-pre-wrap overflow-y-auto leading-relaxed text-left bg-black p-5 rounded-xl border border-zinc-800 shadow-inner">
-            {file.content || "Payload encrypted or empty."}
-         </div>
-      );
-    }
-    
+    // Fallback for encrypted/unsupported binaries (.sdocx, .apk, etc.)
     return (
-      <div className="text-center space-y-4 max-w-xs mx-auto">
-        <span className="text-6xl drop-shadow-lg block">📦</span>
-        <p className="text-[10px] text-zinc-400 font-mono leading-relaxed text-justify px-2">
-          The binary format <strong className="text-white uppercase">.{ext}</strong> cannot be securely rendered inside the sandbox. Parsing this raw data could result in a memory stall.
+      <div className="flex flex-col items-center justify-center text-center space-y-4 p-4">
+        <span className="text-7xl drop-shadow-xl">📦</span>
+        <p className="text-[10px] text-zinc-400 font-mono leading-relaxed px-4">
+          The binary format <strong className="text-white">.{selectedFile.ext?.toUpperCase() || 'UNKNOWN'}</strong> cannot be securely rendered inside the sandbox. Parsing this raw data could result in a memory stall.
         </p>
-        <button onClick={() => openExternally(file)} className="w-full bg-zinc-800 text-white font-bold text-[10px] tracking-widest uppercase rounded-xl py-4 border border-zinc-700 active:scale-95 shadow-lg mt-2">
+        <button className="px-6 py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-[10px] font-bold uppercase tracking-widest text-zinc-300 active:scale-95 shadow mt-2">
           Force External Open
         </button>
       </div>
@@ -67,108 +132,69 @@ export function FileViewer({ onNavigate }) {
   };
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white min-h-screen flex flex-col relative z-10">
+    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white min-h-screen relative z-10 animate-fadeIn">
       
-      {!activeFile ? (
+      {!selectedFile ? (
         <>
-          <div className="flex justify-between items-center shrink-0 mb-2">
-            <h2 className="text-2xl font-black text-white flex items-center gap-3">📂 MyFiles</h2>
-            <button onClick={runGlobalScan} className="bg-zinc-900 border border-zinc-700 text-zinc-300 px-4 py-2 rounded-xl text-xs font-bold active:scale-95 shadow">Rescan</button>
+          <div className="flex justify-between items-center border-b border-zinc-900 pb-3 pt-2 shrink-0">
+            <div>
+              <h2 className="text-xl font-bold text-white flex items-center gap-2"><span className="text-2xl drop-shadow">📂</span> Universal Explorer</h2>
+              <p className="text-[10px] text-zinc-400 mt-1 font-mono">Local filesystem navigator.</p>
+            </div>
+            <button onClick={runGlobalScan} className="bg-zinc-900 border border-zinc-700 text-cyan-400 px-4 py-2 rounded-xl text-xs font-bold active:scale-95 shadow">Rescan</button>
           </div>
 
-          {currentFolder === 'ROOT' ? (
-            <div className="flex-1 space-y-6 animate-fadeIn">
-              <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-3xl p-5 shadow-xl">
-                <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest px-1 mb-4">CATEGORIES</h3>
-                <div className="grid grid-cols-3 gap-4">
-                  {[
-                    { id: 'Images', icon: '🖼️' }, { id: 'Videos', icon: '🎬' }, { id: 'Audio', icon: '🎵' },
-                    { id: 'Documents', icon: '📑' }, { id: 'Downloads', icon: '📥' }, { id: 'APKs', icon: '📦' }
-                  ].map(cat => (
-                    <button key={cat.id} onClick={() => setCurrentFolder(cat.id)} className="flex flex-col items-center bg-black/40 hover:bg-zinc-800 border border-zinc-800/50 p-4 rounded-2xl transition-all shadow-inner active:scale-95">
-                      <span className="text-3xl mb-2 drop-shadow-md">{cat.icon}</span>
-                      <span className="text-[10px] font-bold text-zinc-300">{cat.id}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-3xl p-5 shadow-xl">
-                <h3 className="text-xs font-bold theme-accent-text uppercase tracking-widest px-1 mb-4">LOCAL STORAGE</h3>
-                <button onClick={() => setCurrentFolder('Internal Storage')} className="w-full flex items-center gap-4 bg-black/40 hover:bg-zinc-800 border border-zinc-800/50 p-4 rounded-2xl transition-all shadow-inner active:scale-95 text-left">
-                  <span className="text-3xl drop-shadow-md">💾</span>
-                  <div>
-                    <span className="text-sm font-bold text-zinc-200 block">Internal Storage</span>
-                    <span className="text-[10px] font-mono text-zinc-500">{filesToRender.length} Indexed Files</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
-              <div className="flex items-center gap-3 bg-zinc-900/80 backdrop-blur p-4 rounded-3xl border border-zinc-800 shadow-xl shrink-0">
-                <button onClick={() => setCurrentFolder('ROOT')} className="text-xl px-2 py-1 bg-black rounded-lg border border-zinc-700 active:scale-95">⬅️</button>
-                <div>
-                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">{currentFolder}</h3>
-                  <p className="text-[9px] text-zinc-400 font-mono">{currentList.length} Items</p>
-                </div>
-              </div>
+          <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search filesystem..." className="w-full bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl px-5 py-4 text-xs text-white font-mono focus:outline-none shadow-inner" />
 
-              <div className="flex-1 space-y-2 overflow-y-auto">
-                {currentList.length === 0 ? (
-                  <div className="text-center text-zinc-500 font-mono text-xs py-16 bg-black/40 rounded-3xl border border-zinc-900/50">Folder is empty.</div>
-                ) : (
-                  currentList.map((file, idx) => (
-                    <div key={idx} onClick={() => setActiveFile(file)} className="bg-zinc-900/90 backdrop-blur border border-zinc-800 rounded-3xl p-4 flex justify-between items-center cursor-pointer hover:bg-zinc-800 transition-all shadow-md group">
-                      <div className="flex items-center gap-4 overflow-hidden pr-2 w-full">
-                        <div className="w-12 h-12 rounded-xl bg-black border border-zinc-700 flex items-center justify-center shrink-0 text-2xl group-hover:scale-105 transition-transform shadow-inner">📄</div>
-                        <div className="flex flex-col overflow-hidden w-full">
-                          <h4 className="text-xs font-bold text-white truncate">{file.name}</h4>
-                          <span className="text-[9px] text-zinc-500 font-mono mt-1 uppercase">{file.ext} FILE</span>
-                        </div>
-                      </div>
-                      <span className="text-xs text-zinc-500 font-bold shrink-0 px-2">❯</span>
-                    </div>
-                  ))
-                )}
+          <div className="flex-1 space-y-2 overflow-y-auto pb-4">
+            {filteredFiles.map((file, idx) => (
+              <div key={idx} onClick={() => openFile(file)} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl p-4 flex justify-between items-center shadow cursor-pointer active:scale-95 transition-transform hover:border-zinc-700">
+                <div className="overflow-hidden pr-4 flex-1">
+                  <h4 className="text-xs font-bold truncate text-white">{file.name}</h4>
+                  <p className="text-[9px] text-zinc-500 font-mono truncate mt-1">{file.path}</p>
+                </div>
+                <span className="text-[10px] font-bold text-zinc-600 bg-black px-2 py-1 rounded border border-zinc-800 shrink-0 uppercase tracking-widest">{file.ext || 'FILE'}</span>
               </div>
-            </div>
-          )}
+            ))}
+          </div>
         </>
       ) : (
-        <div className="flex-1 flex flex-col space-y-4 animate-fadeIn h-full">
-          <div className="flex justify-between items-center bg-zinc-900/90 backdrop-blur p-4 rounded-3xl border border-zinc-800 shrink-0 shadow-xl">
-            <div className="overflow-hidden pr-2 flex items-center gap-3">
-               <span className="text-2xl drop-shadow">👀</span>
-               <div className="truncate">
-                 <h3 className="text-xs font-mono font-bold text-white truncate">{activeFile.name}</h3>
-                 <p className="text-[9px] theme-accent-text font-bold uppercase tracking-widest mt-0.5">{activeFile.ext} Viewer</p>
-               </div>
+        <div className="space-y-4 animate-fadeIn pt-2">
+          
+          <div className="flex justify-between items-center bg-zinc-900/90 backdrop-blur border border-zinc-800 rounded-3xl p-4 shadow-xl">
+            <div className="flex items-center gap-3 overflow-hidden">
+              <span className="text-2xl shrink-0">👀</span>
+              <div className="overflow-hidden">
+                <h3 className="text-sm font-bold text-white truncate">{selectedFile.name}</h3>
+                <p className="text-[9px] theme-accent-text font-mono uppercase tracking-widest mt-0.5">{getFileType(selectedFile.ext)} VIEWER</p>
+              </div>
             </div>
-            <button onClick={() => setActiveFile(null)} className="bg-zinc-800 hover:bg-zinc-700 text-white px-5 py-2.5 rounded-xl text-[10px] uppercase tracking-widest font-bold border border-zinc-600 active:scale-95 shadow shrink-0">Close</button>
+            <button onClick={() => setSelectedFile(null)} className="shrink-0 bg-black border border-zinc-700 px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest active:scale-95">Close</button>
           </div>
 
-          <div className="flex-1 bg-zinc-950/90 backdrop-blur border border-zinc-800 rounded-3xl p-5 overflow-auto flex flex-col items-center justify-center shadow-inner">
-            {renderNativeFile(activeFile)}
+          <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl shadow-xl min-h-[50vh] flex flex-col justify-center">
+            {renderViewer()}
           </div>
 
-          <div className="flex gap-2 shrink-0 pt-2">
-            <button onClick={() => openExternally(activeFile)} className="flex-1 bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-white font-bold text-[10px] uppercase tracking-widest rounded-xl py-4 active:scale-95 transition-transform shadow-lg">
-              ↗️ Open External
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => alert('Native intent forwarding requires a dedicated Java FileOpener plugin. External handoff blocked by sandbox.')} className="bg-zinc-900 border border-zinc-700 py-4 rounded-2xl text-xs font-bold text-white uppercase tracking-widest active:scale-95 shadow flex items-center justify-center gap-2">
+              <span>↗</span> Open External
             </button>
-            <button onClick={() => { setActiveFile(null); alert("Sent to Shredder module."); }} className="flex-1 bg-red-600 hover:bg-red-500 text-white font-black tracking-widest text-[10px] uppercase rounded-xl py-4 shadow-lg active:scale-95 transition-transform flex items-center justify-center gap-2">
-              <span className="text-sm">🔥</span> NUKE FILE
+            <button onClick={nukeFile} disabled={isNuking} className="bg-red-600 hover:bg-red-500 py-4 rounded-2xl text-xs font-black text-white uppercase tracking-widest active:scale-95 shadow-[0_0_15px_rgba(239,68,68,0.3)] flex items-center justify-center gap-2 disabled:opacity-50">
+              {isNuking ? 'NUKING...' : '🔥 NUKE FILE'}
             </button>
           </div>
+
+          <div className="shrink-0 mt-4 theme-glass-panel backdrop-blur border border-[var(--glass-border)] p-4 rounded-3xl shadow-lg">
+            <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1 flex items-center gap-2"><span>ℹ️</span> Module Info & Disclaimers</h4>
+            <p className="text-[9px] text-zinc-500 font-mono leading-relaxed text-justify">
+              The Universal Explorer navigates device storage within the sandbox. Standard media is streamed via local HTTP bridge to prevent memory overflow. Complex encrypted binaries are handed off to external intents or destroyed via the Shizuku Shredder link.
+            </p>
+          </div>
+
         </div>
       )}
 
-      <div className="shrink-0 mt-4 bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-xl">
-        <h4 className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2 flex items-center gap-2"><span>ℹ️</span> Module Info & Disclaimers</h4>
-        <p className="text-[10px] text-zinc-500 font-mono leading-relaxed text-justify">
-          The Universal Explorer navigates device storage within the sandbox. Complex binaries are handed off to external handlers to prevent memory leaks. Shred operations are irreversible.
-        </p>
-      </div>
     </div>
   );
 }
