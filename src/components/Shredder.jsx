@@ -1,13 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { registerPlugin } from '@capacitor/core';
+import { useStorage } from '../context/StorageContext';
 
 const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function Shredder({ onNavigate }) {
+  const { indexedFiles, runGlobalScan } = useStorage();
   const [filePath, setFilePath] = useState('');
   const [loading, setLoading] = useState(false);
   const [shizukuGranted, setShizukuGranted] = useState(false);
   const [logs, setLogs] = useState('Awaiting target acquisition...\n');
+  const [showPicker, setShowPicker] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     checkShizuku();
@@ -25,7 +29,7 @@ export function Shredder({ onNavigate }) {
   const log = (msg) => setLogs(prev => prev + `> ${msg}\n`);
 
   const executeNuke = async () => {
-    if (!filePath) return alert("Enter absolute file path.");
+    if (!filePath) return alert("Select or enter a target file path.");
     if (!shizukuGranted) return alert("Shizuku Shell Bridge required for deep-sector logical wipe.");
     
     if (!window.confirm("WARNING: This will permanently annihilate the file and its logical metadata. Proceed?")) return;
@@ -33,11 +37,10 @@ export function Shredder({ onNavigate }) {
     setLoading(true);
     setLogs('INITIATING 3-PASS NUKE PROTOCOL...\n');
     
-    // 3-Pass Wipe Bash Script
     const wipeScript = `
       FILE="${filePath}"
       if [ ! -f "$FILE" ]; then
-        echo "ERROR: File not found."
+        echo "ERROR: File not found at path."
         exit 1
       fi
       SIZE=$(stat -c%s "$FILE")
@@ -62,12 +65,15 @@ export function Shredder({ onNavigate }) {
       const res = await ShizukuRunner.executeCommand({ command: wipeScript });
       setLogs(prev => prev + res.output);
       setFilePath('');
+      runGlobalScan(); // Refresh storage index
     } catch (e) {
       log(`CRITICAL FAILURE: ${e.message}`);
     } finally {
       setLoading(false);
     }
   };
+
+  const filteredFiles = indexedFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto pb-28 select-none font-sans text-white min-h-screen relative z-10 animate-fadeIn">
@@ -88,10 +94,34 @@ export function Shredder({ onNavigate }) {
       </div>
 
       <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-6 rounded-3xl space-y-5 shadow-xl">
-        <div>
-          <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">Target Selection</h3>
-          <p className="text-[10px] text-zinc-500 font-mono">Provide the absolute path to the file you wish to destroy.</p>
+        <div className="flex justify-between items-center">
+          <div>
+            <h3 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-1">Target Selection</h3>
+            <p className="text-[10px] text-zinc-500 font-mono">Select a file from storage or enter absolute path.</p>
+          </div>
+          <button onClick={() => setShowPicker(!showPicker)} className="bg-zinc-800 border border-zinc-700 text-xs font-bold px-4 py-2 rounded-xl active:scale-95 shadow">
+            {showPicker ? 'Close Picker' : '📂 Pick File'}
+          </button>
         </div>
+
+        {/* FILE PICKER DRAWER */}
+        {showPicker && (
+          <div className="bg-black/90 border border-zinc-800 rounded-2xl p-4 space-y-3 animate-fadeIn">
+            <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Search indexed files..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-3 text-xs text-white font-mono focus:outline-none" />
+            <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+              {filteredFiles.length === 0 ? (
+                <div className="text-center text-zinc-600 font-mono text-xs py-6">No files found. Run a global rescan.</div>
+              ) : (
+                filteredFiles.map((file, idx) => (
+                  <div key={idx} onClick={() => { setFilePath(file.path); setShowPicker(false); }} className="bg-zinc-900/90 border border-zinc-800 p-3 rounded-xl cursor-pointer hover:border-red-500/50 flex justify-between items-center active:scale-95 transition-all">
+                    <span className="text-xs font-bold text-white truncate pr-2">{file.name}</span>
+                    <span className="text-[9px] text-zinc-500 font-mono truncate max-w-[150px]">{file.path}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
         
         <input 
           type="text" 
