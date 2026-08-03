@@ -13,7 +13,7 @@ export function SovereignAudio({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('Library');
   const [searchTerm, setSearchTerm] = useState('');
   const [activePlaylistView, setActivePlaylistView] = useState(null);
-  const [showAddToMenu, setShowAddToMenu] = useState(null);
+  const [showAddToMenu, setShowAddToMenu] = useState(null); // Used to expand the row
 
   const libraryFiles = getAudioFiles();
   const filteredLibrary = libraryFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -85,44 +85,47 @@ export function SovereignAudio({ onNavigate }) {
         </div>
       )}
 
-      {/* FIXED LIBRARY VIEW */}
       {activeTab === 'Library' && (
         <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
           <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search local audio..." className="w-full bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl px-5 py-4 text-xs text-white font-mono focus:outline-none shrink-0 shadow-inner" />
           
-          {/* Removed overflow-hidden from parent to allow dropdowns to escape */}
-          <div className="flex-1 space-y-2 pb-24">
+          <div className="flex-1 space-y-2 overflow-y-auto pb-4">
             {filteredLibrary.length === 0 ? (
               <div className="text-center text-zinc-500 font-mono text-xs py-12">No audio files found.</div>
             ) : (
               filteredLibrary.map((file, idx) => (
-                <div key={idx} className={`relative bg-zinc-900/80 backdrop-blur border rounded-3xl p-4 flex justify-between items-center shadow transition-all ${currentTrack?.src === file.src ? 'border-[var(--accent-text)]' : 'border-zinc-800'}`}>
-                  <div className="overflow-hidden pr-4 flex-1 cursor-pointer" onClick={() => { playTrack(file, filteredLibrary); setActiveTab('Now Playing'); }}>
-                    <h4 className={`text-xs font-bold truncate ${currentTrack?.src === file.src ? 'theme-accent-text' : 'text-white'}`}>{file.name}</h4>
-                    <p className="text-[9px] text-zinc-500 font-mono truncate mt-1">{file.path || 'Local Storage'}</p>
-                  </div>
+                <div key={idx} className={`bg-zinc-900/80 backdrop-blur border rounded-3xl p-4 flex flex-col shadow transition-all ${currentTrack?.src === file.src ? 'border-[var(--accent-text)]' : 'border-zinc-800'}`}>
                   
-                  <div className="shrink-0">
-                    <button onClick={() => setShowAddToMenu(showAddToMenu === file.src ? null : file.src)} className="w-10 h-10 flex items-center justify-center bg-black border border-zinc-700 rounded-xl text-lg hover:border-zinc-500 active:scale-95">
-                      +
-                    </button>
+                  {/* MAIN ROW */}
+                  <div className="flex justify-between items-center w-full">
+                    <div className="overflow-hidden pr-4 flex-1 cursor-pointer" onClick={() => { playTrack(file, filteredLibrary); setActiveTab('Now Playing'); }}>
+                      <h4 className={`text-xs font-bold truncate ${currentTrack?.src === file.src ? 'theme-accent-text' : 'text-white'}`}>{file.name}</h4>
+                      <p className="text-[9px] text-zinc-500 font-mono truncate mt-1">{file.path || 'Local Storage'}</p>
+                    </div>
                     
-                    {/* FIXED DROPDOWN POSITIONING */}
-                    {showAddToMenu === file.src && (
-                      <div className="absolute right-4 top-14 mt-2 w-48 bg-zinc-950 border border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                        <div className="bg-zinc-900 p-2 text-[9px] font-bold text-zinc-400 uppercase tracking-widest text-center">Add to Playlist</div>
+                    <button onClick={() => setShowAddToMenu(showAddToMenu === file.src ? null : file.src)} className={`w-10 h-10 shrink-0 flex items-center justify-center rounded-xl text-lg active:scale-95 transition-colors border ${showAddToMenu === file.src ? 'bg-zinc-800 border-zinc-600 text-white' : 'bg-black border-zinc-700 hover:border-zinc-500'}`}>
+                      {showAddToMenu === file.src ? '✕' : '+'}
+                    </button>
+                  </div>
+
+                  {/* INLINE ACCORDION DROPDOWN (Fixes Clipping) */}
+                  {showAddToMenu === file.src && (
+                    <div className="w-full mt-4 pt-4 border-t border-zinc-800/80 animate-fadeIn">
+                      <div className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-3 px-1">Add to Playlist</div>
+                      <div className="grid grid-cols-2 gap-2">
                         {Object.keys(playlists).map(pName => {
                           const inPlaylist = playlists[pName].find(t => t.src === file.src);
                           return (
-                            <button key={pName} onClick={() => { toggleTrackInPlaylist(pName, file); setShowAddToMenu(null); }} className="w-full text-left px-4 py-3 text-xs text-white hover:bg-zinc-800 flex justify-between border-t border-zinc-900">
-                              <span className="truncate">{pName}</span>
-                              {inPlaylist && <span className="theme-accent-text">✓</span>}
+                            <button key={pName} onClick={() => toggleTrackInPlaylist(pName, file)} className="bg-black p-3 rounded-xl text-xs text-left truncate flex justify-between items-center border border-zinc-800 active:scale-95 transition-transform hover:border-zinc-600">
+                              <span className="truncate text-zinc-300">{pName}</span>
+                              {inPlaylist && <span className="theme-accent-text font-bold">✓</span>}
                             </button>
                           );
                         })}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
+
                 </div>
               ))
             )}
@@ -170,7 +173,7 @@ export function SovereignAudio({ onNavigate }) {
             )}
           </div>
 
-          <div className="flex-1 space-y-2 overflow-y-auto">
+          <div className="flex-1 space-y-2 overflow-y-auto pb-4">
             {playlists[activePlaylistView].length === 0 ? (
               <div className="text-center text-zinc-500 font-mono text-xs py-12">Playlist is empty.</div>
             ) : (
@@ -186,22 +189,6 @@ export function SovereignAudio({ onNavigate }) {
               ))
             )}
           </div>
-        </div>
-      )}
-
-      {currentTrack && activeTab !== 'Now Playing' && (
-        <div onClick={() => setActiveTab('Now Playing')} className="fixed bottom-28 left-4 right-4 theme-glass-panel backdrop-blur-xl border border-[var(--glass-border)] rounded-2xl p-3 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.5)] cursor-pointer z-[100] overflow-hidden">
-          <div className="absolute left-0 bottom-0 h-1 theme-accent-bg opacity-50 transition-all duration-1000" style={{ width: `${(progress / duration) * 100}%` }}></div>
-          <div className="flex items-center gap-3 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-lg border border-zinc-700 shrink-0">🎵</div>
-            <div className="overflow-hidden">
-              <h4 className="text-[11px] font-bold text-white truncate">{currentTrack.name}</h4>
-              <p className="text-[9px] theme-accent-text font-mono truncate uppercase tracking-widest">{isPlaying ? 'Now Playing' : 'Paused'}</p>
-            </div>
-          </div>
-          <button onClick={(e) => { e.stopPropagation(); isPlaying ? pause() : play(); }} className="w-10 h-10 shrink-0 flex items-center justify-center theme-accent-bg text-black rounded-xl text-lg font-black active:scale-95">
-            {isPlaying ? '⏸' : '▶'}
-          </button>
         </div>
       )}
     </div>
