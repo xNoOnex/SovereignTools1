@@ -1,19 +1,19 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { useStorage } from './StorageContext';
+import { registerPlugin } from '@capacitor/core';
 
+const WakeLockBridge = registerPlugin('WakeLockBridge');
 const AudioContext = createContext();
 
 export function AudioProvider({ children }) {
   const { indexedFiles } = useStorage();
   
-  // Audio State
   const [currentTrack, setCurrentTrack] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
   const [queue, setQueue] = useState([]);
   
-  // Playlist State
   const [playlists, setPlaylists] = useState(() => {
     const saved = localStorage.getItem('sovereign_playlists');
     return saved ? JSON.parse(saved) : { 'Favorites': [] };
@@ -22,21 +22,18 @@ export function AudioProvider({ children }) {
   const audioRef = useRef(new Audio());
   const intervalRef = useRef(null);
 
-  // Sync to local storage when playlists change
   useEffect(() => {
     localStorage.setItem('sovereign_playlists', JSON.stringify(playlists));
   }, [playlists]);
 
-  // Handle native Web Media Session API for Lock Screen & Dropdown
   useEffect(() => {
     if (currentTrack && 'mediaSession' in navigator) {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.name.replace(/\.[^/.]+$/, ""), // Strip file extension
+        title: currentTrack.name.replace(/\.[^/.]+$/, ""),
         artist: 'Sovereign Audio',
         album: 'Local Storage',
         artwork: [{ src: 'https://raw.githubusercontent.com/xNoOnex/SovereignTools/main/Appicon.jpg', sizes: '512x512', type: 'image/jpeg' }]
       });
-
       navigator.mediaSession.setActionHandler('play', play);
       navigator.mediaSession.setActionHandler('pause', pause);
       navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
@@ -50,7 +47,6 @@ export function AudioProvider({ children }) {
     }
   }, [isPlaying]);
 
-  // Audio Engine Logic
   const startTimer = () => {
     clearInterval(intervalRef.current);
     intervalRef.current = setInterval(() => {
@@ -67,17 +63,19 @@ export function AudioProvider({ children }) {
     play();
   };
 
-  const play = () => {
+  const play = async () => {
     if (!currentTrack) return;
     audioRef.current.play();
     setIsPlaying(true);
     startTimer();
+    try { await WakeLockBridge.acquire(); } catch(e) {} // Engage CPU Lock
   };
 
-  const pause = () => {
+  const pause = async () => {
     audioRef.current.pause();
     setIsPlaying(false);
     clearInterval(intervalRef.current);
+    try { await WakeLockBridge.release(); } catch(e) {} // Release CPU Lock
   };
 
   const seek = (time) => {
@@ -91,7 +89,7 @@ export function AudioProvider({ children }) {
     if (currentIndex < queue.length - 1) {
       playTrack(queue[currentIndex + 1]);
     } else {
-      playTrack(queue[0]); // Loop back to start
+      playTrack(queue[0]);
     }
   };
 
@@ -105,15 +103,12 @@ export function AudioProvider({ children }) {
     }
   };
 
-  // Playlist Management
   const createPlaylist = (name) => {
-    if (name && !playlists[name]) {
-      setPlaylists(prev => ({ ...prev, [name]: [] }));
-    }
+    if (name && !playlists[name]) setPlaylists(prev => ({ ...prev, [name]: [] }));
   };
 
   const deletePlaylist = (name) => {
-    if (name === 'Favorites') return; // Protect default
+    if (name === 'Favorites') return;
     setPlaylists(prev => {
       const copy = { ...prev };
       delete copy[name];
@@ -132,9 +127,7 @@ export function AudioProvider({ children }) {
     });
   };
 
-  const getAudioFiles = () => {
-    return indexedFiles.filter(f => ['mp3', 'wav', 'ogg', 'm4a'].includes(f.ext.toLowerCase()));
-  };
+  const getAudioFiles = () => indexedFiles.filter(f => ['mp3', 'wav', 'ogg', 'm4a'].includes(f.ext?.toLowerCase()));
 
   return (
     <AudioContext.Provider value={{ 
