@@ -55,7 +55,7 @@ function AppContent() {
     { id: 'calc', label: 'Calc', icon: '🧮', reqExpert: false },
     { id: 'calendar', label: 'Calendar', icon: '📅', reqExpert: false },
     { id: 'ai', label: 'AI', icon: '🤖', reqExpert: true },
-    { id: 'netsec', label: 'NetSec', icon: '🌐', reqExpert: true }
+    { id: 'netsec', label: 'Net/Sys', icon: '⚡', reqExpert: true }
   ];
   
   const activeDockTabs = mode === 'EXPERT' ? allDockTabs : allDockTabs.filter(t => !t.reqExpert);
