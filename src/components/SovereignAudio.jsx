@@ -13,7 +13,7 @@ export function SovereignAudio({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('Library');
   const [searchTerm, setSearchTerm] = useState('');
   const [activePlaylistView, setActivePlaylistView] = useState(null);
-  const [showAddToMenu, setShowAddToMenu] = useState(null); // track.src
+  const [showAddToMenu, setShowAddToMenu] = useState(null);
 
   const libraryFiles = getAudioFiles();
   const filteredLibrary = libraryFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -41,7 +41,6 @@ export function SovereignAudio({ onNavigate }) {
         <button onClick={runGlobalScan} className="bg-zinc-900 border border-zinc-700 text-cyan-400 px-4 py-2 rounded-xl text-xs font-bold active:scale-95 shadow">Rescan</button>
       </div>
 
-      {/* TABS */}
       <div className="flex gap-2 bg-zinc-900 p-1.5 rounded-2xl border border-zinc-800 shrink-0">
         {['Now Playing', 'Library', 'Playlists'].map(tab => (
           <button key={tab} onClick={() => { setActiveTab(tab); setActivePlaylistView(null); }} className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeTab === tab ? 'theme-accent-bg text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
@@ -50,7 +49,6 @@ export function SovereignAudio({ onNavigate }) {
         ))}
       </div>
 
-      {/* NOW PLAYING TAB */}
       {activeTab === 'Now Playing' && (
         <div className="flex-1 flex flex-col justify-center space-y-8 px-4 animate-fadeIn">
           <div className="aspect-square w-full max-w-[280px] mx-auto rounded-3xl bg-black border border-zinc-800 shadow-[0_0_30px_var(--glass-border)] flex items-center justify-center overflow-hidden relative group">
@@ -87,31 +85,32 @@ export function SovereignAudio({ onNavigate }) {
         </div>
       )}
 
-      {/* LIBRARY TAB */}
+      {/* FIXED LIBRARY VIEW */}
       {activeTab === 'Library' && (
         <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
           <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="🔍 Search local audio..." className="w-full bg-zinc-900/80 backdrop-blur border border-zinc-800 rounded-2xl px-5 py-4 text-xs text-white font-mono focus:outline-none shrink-0 shadow-inner" />
           
-          <div className="flex-1 space-y-2 overflow-y-auto pb-4">
+          {/* Removed overflow-hidden from parent to allow dropdowns to escape */}
+          <div className="flex-1 space-y-2 pb-24">
             {filteredLibrary.length === 0 ? (
               <div className="text-center text-zinc-500 font-mono text-xs py-12">No audio files found.</div>
             ) : (
               filteredLibrary.map((file, idx) => (
-                <div key={idx} className={`bg-zinc-900/80 backdrop-blur border rounded-3xl p-4 flex justify-between items-center shadow transition-all ${currentTrack?.src === file.src ? 'border-[var(--accent-text)]' : 'border-zinc-800'}`}>
+                <div key={idx} className={`relative bg-zinc-900/80 backdrop-blur border rounded-3xl p-4 flex justify-between items-center shadow transition-all ${currentTrack?.src === file.src ? 'border-[var(--accent-text)]' : 'border-zinc-800'}`}>
                   <div className="overflow-hidden pr-4 flex-1 cursor-pointer" onClick={() => { playTrack(file, filteredLibrary); setActiveTab('Now Playing'); }}>
                     <h4 className={`text-xs font-bold truncate ${currentTrack?.src === file.src ? 'theme-accent-text' : 'text-white'}`}>{file.name}</h4>
                     <p className="text-[9px] text-zinc-500 font-mono truncate mt-1">{file.path || 'Local Storage'}</p>
                   </div>
                   
-                  <div className="relative shrink-0">
+                  <div className="shrink-0">
                     <button onClick={() => setShowAddToMenu(showAddToMenu === file.src ? null : file.src)} className="w-10 h-10 flex items-center justify-center bg-black border border-zinc-700 rounded-xl text-lg hover:border-zinc-500 active:scale-95">
                       +
                     </button>
                     
-                    {/* Add to Playlist Dropdown */}
+                    {/* FIXED DROPDOWN POSITIONING */}
                     {showAddToMenu === file.src && (
-                      <div className="absolute right-0 mt-2 w-48 bg-zinc-950 border border-zinc-800 rounded-2xl shadow-2xl z-50 overflow-hidden">
-                        <div className="bg-zinc-900 p-2 text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Add to Playlist</div>
+                      <div className="absolute right-4 top-14 mt-2 w-48 bg-zinc-950 border border-zinc-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
+                        <div className="bg-zinc-900 p-2 text-[9px] font-bold text-zinc-400 uppercase tracking-widest text-center">Add to Playlist</div>
                         {Object.keys(playlists).map(pName => {
                           const inPlaylist = playlists[pName].find(t => t.src === file.src);
                           return (
@@ -131,7 +130,6 @@ export function SovereignAudio({ onNavigate }) {
         </div>
       )}
 
-      {/* PLAYLISTS TAB */}
       {activeTab === 'Playlists' && !activePlaylistView && (
         <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
           <button onClick={handleCreatePlaylist} className="w-full py-4 theme-glass-panel border border-[var(--glass-border)] text-white font-black text-xs uppercase tracking-widest rounded-2xl shadow active:scale-95">
@@ -157,7 +155,6 @@ export function SovereignAudio({ onNavigate }) {
         </div>
       )}
 
-      {/* ACTIVE PLAYLIST VIEW */}
       {activeTab === 'Playlists' && activePlaylistView && (
         <div className="flex-1 flex flex-col space-y-4 animate-fadeIn">
           <div className="flex items-center justify-between bg-zinc-900/90 backdrop-blur p-4 rounded-3xl border border-zinc-800 shadow-xl shrink-0">
@@ -183,7 +180,7 @@ export function SovereignAudio({ onNavigate }) {
                     <h4 className="text-xs font-bold truncate text-white">{file.name}</h4>
                   </div>
                   <button onClick={() => toggleTrackInPlaylist(activePlaylistView, file)} className="w-10 h-10 flex items-center justify-center bg-red-950/30 border border-red-900/50 text-red-500 rounded-xl text-[10px] font-bold active:scale-95">
-                    Remove
+                    ✕
                   </button>
                 </div>
               ))
@@ -192,12 +189,9 @@ export function SovereignAudio({ onNavigate }) {
         </div>
       )}
 
-      {/* GLOBAL MINI-PLAYER (Always visible if playing and not on 'Now Playing' tab) */}
       {currentTrack && activeTab !== 'Now Playing' && (
-        <div onClick={() => setActiveTab('Now Playing')} className="absolute bottom-4 left-4 right-4 theme-glass-panel backdrop-blur-xl border border-[var(--glass-border)] rounded-2xl p-3 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.5)] cursor-pointer z-50 overflow-hidden">
-          {/* Background progress bar indicator */}
+        <div onClick={() => setActiveTab('Now Playing')} className="fixed bottom-28 left-4 right-4 theme-glass-panel backdrop-blur-xl border border-[var(--glass-border)] rounded-2xl p-3 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.5)] cursor-pointer z-[100] overflow-hidden">
           <div className="absolute left-0 bottom-0 h-1 theme-accent-bg opacity-50 transition-all duration-1000" style={{ width: `${(progress / duration) * 100}%` }}></div>
-          
           <div className="flex items-center gap-3 overflow-hidden">
             <div className="w-10 h-10 rounded-xl bg-black flex items-center justify-center text-lg border border-zinc-700 shrink-0">🎵</div>
             <div className="overflow-hidden">
