@@ -5,23 +5,66 @@
 :root {
   --accent-text: #22d3ee;
   --accent-bg: #22d3ee;
+  --glass-bg: rgba(34, 211, 238, 0.05);
+  --glass-border: rgba(34, 211, 238, 0.2);
+  --bg-image: url('/Appicon.jpg');
+  --bg-size: cover;
+  --bg-opacity: 0.04;
 }
 
-html.theme-cyan { --accent-text: #22d3ee; --accent-bg: #22d3ee; }
-html.theme-amber { --accent-text: #fbbf24; --accent-bg: #fbbf24; }
-html.theme-matrix { --accent-text: #4ade80; --accent-bg: #4ade80; }
-html.theme-onion { --accent-text: #c084fc; --accent-bg: #c084fc; }
+html.theme-cyan { 
+  --accent-text: #22d3ee; 
+  --accent-bg: #22d3ee;
+  --glass-bg: rgba(34, 211, 238, 0.08);
+  --glass-border: rgba(34, 211, 238, 0.3);
+  --bg-image: url('/Appicon.jpg');
+  --bg-size: cover;
+  --bg-opacity: 0.05;
+}
 
-.theme-accent-text { color: var(--accent-text) !important; }
-.theme-accent-bg { background-color: var(--accent-bg) !important; color: #000 !important; }
+html.theme-amber { 
+  --accent-text: #fbbf24; 
+  --accent-bg: #fbbf24;
+  --glass-bg: rgba(251, 191, 36, 0.08);
+  --glass-border: rgba(251, 191, 36, 0.3);
+  /* Cyberpunk CRT Scanline Effect */
+  --bg-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(251, 191, 36, 0.15) 2px, rgba(251, 191, 36, 0.15) 4px);
+  --bg-size: auto;
+  --bg-opacity: 0.4;
+}
 
-/* FIX: Brute-force HTML font-size for instant rem scaling */
+html.theme-matrix { 
+  --accent-text: #4ade80; 
+  --accent-bg: #4ade80;
+  --glass-bg: rgba(74, 222, 128, 0.08);
+  --glass-border: rgba(74, 222, 128, 0.3);
+  /* Hacker Radar Grid */
+  --bg-image: linear-gradient(transparent 95%, rgba(74, 222, 128, 0.2) 100%), linear-gradient(90deg, transparent 95%, rgba(74, 222, 128, 0.2) 100%);
+  --bg-size: 30px 30px;
+  --bg-opacity: 0.7;
+}
+
+html.theme-onion { 
+  --accent-text: #c084fc; 
+  --accent-bg: #c084fc;
+  --glass-bg: rgba(192, 132, 252, 0.08);
+  --glass-border: rgba(192, 132, 252, 0.3);
+  /* Deep Web Hex Pattern */
+  --bg-image: radial-gradient(circle at 50% 50%, rgba(192, 132, 252, 0.15) 0%, transparent 60%);
+  --bg-size: 100px 100px;
+  --bg-opacity: 0.8;
+}
+
+.theme-accent-text { color: var(--accent-text) !important; text-shadow: 0 0 10px rgba(var(--accent-text), 0.5); }
+.theme-accent-bg { background-color: var(--accent-bg) !important; color: #000 !important; box-shadow: 0 0 15px var(--glass-border); }
+.theme-glass-panel { background-color: var(--glass-bg) !important; border: 1px solid var(--glass-border) !important; }
+
 html.text-scale-Small { font-size: 13px !important; }
 html.text-scale-Medium { font-size: 16px !important; }
 html.text-scale-Large { font-size: 19px !important; }
 
 body {
-  background-color: #000000; 
+  background-color: #030303; 
   margin: 0;
   padding: 0;
 }
@@ -34,11 +77,12 @@ body {
   width: 150vw; 
   height: 150vh;
   transform: translate(-50%, -50%);
-  background-image: url('/Appicon.jpg');
-  background-size: cover;
+  background-image: var(--bg-image);
+  background-size: var(--bg-size);
   background-position: center;
-  background-repeat: no-repeat;
-  opacity: 0.04; 
+  background-repeat: repeat;
+  opacity: var(--bg-opacity); 
   z-index: 0;
-  pointer-events: none; 
+  pointer-events: none;
+  transition: all 0.5s ease-in-out;
 }
