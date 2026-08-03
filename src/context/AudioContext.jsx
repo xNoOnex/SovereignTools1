@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 import { useStorage } from './StorageContext';
-import { MediaSession } from 'capacitor-media-session';
 
 const AudioContext = createContext();
 
@@ -28,30 +27,28 @@ export function AudioProvider({ children }) {
     localStorage.setItem('sovereign_playlists', JSON.stringify(playlists));
   }, [playlists]);
 
-  // Handle native Android media session controls (Lock Screen & Dropdown)
+  // Handle native Web Media Session API for Lock Screen & Dropdown
   useEffect(() => {
-    if (currentTrack) {
-      MediaSession.setMetadata({
-        title: currentTrack.name.replace('.mp3', ''),
+    if (currentTrack && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.name.replace(/\.[^/.]+$/, ""), // Strip file extension
         artist: 'Sovereign Audio',
         album: 'Local Storage',
         artwork: [{ src: 'https://raw.githubusercontent.com/xNoOnex/SovereignTools/main/Appicon.jpg', sizes: '512x512', type: 'image/jpeg' }]
       });
 
-      MediaSession.setActionHandler({ action: 'play' }, play);
-      MediaSession.setActionHandler({ action: 'pause' }, pause);
-      MediaSession.setActionHandler({ action: 'nexttrack' }, nextTrack);
-      MediaSession.setActionHandler({ action: 'previoustrack' }, prevTrack);
+      navigator.mediaSession.setActionHandler('play', play);
+      navigator.mediaSession.setActionHandler('pause', pause);
+      navigator.mediaSession.setActionHandler('nexttrack', nextTrack);
+      navigator.mediaSession.setActionHandler('previoustrack', prevTrack);
     }
   }, [currentTrack]);
 
   useEffect(() => {
-    MediaSession.setPlaybackState({
-      playbackState: isPlaying ? 'playing' : 'paused',
-      position: progress,
-      playbackRate: 1.0
-    });
-  }, [isPlaying, progress]);
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
 
   // Audio Engine Logic
   const startTimer = () => {
