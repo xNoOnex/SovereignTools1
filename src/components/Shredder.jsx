@@ -1,36 +1,51 @@
 import React, { useState } from 'react';
 import { useStorage } from '../context/StorageContext';
+import { Filesystem, Encoding } from '@capacitor/filesystem';
 
 export function Shredder({ onNavigate }) {
   const { indexedFiles = [], runGlobalScan, isScanning } = useStorage();
   const [searchTerm, setSearchTerm] = useState('');
   const [shreddingId, setShreddingId] = useState(null);
-  
-  // Cache to hide files instantly after shredding without needing a full device rescan
   const [nukedFiles, setNukedFiles] = useState(new Set());
 
-  // Fallback UI data if the local storage scanner is empty or taking too long
-  const defaultFiles = [
-    { name: 'Screenshot_20260802_044553_Sovereign.jpg', path: '/storage/emulated/0/DCIM/Screenshots/', ext: 'JPG' },
-    { name: 'Screenshot_20260509_164857_Chrome.jpg', path: '/storage/emulated/0/DCIM/Screenshots/', ext: 'JPG' },
-    { name: 'Screenshot_20260512_062952_Firefox.jpg', path: '/storage/emulated/0/DCIM/Screenshots/', ext: 'JPG' },
-    { name: 'Screenshot_20260607_024625_Gallery.jpg', path: '/storage/emulated/0/DCIM/Screenshots/', ext: 'JPG' }
-  ];
-
-  const sourceFiles = indexedFiles.length > 0 ? indexedFiles : defaultFiles;
+  const sourceFiles = indexedFiles.length > 0 ? indexedFiles : [];
   
-  // Filter out nuked files, then filter by search term
   const visibleFiles = sourceFiles.filter(f => !nukedFiles.has(f.name));
   const filtered = visibleFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()) || (f.path && f.path.toLowerCase().includes(searchTerm.toLowerCase())));
 
-  const handleNuke = (file) => {
+  const handleNuke = async (file) => {
+    const confirmNuke = window.confirm(`WARNING: You are about to permanently delete ${file.name} from your device. This cannot be undone. Proceed?`);
+    if (!confirmNuke) return;
+
     setShreddingId(file.name);
     
-    // Simulate DoD 5220.22-M zero-fill delay
-    setTimeout(() => {
+    try {
+      const targetPath = file.path || file.src; // Must have the absolute native path
+      
+      if (!targetPath) {
+        throw new Error("Cannot locate absolute file path for native deletion.");
+      }
+
+      // Step 1: Corrupt the file at the OS level by overwriting it with blank data
+      await Filesystem.writeFile({
+        path: targetPath,
+        data: '0000000000000000000000000000000000000000',
+        encoding: Encoding.UTF8
+      });
+
+      // Step 2: Unlink and permanently delete from the Android file system
+      await Filesystem.deleteFile({
+        path: targetPath
+      });
+
+      // Step 3: Remove from UI
       setNukedFiles(prev => new Set(prev).add(file.name));
+      
+    } catch (error) {
+      alert(`❌ Shredding Failed: ${error.message}\n(Make sure the app has 'All Files Access' permissions in Android settings)`);
+    } finally {
       setShreddingId(null);
-    }, 2000);
+    }
   };
 
   return (
@@ -39,7 +54,7 @@ export function Shredder({ onNavigate }) {
       <div className="flex justify-between items-center border-b border-zinc-900 pb-4 pt-2 shrink-0">
         <div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2"><span className="text-2xl drop-shadow">☣️</span> File Shredder</h2>
-          <p className="text-xs text-zinc-400 mt-1">Physical sector zero-fill and file unlinking.</p>
+          <p className="text-xs text-zinc-400 mt-1">OS-level data corruption and unlinking.</p>
         </div>
         <button onClick={runGlobalScan} className="bg-zinc-900/80 backdrop-blur border border-zinc-700 hover:border-cyan-500 text-cyan-400 px-4 py-2 rounded-xl text-xs font-bold active:scale-95 transition-all shadow-md">
           {isScanning ? 'Scanning...' : 'Rescan Storage'}
@@ -69,7 +84,7 @@ export function Shredder({ onNavigate }) {
               <div className="overflow-hidden pr-4 flex-1">
                 <h4 className="text-sm font-bold text-white truncate">{file.name}</h4>
                 <p className="text-[10px] text-zinc-500 font-mono truncate mt-1">
-                  {file.path || `/storage/emulated/0/DCIM/Screenshots/`}
+                  {file.path || `/storage/emulated/0/DCIM/`}
                 </p>
                 <p className="text-[9px] text-zinc-400 font-mono uppercase mt-1 tracking-widest">
                   {file.ext || file.name.split('.').pop()} File
@@ -93,11 +108,11 @@ export function Shredder({ onNavigate }) {
 
       <div className="shrink-0 space-y-3 pt-2">
         <p className="text-[10px] text-zinc-400 leading-relaxed px-2 text-justify">
-          <span className="font-bold text-zinc-300">ℹ️ About File Shredder:</span> Overwrites physical flash storage sectors with zero-byte patterns before executing unlinking calls to ensure files cannot be recovered by forensic tools.
+          <span className="font-bold text-zinc-300">ℹ️ About File Shredder:</span> This module executes a native OS overwrite with empty data followed by an unlinking command. Note: Hardware-level wear-leveling on modern Android UFS storage means physical sector zero-filling is impossible without root access, but this method prevents standard OS-level recovery.
         </p>
         <div className="bg-red-950/20 backdrop-blur border border-red-900/50 p-4 rounded-3xl shadow-inner">
           <p className="text-[10px] font-bold text-red-500 uppercase tracking-widest mb-1.5 flex items-center gap-1"><span>⚠️</span> Warning:</p>
-          <p className="text-[10px] text-red-300/80 font-mono">Nuked files are permanently zero-filled and 100% unrecoverable.</p>
+          <p className="text-[10px] text-red-300/80 font-mono">Files destroyed here are permanently deleted from your device.</p>
         </div>
       </div>
 
