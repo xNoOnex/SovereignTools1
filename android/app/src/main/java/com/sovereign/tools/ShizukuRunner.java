@@ -8,6 +8,7 @@ import com.getcapacitor.annotation.CapacitorPlugin;
 import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.File;
 import android.content.pm.PackageManager;
 
 @CapacitorPlugin(name = "ShizukuRunner")
@@ -42,7 +43,9 @@ public class ShizukuRunner extends Plugin {
                 return;
             }
             
-            Process process = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, null, null);
+            // FIX: Explicitly cast the final parameter to (File) null 
+            // so the compiler routes to the public method instead of the private String one.
+            Process process = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, null, (File) null);
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             StringBuilder output = new StringBuilder();
             String line;
