@@ -7,9 +7,9 @@ import { Home } from "./components/Home";
 import { SovereignAudio } from "./components/SovereignAudio";
 import { SovereignRecorder } from "./components/SovereignRecorder";
 import { SecureGallery } from "./components/SecureGallery";
-import { NetSecOps } from "./components/NetSecOps";
+import { NetSec } from "./components/NetSec";
 import { Debloat } from "./components/Debloat";
-import { DataShredder } from "./components/DataShredder";
+import { FileShredder } from "./components/FileShredder";
 import { WorldClock } from "./components/WorldClock";
 import { Calendar } from "./components/Calendar";
 import { UniversalExplorer } from "./components/UniversalExplorer";
@@ -101,9 +101,9 @@ function AppContent() {
         {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
         {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
         {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
-        {currentScreen === 'netsec' && <NetSecOps onNavigate={navigateTo} />}
+        {currentScreen === 'netsec' && <NetSec onNavigate={navigateTo} />}
         {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
-        {currentScreen === 'shred' && <DataShredder onNavigate={navigateTo} />}
+        {currentScreen === 'shred' && <FileShredder onNavigate={navigateTo} />}
         {currentScreen === 'fileviewer' && <UniversalExplorer onNavigate={navigateTo} />}
         {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
         {currentScreen === 'settings' && <Settings onNavigate={navigateTo} />}
