@@ -1,31 +1,32 @@
 package com.sovereign.tools;
 
+import android.content.pm.PackageManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import rikka.shizuku.Shizuku;
+import rikka.shizuku.ShizukuProvider;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
-import android.content.pm.PackageManager;
 import java.lang.reflect.Method;
 
 @CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
-    
-    private static final int SHIZUKU_CODE = 88;
+
+    private static final int REQUEST_CODE_SHIZUKU = 88;
 
     @PluginMethod
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
+            boolean osGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 
             ret.put("active", binderAlive);
-            ret.put("granted", osPermissionGranted);
+            ret.put("granted", osGranted);
             call.resolve(ret);
         } catch (Exception e) {
             ret.put("active", false);
@@ -37,12 +38,17 @@ public class ShizukuRunner extends Plugin {
     @PluginMethod
     public void requestPermission(PluginCall call) {
         try {
-            if (Shizuku.pingBinder()) { Shizuku.requestPermission(SHIZUKU_CODE); }
+            // FIX: Completely bypass Capacitor wrappers. Force Shizuku's native API to inject the permission intent.
+            if (Shizuku.pingBinder()) {
+                if (getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") != PackageManager.PERMISSION_GRANTED) {
+                    Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+                }
+            }
             JSObject ret = new JSObject();
             ret.put("granted", true);
             call.resolve(ret);
         } catch (Exception e) {
-            call.reject("Permission request error: " + e.getMessage());
+            call.reject("Failed to trigger native Shizuku intent: " + e.getMessage());
         }
     }
 
@@ -70,8 +76,6 @@ public class ShizukuRunner extends Plugin {
                     if (newProcessMethod != null) {
                         newProcessMethod.setAccessible(true);
                         String[] shellCmd = new String[]{"sh", "-c", cmd};
-                        
-                        // FIX: Explicitly cast to Object[] to prevent Java varargs array unrolling crash
                         process = (Process) newProcessMethod.invoke(null, new Object[]{shellCmd, null, null});
                         engineUsed = "Shizuku (Root)";
                     } else {

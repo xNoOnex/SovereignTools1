@@ -7,9 +7,11 @@ export function SovereignAudio({ onNavigate }) {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState('LIBRARY');
-  
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState('');
+  
+  // New state to manage the active playlist selection menu
+  const [showPlaylistMenu, setShowPlaylistMenu] = useState(null);
 
   const audioRef = useRef(null);
 
@@ -22,16 +24,9 @@ export function SovereignAudio({ onNavigate }) {
       const saved = localStorage.getItem('sovereign_playlists');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // FIX: Validate parsed data is actually an array to prevent xn.map crashes
-        if (Array.isArray(parsed)) {
-          setPlaylists(parsed);
-        } else {
-          setPlaylists([]);
-        }
+        if (Array.isArray(parsed)) setPlaylists(parsed);
       }
-    } catch (e) {
-      setPlaylists([]);
-    }
+    } catch (e) { setPlaylists([]); }
   }, []);
 
   const currentTrack = currentTrackIndex !== null ? audioFiles[currentTrackIndex] : null;
@@ -66,40 +61,11 @@ export function SovereignAudio({ onNavigate }) {
     }
   };
 
-  const handlePlay = () => {
-    if (audioRef.current) {
-      audioRef.current.play();
-      setIsPlaying(true);
-    }
-  };
-
-  const handlePause = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    }
-  };
-
-  const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current.currentTime = 0;
-      setIsPlaying(false);
-    }
-  };
-
-  const handleNext = () => {
-    if (audioFiles.length === 0) return;
-    const nextIdx = (currentTrackIndex + 1) % audioFiles.length;
-    handlePlayTrack(nextIdx);
-  };
-
-  const handlePrev = () => {
-    if (audioFiles.length === 0) return;
-    const prevIdx = (currentTrackIndex - 1 + audioFiles.length) % audioFiles.length;
-    handlePlayTrack(prevIdx);
-  };
-
+  const handlePlay = () => { if (audioRef.current) { audioRef.current.play(); setIsPlaying(true); } };
+  const handlePause = () => { if (audioRef.current) { audioRef.current.pause(); setIsPlaying(false); } };
+  const handleStop = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
+  const handleNext = () => { if (audioFiles.length > 0) handlePlayTrack((currentTrackIndex + 1) % audioFiles.length); };
+  const handlePrev = () => { if (audioFiles.length > 0) handlePlayTrack((currentTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
   const handleRewind = () => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10); };
   const handleFastForward = () => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 10); };
 
@@ -120,7 +86,7 @@ export function SovereignAudio({ onNavigate }) {
     });
     setPlaylists(updated);
     localStorage.setItem('sovereign_playlists', JSON.stringify(updated));
-    alert(`Added to playlist!`);
+    setShowPlaylistMenu(null);
   };
 
   return (
@@ -165,20 +131,36 @@ export function SovereignAudio({ onNavigate }) {
       </div>
 
       {activeTab === 'LIBRARY' && (
-        <div className="space-y-2">
+        <div className="space-y-2 relative">
           {audioFiles.map((file, idx) => (
-            <div key={idx} onClick={() => handlePlayTrack(idx)} className={`p-3.5 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95 transition-all shadow border ${currentTrackIndex === idx ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'}`}>
-              <div className="flex items-center gap-3 overflow-hidden">
-                <span className="text-xl opacity-80">{currentTrackIndex === idx && isPlaying ? '🔊' : '🎵'}</span>
-                <div className="truncate">
-                  <span className="text-xs font-bold text-white block truncate">{file.name}</span>
-                  <span className="text-[9px] font-mono text-zinc-500 uppercase">{file.folder} • .{file.ext}</span>
+            <div key={idx} className="relative">
+              <div onClick={() => handlePlayTrack(idx)} className={`p-3.5 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95 transition-all shadow border ${currentTrackIndex === idx ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'}`}>
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <span className="text-xl opacity-80">{currentTrackIndex === idx && isPlaying ? '🔊' : '🎵'}</span>
+                  <div className="truncate">
+                    <span className="text-xs font-bold text-white block truncate">{file.name}</span>
+                    <span className="text-[9px] font-mono text-zinc-500 uppercase">{file.folder} • .{file.ext}</span>
+                  </div>
                 </div>
+                {playlists.length > 0 && (
+                  <button onClick={(e) => { e.stopPropagation(); setShowPlaylistMenu(showPlaylistMenu === idx ? null : idx); }} className="text-[9px] font-bold uppercase tracking-widest bg-black text-cyan-400 border border-zinc-800 px-3 py-2 rounded-xl ml-2 shrink-0 active:bg-zinc-800">
+                    + P.LIST
+                  </button>
+                )}
               </div>
-              {playlists.length > 0 && (
-                <button onClick={(e) => { e.stopPropagation(); addToPlaylist(playlists[0].id, file); }} className="text-[9px] font-bold uppercase tracking-widest bg-black text-cyan-400 border border-zinc-800 px-3 py-2 rounded-xl ml-2 shrink-0 active:bg-zinc-800">
-                  + P.LIST
-                </button>
+              
+              {/* Dynamic Playlist Selector Menu */}
+              {showPlaylistMenu === idx && (
+                 <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
+                    <div className="p-2 border-b border-zinc-800 bg-black/50 text-[9px] font-bold text-zinc-400 uppercase tracking-widest text-center">Select Destination</div>
+                    <div className="max-h-40 overflow-y-auto">
+                       {playlists.map(pl => (
+                          <button key={pl.id} onClick={(e) => { e.stopPropagation(); addToPlaylist(pl.id, file); }} className="w-full text-left px-4 py-3 text-xs font-bold text-white hover:bg-cyan-900/40 transition-colors border-b border-zinc-800/50 last:border-0 truncate">
+                             {pl.name}
+                          </button>
+                       ))}
+                    </div>
+                 </div>
               )}
             </div>
           ))}
@@ -200,7 +182,17 @@ export function SovereignAudio({ onNavigate }) {
                 </div>
                 <div className="space-y-1">
                   {pl.tracks.map((t, i) => (
-                    <div key={i} className="text-[10px] font-mono text-zinc-400 truncate bg-black/50 p-1.5 rounded">{t.name}</div>
+                    <div key={i} className="flex justify-between items-center bg-black/50 p-1.5 rounded group">
+                        <span className="text-[10px] font-mono text-zinc-400 truncate flex-1 pr-2">{t.name}</span>
+                        <button onClick={() => {
+                            const updated = playlists.map(p => {
+                               if (p.id === pl.id) return { ...p, tracks: p.tracks.filter((_, idx) => idx !== i) };
+                               return p;
+                            });
+                            setPlaylists(updated);
+                            localStorage.setItem('sovereign_playlists', JSON.stringify(updated));
+                        }} className="text-red-500 font-bold px-2 py-0.5 rounded bg-red-950/30 text-[8px] opacity-50 group-hover:opacity-100">✕</button>
+                    </div>
                   ))}
                 </div>
               </div>
