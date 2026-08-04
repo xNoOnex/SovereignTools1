@@ -3,7 +3,6 @@ import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect } from 'react';
 import { LockScreen } from './components/LockScreen';
 import { Home } from "./components/Home";
-import { SovereignRecorder } from "./components/SovereignRecorder";
 import { StealthCalc } from './components/StealthCalc';
 import { Calendar } from './components/Calendar';
 import { SmartAI } from './components/SmartAI';
