@@ -6,7 +6,6 @@ import { StealthCalc } from './components/StealthCalc';
 import { Calendar } from './components/Calendar';
 import { SovereignRecorder } from './components/SovereignRecorder';
 import { NetSec } from './components/NetSec';
-import { DataShredder } from './components/DataShredder';
 import { UniversalExplorer } from './components/UniversalExplorer';
 import { SovereignAudio } from './components/SovereignAudio';
 import { Settings } from './components/Settings';
@@ -41,7 +40,6 @@ export function App() {
             {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
             {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
             {currentScreen === 'netsec' && <NetSec onNavigate={navigateTo} />}
-            {currentScreen === 'shredder' && <DataShredder onNavigate={navigateTo} />}
             {currentScreen === 'explorer' && <UniversalExplorer onNavigate={navigateTo} />}
             {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} />}
             {currentScreen === 'settings' && <Settings onNavigate={navigateTo} />}
