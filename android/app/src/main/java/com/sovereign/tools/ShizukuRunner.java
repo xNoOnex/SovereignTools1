@@ -5,28 +5,23 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.Permission;
-import com.getcapacitor.annotation.PermissionCallback;
-import com.getcapacitor.PermissionState;
 import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
 import java.lang.reflect.Method;
 
-@CapacitorPlugin(
-    name = "ShizukuRunner",
-    permissions = {
-        @Permission(strings = {"moe.shizuku.manager.permission.API_V23"}, alias = "shizuku")
-    }
-)
+@CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
     
+    private static final int SHIZUKU_CODE = 88;
+
     @PluginMethod
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            boolean osPermissionGranted = getPermissionState("shizuku") == PermissionState.GRANTED;
+            // DIRECT ANDROID OS CHECK (Bypasses Capacitor alias bug)
+            boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 
@@ -42,20 +37,16 @@ public class ShizukuRunner extends Plugin {
 
     @PluginMethod
     public void requestPermission(PluginCall call) {
-        if (getPermissionState("shizuku") != PermissionState.GRANTED) {
-            requestPermissionForAlias("shizuku", call, "shizukuPermCallback");
-        } else {
+        try {
+            if (Shizuku.pingBinder()) {
+                Shizuku.requestPermission(SHIZUKU_CODE);
+            }
             JSObject ret = new JSObject();
             ret.put("granted", true);
             call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Permission request error: " + e.getMessage());
         }
-    }
-
-    @PermissionCallback
-    private void shizukuPermCallback(PluginCall call) {
-        JSObject ret = new JSObject();
-        ret.put("granted", getPermissionState("shizuku") == PermissionState.GRANTED);
-        call.resolve(ret);
     }
 
     @PluginMethod
@@ -63,7 +54,7 @@ public class ShizukuRunner extends Plugin {
         String cmd = call.getString("command");
         JSObject ret = new JSObject();
         try {
-            boolean osGranted = getPermissionState("shizuku") == PermissionState.GRANTED;
+            boolean osGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 
@@ -72,7 +63,6 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    // DYNAMIC REFLECTION: Scans library for newProcess and forces it open
                     Method[] methods = Shizuku.class.getDeclaredMethods();
                     for (Method m : methods) {
                         if (m.getName().equals("newProcess")) {
