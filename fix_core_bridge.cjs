@@ -1,4 +1,20 @@
-package com.sovereign.tools;
+const fs = require('fs');
+
+const manifestPath = 'android/app/src/main/AndroidManifest.xml';
+let pkgName = '';
+try {
+  const xml = fs.readFileSync(manifestPath, 'utf8');
+  const match = xml.match(/package="([^"]*)"/);
+  if (match) pkgName = match[1];
+} catch (e) {
+  console.error("Could not read package name:", e);
+  process.exit(1);
+}
+
+const pkgPath = pkgName.replace(/\./g, '/');
+const mainActivityPath = `android/app/src/main/java/${pkgPath}/MainActivity.java`;
+
+const cleanCode = `package ${pkgName};
 
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
@@ -20,4 +36,12 @@ public class MainActivity extends BridgeActivity {
             // Ignore if WakeLockBridge doesn't exist
         }
     }
+}
+`;
+
+try {
+  fs.writeFileSync(mainActivityPath, cleanCode);
+  console.log("SUCCESS: MainActivity repaired. Core Capacitor plugins will now boot correctly.");
+} catch (e) {
+  console.error("Failed to write clean MainActivity:", e);
 }
