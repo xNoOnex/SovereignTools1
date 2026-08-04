@@ -15,7 +15,6 @@ import { Calendar } from "./components/Calendar";
 import { UniversalExplorer } from "./components/UniversalExplorer";
 import { Settings } from "./components/Settings";
 import { LocalAIAssistant } from "./components/LocalAIAssistant";
-import { SecureGallery } from "./components/SecureGallery";
 import { DocumentManager } from "./components/DocumentManager";
 import { Comms } from "./components/Comms";
 import { ExifFreeCamera } from "./components/ExifFreeCamera";
