@@ -6,18 +6,10 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // 1. MUST boot the Capacitor core first to load Filesystem, Audio, etc.
-        super.onCreate(savedInstanceState);
-        
-        // 2. Register native custom bridges AFTER the core is alive
+        // 1. MUST register custom native bridges BEFORE initializing Capacitor
         registerPlugin(ShizukuRunner.class);
         
-        try {
-            // Keep WakeLock if you have it in your project
-            Class<?> wakeLockClass = Class.forName(getPackageName() + ".WakeLockBridge");
-            registerPlugin((Class<? extends com.getcapacitor.Plugin>) wakeLockClass);
-        } catch (ClassNotFoundException e) {
-            // Ignore if WakeLockBridge doesn't exist
-        }
+        // 2. Boot the Capacitor WebView and lock the plugin registry
+        super.onCreate(savedInstanceState);
     }
 }
