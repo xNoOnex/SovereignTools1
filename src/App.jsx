@@ -1,3 +1,4 @@
+import { SovereignRecorder } from "./components/SovereignRecorder";
 import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect } from 'react';
 import { LockScreen } from './components/LockScreen';
