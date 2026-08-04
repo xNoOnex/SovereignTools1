@@ -25,6 +25,33 @@ import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
+
+  const audioRef = useRef(null);
+  const [globalTrackIndex, setGlobalTrackIndex] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  
+  // Safe fallback to prevent any ReferenceError
+  const safeFiles = typeof indexedFiles !== 'undefined' && indexedFiles ? indexedFiles : [];
+  const audioFiles = safeFiles.filter(f => ['mp3', 'wav', 'aac', 'flac', 'm4a', 'ogg', 'wma'].includes(f.ext?.toLowerCase()));
+  const currentTrack = globalTrackIndex !== null && audioFiles[globalTrackIndex] ? audioFiles[globalTrackIndex] : null;
+
+  const handlePlayTrack = (index) => {
+    setGlobalTrackIndex(index);
+    setIsPlaying(true);
+    if (audioRef.current && audioFiles[index]) {
+      audioRef.current.src = Capacitor.convertFileSrc(audioFiles[index].path);
+      audioRef.current.play();
+    }
+  };
+  const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
+  const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
+    else { audioRef.current.play(); setIsPlaying(true); }
+  };
+  const stopAudio = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
+
   const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
 
