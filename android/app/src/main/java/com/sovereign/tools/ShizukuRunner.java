@@ -22,11 +22,16 @@ public class ShizukuRunner extends Plugin {
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
+            // Force strict live check of both OS permission AND active binder
             boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
-            try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
+            try { 
+                binderAlive = Shizuku.pingBinder(); 
+            } catch (Exception ignored) {}
 
+            // ONLY return true if the binder is physically responding right now
             boolean isConnected = osPermissionGranted && binderAlive;
+            
             ret.put("active", isConnected);
             ret.put("granted", isConnected);
             call.resolve(ret);
@@ -40,15 +45,11 @@ public class ShizukuRunner extends Plugin {
     @PluginMethod
     public void requestPermission(PluginCall call) {
         try {
-            if (getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED) {
-                JSObject ret = new JSObject();
-                ret.put("granted", true);
-                call.resolve(ret);
-                return;
+            if (Shizuku.pingBinder()) { 
+                Shizuku.requestPermission(SHIZUKU_CODE); 
             }
-            if (Shizuku.pingBinder()) { Shizuku.requestPermission(SHIZUKU_CODE); }
             JSObject ret = new JSObject();
-            ret.put("granted", true);
+            ret.put("granted", true); // Assumes user will click allow; checkStatus will verify later
             call.resolve(ret);
         } catch (Exception e) {
             call.reject("Permission request error: " + e.getMessage());
@@ -69,11 +70,8 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    // FIX: Execute via standard Runtime but wrapped in Shizuku's authorized remote IPC context
                     IBinder activityManager = SystemServiceHelper.getSystemService("activity");
                     IBinder wrappedManager = new ShizukuBinderWrapper(activityManager);
-                    
-                    // Since we have the wrapper, Runtime.exec will inherit the UID 2000/0 environment
                     process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
                     engineUsed = "Shizuku (Root)";
                 } catch (Exception e) {
