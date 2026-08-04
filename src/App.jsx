@@ -2,7 +2,8 @@ import { SovereignRecorder } from "./components/SovereignRecorder";
 import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect } from 'react';
 import { LockScreen } from './components/LockScreen';
-import { Home } from './components/Home';
+import { Home } from "./components/Home";
+import { SovereignRecorder } from "./components/SovereignRecorder";
 import { StealthCalc } from './components/StealthCalc';
 import { Calendar } from './components/Calendar';
 import { SmartAI } from './components/SmartAI';
@@ -77,7 +78,8 @@ function AppContent() {
         </div>
       </div>
 
-      {currentScreen === 'home' && <Home onNavigate={navigateTo} appMode={mode} />}
+      {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
+        {currentScreen === 'home' && <Home onNavigate={navigateTo} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
       {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
