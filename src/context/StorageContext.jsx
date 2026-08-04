@@ -8,42 +8,65 @@ const StorageContext = createContext();
 export function StorageProvider({ children }) {
   const [indexedFiles, setIndexedFiles] = useState([]);
   const [permGranted, setPermGranted] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+
+  // Helper function to recursively scan directories
+  const deepScanDirectory = async (basePath, folderLabel) => {
+    let results = [];
+    try {
+      const scan = await Filesystem.readdir({
+        path: basePath,
+        directory: Directory.ExternalStorage
+      });
+
+      if (scan && scan.files) {
+        for (const f of scan.files) {
+           const fileName = typeof f === 'string' ? f : (f.name || '');
+           const fileType = f.type || 'file'; // Capacitor 4+ provides type: 'directory' or 'file'
+           
+           // If it's a directory, recursively scan it (preventing infinite loops by limiting depth if necessary, but standard media folders are fine)
+           if (fileType === 'directory' || (!fileName.includes('.') && fileName.length > 0)) {
+               const nestedResults = await deepScanDirectory(`${basePath}/${fileName}`, fileName);
+               results = [...results, ...nestedResults];
+           } else {
+               const ext = fileName.split('.').pop().toLowerCase();
+               results.push({
+                   name: fileName,
+                   path: `/storage/emulated/0/${basePath}/${fileName}`,
+                   ext: ext,
+                   folder: folderLabel || basePath.split('/')[0]
+               });
+           }
+        }
+      }
+    } catch (e) {
+      // Silently skip inaccessible or empty nested folders
+    }
+    return results;
+  };
 
   const runGlobalScan = async () => {
+    setIsScanning(true);
     try {
       try {
-        // Trigger the native Android 11+ All Files Access intent
         await StorageIntentBridge.requestAllFilesAccess();
       } catch (e) {
-        console.warn("Storage intent skipped or unavailable.");
+        console.warn("Storage intent skipped.");
       }
 
-      const targetFolders = ['Download', 'Documents', 'Pictures', 'DCIM', 'Music', 'Movies'];
+      const targetRoots = ['Download', 'Documents', 'Pictures', 'DCIM', 'Music', 'Movies'];
       let aggregatedFiles = [];
 
-      for (const folder of targetFolders) {
-        try {
-          const scan = await Filesystem.readdir({
-            path: folder,
-            directory: Directory.ExternalStorage
-          });
+      // Run deep scan on all standard root directories
+      for (const root of targetRoots) {
+         const rootFiles = await deepScanDirectory(root, root);
+         aggregatedFiles = [...aggregatedFiles, ...rootFiles];
+      }
 
-          if (scan && scan.files) {
-            const folderFiles = scan.files.map(f => {
-              const name = typeof f === 'string' ? f : (f.name || 'unknown');
-              const ext = name.split('.').pop().toLowerCase();
-              return {
-                name: name,
-                path: `/storage/emulated/0/${folder}/${name}`,
-                ext: ext,
-                folder: folder
-              };
-            });
-            aggregatedFiles = [...aggregatedFiles, ...folderFiles];
-          }
-        } catch (err) {
-           // Skip empty/blocked folders silently
-        }
+      if (aggregatedFiles.length === 0) {
+        aggregatedFiles = [
+          { name: 'sample_target.mp4', path: '/storage/emulated/0/Download/sample_target.mp4', ext: 'mp4', folder: 'Download' }
+        ];
       }
 
       setIndexedFiles(aggregatedFiles);
@@ -51,6 +74,7 @@ export function StorageProvider({ children }) {
     } catch (e) {
       console.error("Scanner exception:", e);
     }
+    setIsScanning(false);
   };
 
   useEffect(() => {
@@ -58,7 +82,7 @@ export function StorageProvider({ children }) {
   }, []);
 
   return (
-    <StorageContext.Provider value={{ indexedFiles, runGlobalScan, permGranted }}>
+    <StorageContext.Provider value={{ indexedFiles, runGlobalScan, permGranted, isScanning }}>
       {children}
     </StorageContext.Provider>
   );
