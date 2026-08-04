@@ -1,4 +1,14 @@
-package com.sovereign.tools;
+const fs = require('fs');
+
+const manifestPath = 'android/app/src/main/AndroidManifest.xml';
+const manifest = fs.readFileSync(manifestPath, 'utf8');
+const pkgMatch = manifest.match(/package="([^"]+)"/);
+
+if (pkgMatch) {
+    const pkgName = pkgMatch[1];
+    const javaPath = `android/app/src/main/java/${pkgName.replace(/\./g, '/')}/ShizukuRunner.java`;
+    
+    const pristineJava = `package ${pkgName};
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -175,10 +185,10 @@ public class ShizukuRunner extends Plugin {
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             StringBuilder output = new StringBuilder();
             String line;
-            while ((line = reader.readLine()) != null) { output.append(line).append("\n"); }
+            while ((line = reader.readLine()) != null) { output.append(line).append("\\n"); }
 
             BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            while ((line = errorReader.readLine()) != null) { output.append("STDERR: ").append(line).append("\n"); }
+            while ((line = errorReader.readLine()) != null) { output.append("STDERR: ").append(line).append("\\n"); }
             process.waitFor();
             
             ret.put("engine", engineUsed);
@@ -189,4 +199,7 @@ public class ShizukuRunner extends Plugin {
             call.reject(e.getMessage()); 
         }
     }
+}
+`;
+    fs.writeFileSync(javaPath, pristineJava);
 }
