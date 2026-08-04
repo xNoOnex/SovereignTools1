@@ -1,3 +1,4 @@
+import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect } from 'react';
 import { LockScreen } from './components/LockScreen';
 import { Home } from './components/Home';
@@ -78,6 +79,7 @@ function AppContent() {
       {currentScreen === 'home' && <Home onNavigate={navigateTo} appMode={mode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
+      {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
       {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
       {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
       {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}

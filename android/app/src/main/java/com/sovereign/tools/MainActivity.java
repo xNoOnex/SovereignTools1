@@ -6,7 +6,8 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ShizukuRunner.class);
-        registerPlugin(StorageIntentBridge.class); // ADDED STORAGE BRIDGE
+        registerPlugin(StorageIntentBridge.class);
+        registerPlugin(AlarmIntentBridge.class); // ADDED ALARM BRIDGE
         super.onCreate(savedInstanceState);
     }
 }
