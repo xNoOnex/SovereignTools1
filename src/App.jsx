@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { LockScreen } from './components/LockScreen';
 import { Home } from './components/Home';
@@ -6,7 +6,6 @@ import { StealthCalc } from './components/StealthCalc';
 import { Calendar } from './components/Calendar';
 import { SovereignRecorder } from './components/SovereignRecorder';
 import { NetSec } from './components/NetSec';
-import { TargetEradication } from './components/TargetEradication';
 import { DataShredder } from './components/DataShredder';
 import { UniversalExplorer } from './components/UniversalExplorer';
 import { SovereignAudio } from './components/SovereignAudio';
@@ -16,7 +15,7 @@ import { useStorage } from './hooks/useStorage';
 export function App() {
   const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
-  const { indexedFiles, reloadStorage } = useStorage();
+  const { indexedFiles } = useStorage();
 
   const navigateTo = (screen) => {
     setCurrentScreen(screen);
@@ -42,7 +41,6 @@ export function App() {
             {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
             {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
             {currentScreen === 'netsec' && <NetSec onNavigate={navigateTo} />}
-            {currentScreen === 'eradication' && <TargetEradication onNavigate={navigateTo} />}
             {currentScreen === 'shredder' && <DataShredder onNavigate={navigateTo} />}
             {currentScreen === 'explorer' && <UniversalExplorer onNavigate={navigateTo} />}
             {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} />}
