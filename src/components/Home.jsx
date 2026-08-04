@@ -16,7 +16,7 @@ export function Home({ onNavigate }) {
   const checkEngineStatus = async () => {
     try {
       const res = await ShizukuRunner.checkStatus();
-      setShizukuState((res.granted && res.active) ? 'CONNECTED' : 'OFFLINE');
+      setShizukuState((res.granted) ? 'CONNECTED' : 'OFFLINE');
     } catch (e) {
       setShizukuState('OFFLINE');
     }
