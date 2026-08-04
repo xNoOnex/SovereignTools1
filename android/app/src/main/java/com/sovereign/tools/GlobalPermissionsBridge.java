@@ -6,6 +6,7 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 @CapacitorPlugin(
     name = "GlobalPermissions",
@@ -16,13 +17,20 @@ import com.getcapacitor.annotation.Permission;
     }
 )
 public class GlobalPermissionsBridge extends Plugin {
+    
     @PluginMethod
     public void requestAll(PluginCall call) {
         if (!hasRequiredPermissions()) {
-            // This triggers Android's native sequential permission popups
-            requestAllPermissions(call);
+            // FIX: Provide the mandatory callback string as the second argument
+            requestAllPermissions(call, "permissionComplete");
         } else {
             call.resolve();
         }
+    }
+
+    // FIX: Define the required callback function to resolve the promise
+    @PermissionCallback
+    private void permissionComplete(PluginCall call) {
+        call.resolve();
     }
 }
