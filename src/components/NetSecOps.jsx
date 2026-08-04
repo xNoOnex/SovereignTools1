@@ -8,7 +8,7 @@ export function NetSecOps({ onNavigate }) {
   const { indexedFiles, runGlobalScan } = useStorage();
   const [shizukuGranted, setShizukuGranted] = useState(false);
   const [logs, setLogs] = useState('> Diagnostics Engine Ready...\n');
-  const [activeMainTab, setActiveMainTab] = useState('NETWORK');
+  const [activeMainTab, setActiveMainTab] = useState('SYSOPS');
   const [activeNetTab, setActiveNetTab] = useState('Subnet');
   
   const [showPicker, setShowPicker] = useState(false);
@@ -21,7 +21,12 @@ export function NetSecOps({ onNavigate }) {
   const checkShizuku = async () => {
     try {
       const res = await ShizukuRunner.checkStatus();
-      setShizukuGranted(res.granted);
+      // Force UI to accept the permission if it returns true, even if binder pings fail later
+      if (res.granted) {
+          setShizukuGranted(true);
+      } else {
+          setShizukuGranted(false);
+      }
     } catch (e) {
       setShizukuGranted(false);
     }
@@ -30,25 +35,22 @@ export function NetSecOps({ onNavigate }) {
   const forceRequestShizuku = async () => {
     try {
       const res = await ShizukuRunner.requestPermission();
-      setShizukuGranted(res.granted);
       if (res.granted) {
-          alert("Shizuku Permission Granted!");
-      } else {
-          alert("Permission denied. Ensure Shizuku is running and authorized.");
+        setShizukuGranted(true);
       }
     } catch (e) {
-      alert(e.message);
+      setLogs(prev => prev + `\n> Shizuku Error: ${e.message}\n`);
     }
   };
 
   const runCommand = async (cmd, label) => {
-    if (!shizukuGranted) return alert("Shizuku Shell Bridge required to execute this module.");
     setLogs(prev => prev + `\n> Executing [${label}]...\n`);
     try {
       const res = await ShizukuRunner.executeCommand({ command: cmd });
-      setLogs(prev => prev + (res.output || 'Command executed with no output.') + '\n');
+      const engineTag = res.engine ? `[${res.engine}] ` : '';
+      setLogs(prev => prev + engineTag + (res.output || 'Command executed with no output.') + '\n');
     } catch (e) {
-      setLogs(prev => prev + `ERROR: ${e.message}\n`);
+      setLogs(prev => prev + `FATAL ERROR: ${e.message}\n`);
     }
   };
 
@@ -68,7 +70,7 @@ export function NetSecOps({ onNavigate }) {
         runCommand('netstat -tuln | head -n 30', 'Listening Sockets');
         break;
       case 'MAC Mask':
-        runCommand('ip link show wlan0 && echo "Randomization Enabled (1=True, 0=False):" && settings get global wifi_connected_mac_randomization_enabled', 'MAC Address Audit');
+        runCommand('ip link show wlan0 && settings get global wifi_connected_mac_randomization_enabled', 'MAC Address Audit');
         break;
       default:
         break;
@@ -96,14 +98,14 @@ export function NetSecOps({ onNavigate }) {
         <div className="flex justify-between items-center">
           <div>
             <h4 className="text-xs font-bold text-white uppercase tracking-widest">Shizuku Shell Bridge</h4>
-            <p className="text-[10px] font-mono mt-1 text-zinc-400">Required for SysOps Modules</p>
+            <p className="text-[10px] font-mono mt-1 text-zinc-400">Required for SysOps Root execution</p>
           </div>
           <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600' : 'bg-red-600'}`}>
             {shizukuGranted ? 'CONNECTED' : 'OFFLINE'}
           </button>
         </div>
         {!shizukuGranted && (
-          <button onClick={forceRequestShizuku} className="w-full py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-[10px] font-bold text-white uppercase tracking-widest active:scale-95 shadow">
+          <button onClick={forceRequestShizuku} className="w-full py-3 bg-zinc-900 border border-zinc-700 rounded-xl text-[10px] font-bold text-white uppercase tracking-widest active:scale-95 shadow hover:border-zinc-500">
             Force Permission Request
           </button>
         )}
@@ -114,7 +116,7 @@ export function NetSecOps({ onNavigate }) {
           Network Security
         </button>
         <button onClick={() => setActiveMainTab('SYSOPS')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeMainTab === 'SYSOPS' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
-          SysOps (Shizuku)
+          SysOps Modules
         </button>
       </div>
 
@@ -137,12 +139,10 @@ export function NetSecOps({ onNavigate }) {
           </div>
           
           <div className="shrink-0 mt-4 bg-black/60 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-lg">
-            <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> Network Module Disclaimers</h4>
-            <ul className="text-[9px] text-zinc-400 font-mono space-y-2 list-disc pl-4">
-              <li><strong className="text-white">100% Functional:</strong> Leak Shield (Standard ICMP Pings) and Sockets (netstat queries).</li>
-              <li><strong className="text-amber-400">Limited (UID 2000):</strong> Subnet/ARP and Wi-Fi stats pull raw shell data, but modern Android heavily obfuscates ARP tables for non-root apps.</li>
-              <li><strong className="text-red-400">Audit Only:</strong> MAC Mask queries your current address and randomization settings, but cannot force a hardware spoof without true Magisk root.</li>
-            </ul>
+            <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> Dual-Engine Diagnostics</h4>
+            <p className="text-[9px] text-zinc-400 font-mono leading-relaxed">
+              Network modules will automatically execute via Android's local shell if Shizuku is offline. You do not need root to ping endpoints or check active sockets. Errors will stream directly to the terminal above.
+            </p>
           </div>
         </div>
       )}
@@ -150,7 +150,7 @@ export function NetSecOps({ onNavigate }) {
       {activeMainTab === 'SYSOPS' && (
         <div className="space-y-4 animate-fadeIn">
           <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => { const cmd = prompt("Enter ADB Shell command:"); if(cmd) runCommand(cmd, 'Terminal'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
+            <button onClick={() => { const cmd = prompt("Enter Shell command:"); if(cmd) runCommand(cmd, 'Terminal'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
               <span className="text-2xl opacity-80">💻</span>
               <div className="text-left mt-1">
                 <span className="text-[11px] font-bold text-white block">Local Terminal</span>
@@ -166,7 +166,7 @@ export function NetSecOps({ onNavigate }) {
               </div>
             </button>
             
-            <button onClick={() => { const pkg = prompt("Enter package to assassinate (e.g., com.android.chrome):"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
+            <button onClick={() => { const pkg = prompt("Enter package to assassinate:"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
               <span className="text-2xl opacity-80">🔪</span>
               <div className="text-left mt-1">
                 <span className="text-[11px] font-bold text-white block">Process Assassin</span>
@@ -218,15 +218,6 @@ export function NetSecOps({ onNavigate }) {
           <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-32">
             {logs}
           </div>
-          
-          <div className="shrink-0 mt-4 bg-black/60 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-lg">
-            <h4 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> SysOps Module Disclaimers</h4>
-            <ul className="text-[9px] text-zinc-400 font-mono space-y-2 list-disc pl-4">
-              <li><strong className="text-emerald-400">100% Functional:</strong> All buttons in this grid are directly wired to raw ADB shell execution and will function perfectly as long as Shizuku is authorized.</li>
-              <li><strong className="text-amber-400">Note on Downgrader:</strong> Android 14+ restricts downgrading system apps even with ADB. Standard user apps will downgrade successfully.</li>
-            </ul>
-          </div>
-
         </div>
       )}
     </div>

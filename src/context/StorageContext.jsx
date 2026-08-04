@@ -6,25 +6,27 @@ const StorageContext = createContext();
 export function StorageProvider({ children }) {
   const [indexedFiles, setIndexedFiles] = useState([]);
   const [storageUsage, setStorageUsage] = useState({ used: 0, total: 64000000000 });
+  const [permGranted, setPermGranted] = useState(false);
 
   const runGlobalScan = async () => {
     try {
-      // 1. Attempt to request permissions, but DO NOT crash if the OS denies it
-      try {
-        const check = await Filesystem.checkPermissions();
-        if (check.publicStorage !== 'granted') {
-          await Filesystem.requestPermissions();
-        }
-      } catch (permError) {
-        console.warn("Permission check skipped or denied. Forcing read attempt anyway.");
-      }
-
       let results = [];
       
-      // 2. Attempt the raw file read
+      try {
+        const check = await Filesystem.checkPermissions();
+        if (check.publicStorage === 'granted') {
+           setPermGranted(true);
+        } else {
+           const req = await Filesystem.requestPermissions();
+           if (req.publicStorage === 'granted') setPermGranted(true);
+        }
+      } catch (e) {
+        console.warn("Permission dialog failed, attempting read anyway.");
+      }
+
       try {
         const scan = await Filesystem.readdir({
-          path: 'Download',
+          path: '', // Scan root of external storage instead of just Download
           directory: Directory.ExternalStorage
         });
         
@@ -34,22 +36,13 @@ export function StorageProvider({ children }) {
             const ext = name.split('.').pop();
             return {
               name: name,
-              path: `/storage/emulated/0/Download/${name}`,
+              path: `/storage/emulated/0/${name}`,
               ext: ext
             };
           });
         }
       } catch (readError) {
-        console.error("Filesystem block: Android Scoped Storage API restricted the read.", readError);
-      }
-
-      // 3. Fallback to prevent the UI from appearing broken if the OS completely locks the folder
-      if (results.length === 0) {
-        results = [
-          { name: 'target_sample.mp4', path: '/storage/emulated/0/Download/target_sample.mp4', ext: 'mp4' },
-          { name: 'system_log.txt', path: '/storage/emulated/0/Download/system_log.txt', ext: 'txt' },
-          { name: 'offline_map.apk', path: '/storage/emulated/0/Download/offline_map.apk', ext: 'apk' }
-        ];
+        console.error("Filesystem blocked read.", readError);
       }
 
       setIndexedFiles(results);
@@ -63,7 +56,7 @@ export function StorageProvider({ children }) {
   }, []);
 
   return (
-    <StorageContext.Provider value={{ indexedFiles, storageUsage, runGlobalScan }}>
+    <StorageContext.Provider value={{ indexedFiles, storageUsage, runGlobalScan, permGranted }}>
       {children}
     </StorageContext.Provider>
   );
