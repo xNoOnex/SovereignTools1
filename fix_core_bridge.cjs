@@ -19,7 +19,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(ShizukuRunner.class);
         registerPlugin(StorageIntentBridge.class);
-        registerPlugin(AlarmIntentBridge.class); // ADDED ALARM BRIDGE
+        registerPlugin(AlarmIntentBridge.class);
+        registerPlugin(GlobalPermissionsBridge.class); // ADDED GLOBAL PERMISSIONS
         super.onCreate(savedInstanceState);
     }
 }
