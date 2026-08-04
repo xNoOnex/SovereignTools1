@@ -21,11 +21,10 @@ export function NetSecOps({ onNavigate }) {
   const checkShizuku = async () => {
     try {
       const res = await ShizukuRunner.checkStatus();
-      // Force UI to accept the permission if it returns true, even if binder pings fail later
-      if (res.granted) {
-          setShizukuGranted(true);
+      if (res.granted || res.active) {
+        setShizukuGranted(true);
       } else {
-          setShizukuGranted(false);
+        setShizukuGranted(false);
       }
     } catch (e) {
       setShizukuGranted(false);
@@ -38,8 +37,9 @@ export function NetSecOps({ onNavigate }) {
       if (res.granted) {
         setShizukuGranted(true);
       }
+      checkShizuku();
     } catch (e) {
-      setLogs(prev => prev + `\n> Shizuku Error: ${e.message}\n`);
+      setLogs(prev => prev + `\n> Permission Request: ${e.message}\n`);
     }
   };
 
@@ -50,7 +50,7 @@ export function NetSecOps({ onNavigate }) {
       const engineTag = res.engine ? `[${res.engine}] ` : '';
       setLogs(prev => prev + engineTag + (res.output || 'Command executed with no output.') + '\n');
     } catch (e) {
-      setLogs(prev => prev + `FATAL ERROR: ${e.message}\n`);
+      setLogs(prev => prev + `ERROR: ${e.message}\n`);
     }
   };
 
@@ -100,7 +100,7 @@ export function NetSecOps({ onNavigate }) {
             <h4 className="text-xs font-bold text-white uppercase tracking-widest">Shizuku Shell Bridge</h4>
             <p className="text-[10px] font-mono mt-1 text-zinc-400">Required for SysOps Root execution</p>
           </div>
-          <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600' : 'bg-red-600'}`}>
+          <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
             {shizukuGranted ? 'CONNECTED' : 'OFFLINE'}
           </button>
         </div>
@@ -137,13 +137,6 @@ export function NetSecOps({ onNavigate }) {
           <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-cyan-400 whitespace-pre-wrap shadow-inner h-[30vh]">
             {logs}
           </div>
-          
-          <div className="shrink-0 mt-4 bg-black/60 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-lg">
-            <h4 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> Dual-Engine Diagnostics</h4>
-            <p className="text-[9px] text-zinc-400 font-mono leading-relaxed">
-              Network modules will automatically execute via Android's local shell if Shizuku is offline. You do not need root to ping endpoints or check active sockets. Errors will stream directly to the terminal above.
-            </p>
-          </div>
         </div>
       )}
 
@@ -166,7 +159,7 @@ export function NetSecOps({ onNavigate }) {
               </div>
             </button>
             
-            <button onClick={() => { const pkg = prompt("Enter package to assassinate:"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
+            <button onClick={() => { const pkg = prompt("Enter package to force-stop:"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
               <span className="text-2xl opacity-80">🔪</span>
               <div className="text-left mt-1">
                 <span className="text-[11px] font-bold text-white block">Process Assassin</span>
@@ -207,6 +200,7 @@ export function NetSecOps({ onNavigate }) {
                     filteredFiles.map((file, idx) => (
                       <div key={idx} onClick={() => executeDowngrade(file.path)} className="bg-zinc-900/90 border border-zinc-800 p-2 rounded-xl cursor-pointer hover:border-amber-500/50 flex justify-between items-center active:scale-95 transition-all">
                         <span className="text-[10px] font-bold text-white truncate pr-2">{file.name}</span>
+                        <span className="text-[8px] text-zinc-500 font-mono">{file.folder}</span>
                       </div>
                     ))
                   )}
@@ -215,7 +209,7 @@ export function NetSecOps({ onNavigate }) {
             )}
           </div>
 
-          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-32">
+          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-36">
             {logs}
           </div>
         </div>

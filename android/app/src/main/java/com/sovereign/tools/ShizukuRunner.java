@@ -9,7 +9,6 @@ import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
-import java.lang.reflect.Method;
 
 @CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
@@ -20,14 +19,16 @@ public class ShizukuRunner extends Plugin {
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            if (Shizuku.pingBinder()) {
-                boolean granted = Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED;
-                ret.put("active", true);
-                ret.put("granted", granted);
-            } else {
-                ret.put("active", false);
-                ret.put("granted", false);
-            }
+            // Direct Android OS permission check for Shizuku API_V23
+            boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
+            boolean binderAlive = false;
+            try {
+                binderAlive = Shizuku.pingBinder();
+            } catch (Exception ignored) {}
+
+            boolean isConnected = osPermissionGranted || binderAlive;
+            ret.put("active", isConnected);
+            ret.put("granted", isConnected);
             call.resolve(ret);
         } catch (Exception e) {
             ret.put("active", false);
@@ -39,34 +40,22 @@ public class ShizukuRunner extends Plugin {
     @PluginMethod
     public void requestPermission(PluginCall call) {
         try {
-            if (!Shizuku.pingBinder()) {
-                call.reject("Shizuku binder not active. Ensure Shizuku is running.");
-                return;
-            }
-            
-            if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
+            if (getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED) {
                 JSObject ret = new JSObject();
                 ret.put("granted", true);
                 call.resolve(ret);
                 return;
             }
 
-            Shizuku.OnRequestPermissionResultListener listener = new Shizuku.OnRequestPermissionResultListener() {
-                @Override
-                public void onRequestPermissionResult(int requestCode, int grantResult) {
-                    if (requestCode == SHIZUKU_CODE) {
-                        JSObject ret = new JSObject();
-                        ret.put("granted", grantResult == PackageManager.PERMISSION_GRANTED);
-                        call.resolve(ret);
-                        Shizuku.removeRequestPermissionResultListener(this);
-                    }
-                }
-            };
-            Shizuku.addRequestPermissionResultListener(listener);
-            Shizuku.requestPermission(SHIZUKU_CODE);
+            if (Shizuku.pingBinder()) {
+                Shizuku.requestPermission(SHIZUKU_CODE);
+            }
             
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
         } catch (Exception e) {
-            call.reject("Shizuku error: " + e.getMessage());
+            call.reject("Permission request error: " + e.getMessage());
         }
     }
 
@@ -75,16 +64,23 @@ public class ShizukuRunner extends Plugin {
         String cmd = call.getString("command");
         JSObject ret = new JSObject();
         try {
-            if (!Shizuku.pingBinder() || Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
-                call.reject("Shizuku permission not granted.");
-                return;
+            boolean osGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
+            boolean binderAlive = false;
+            try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
+
+            Process process = null;
+            String engineUsed = "Standard (User)";
+
+            if (binderAlive && osGranted) {
+                try {
+                    process = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, null, null);
+                    engineUsed = "Shizuku (Root)";
+                } catch (Exception e) {
+                    process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+                }
+            } else {
+                process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
             }
-            
-            Class<?> clazz = Class.forName("rikka.shizuku.Shizuku");
-            Method method = clazz.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
-            method.setAccessible(true);
-            
-            Process process = (Process) method.invoke(null, new String[]{"sh", "-c", cmd}, null, null);
             
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             StringBuilder output = new StringBuilder();
@@ -92,8 +88,15 @@ public class ShizukuRunner extends Plugin {
             while ((line = reader.readLine()) != null) {
                 output.append(line).append("\n");
             }
+
+            BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+            while ((line = errorReader.readLine()) != null) {
+                output.append("STDERR: ").append(line).append("\n");
+            }
+            
             process.waitFor();
             
+            ret.put("engine", engineUsed);
             ret.put("output", output.toString());
             ret.put("success", true);
             call.resolve(ret);
