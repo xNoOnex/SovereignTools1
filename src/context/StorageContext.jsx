@@ -6,12 +6,14 @@ const StorageContext = createContext();
 export function StorageProvider({ children }) {
   const [indexedFiles, setIndexedFiles] = useState([]);
   const [storageUsage, setStorageUsage] = useState({ used: 0, total: 64000000000 });
+  const [permGranted, setPermGranted] = useState(false);
 
   const runGlobalScan = async () => {
     try {
       try {
         const check = await Filesystem.checkPermissions();
         if (check.publicStorage !== 'granted') {
+          // Trigger standard request, Android will escalate to native intent if configured correctly in Manifest
           await Filesystem.requestPermissions();
         }
       } catch (e) {
@@ -42,15 +44,13 @@ export function StorageProvider({ children }) {
             aggregatedFiles = [...aggregatedFiles, ...folderFiles];
           }
         } catch (err) {
-          // Individual folder restricted or empty
+           // Skip empty/blocked folders silently
         }
       }
 
       if (aggregatedFiles.length === 0) {
         aggregatedFiles = [
-          { name: 'sample_target.mp4', path: '/storage/emulated/0/Download/sample_target.mp4', ext: 'mp4', folder: 'Download' },
-          { name: 'document.pdf', path: '/storage/emulated/0/Documents/document.pdf', ext: 'pdf', folder: 'Documents' },
-          { name: 'audio_track.mp3', path: '/storage/emulated/0/Music/audio_track.mp3', ext: 'mp3', folder: 'Music' }
+          { name: 'sample_target.mp4', path: '/storage/emulated/0/Download/sample_target.mp4', ext: 'mp4', folder: 'Download' }
         ];
       }
 
@@ -65,7 +65,7 @@ export function StorageProvider({ children }) {
   }, []);
 
   return (
-    <StorageContext.Provider value={{ indexedFiles, storageUsage, runGlobalScan }}>
+    <StorageContext.Provider value={{ indexedFiles, storageUsage, runGlobalScan, permGranted }}>
       {children}
     </StorageContext.Provider>
   );

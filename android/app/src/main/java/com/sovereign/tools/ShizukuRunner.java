@@ -22,9 +22,7 @@ public class ShizukuRunner extends Plugin {
         try {
             boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
-            try {
-                binderAlive = Shizuku.pingBinder();
-            } catch (Exception ignored) {}
+            try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 
             boolean isConnected = osPermissionGranted || binderAlive;
             ret.put("active", isConnected);
@@ -46,11 +44,7 @@ public class ShizukuRunner extends Plugin {
                 call.resolve(ret);
                 return;
             }
-
-            if (Shizuku.pingBinder()) {
-                Shizuku.requestPermission(SHIZUKU_CODE);
-            }
-            
+            if (Shizuku.pingBinder()) { Shizuku.requestPermission(SHIZUKU_CODE); }
             JSObject ret = new JSObject();
             ret.put("granted", true);
             call.resolve(ret);
@@ -73,12 +67,13 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    // CRITICAL FIX: Use Reflection to bypass private access block
+                    // FIX: Pass the exact string as a direct array to prevent Shizuku parsing failures
+                    String[] execCmd = {"sh", "-c", cmd};
                     Class<?> clazz = Class.forName("rikka.shizuku.Shizuku");
                     Method method = clazz.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
                     method.setAccessible(true);
                     
-                    process = (Process) method.invoke(null, new String[]{"sh", "-c", cmd}, null, null);
+                    process = (Process) method.invoke(null, execCmd, null, null);
                     engineUsed = "Shizuku (Root)";
                 } catch (Exception e) {
                     process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});

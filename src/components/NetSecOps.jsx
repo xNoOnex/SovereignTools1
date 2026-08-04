@@ -10,6 +10,8 @@ export function NetSecOps({ onNavigate }) {
   const [logs, setLogs] = useState('> Diagnostics Engine Ready...\n');
   const [activeMainTab, setActiveMainTab] = useState('SYSOPS');
   const [activeNetTab, setActiveNetTab] = useState('Subnet');
+  const [cmdInput, setCmdInput] = useState('');
+  const [showTerminalInput, setShowTerminalInput] = useState(false);
   
   const [showPicker, setShowPicker] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -33,10 +35,7 @@ export function NetSecOps({ onNavigate }) {
 
   const forceRequestShizuku = async () => {
     try {
-      const res = await ShizukuRunner.requestPermission();
-      if (res.granted) {
-        setShizukuGranted(true);
-      }
+      await ShizukuRunner.requestPermission();
       checkShizuku();
     } catch (e) {
       setLogs(prev => prev + `\n> Permission Request: ${e.message}\n`);
@@ -54,23 +53,31 @@ export function NetSecOps({ onNavigate }) {
     }
   };
 
+  const executeCustomCommand = (e) => {
+      e.preventDefault();
+      if (!cmdInput.trim()) return;
+      runCommand(cmdInput, 'Custom Shell');
+      setCmdInput('');
+      setShowTerminalInput(false);
+  };
+
   const handleNetworkAction = (tab) => {
     setActiveNetTab(tab);
     switch(tab) {
       case 'Subnet':
-        runCommand('ip route && arp -a', 'Subnet & ARP Map');
+        runCommand('ip route && arp -a', 'Subnet Map');
         break;
       case 'Wi-Fi':
-        runCommand('dumpsys wifi | grep -E "mNetworkInfo|SSID|BSSID"', 'Wi-Fi Radio Status');
+        runCommand('dumpsys wifi | grep -E "mNetworkInfo|SSID|BSSID"', 'Wi-Fi Status');
         break;
       case 'Leak Shield':
         runCommand('ping -c 4 1.1.1.1', 'Ping Audit');
         break;
       case 'Sockets':
-        runCommand('netstat -tuln | head -n 30', 'Listening Sockets');
+        runCommand('netstat -tuln | head -n 30', 'Open Sockets');
         break;
       case 'MAC Mask':
-        runCommand('ip link show wlan0 && settings get global wifi_connected_mac_randomization_enabled', 'MAC Address Audit');
+        runCommand('ip link show wlan0', 'MAC Identity');
         break;
       default:
         break;
@@ -79,7 +86,7 @@ export function NetSecOps({ onNavigate }) {
 
   const executeDowngrade = async (filePath) => {
     setShowPicker(false);
-    if (!window.confirm(`Force install and downgrade via: ${filePath}?`)) return;
+    if (!window.confirm(`Force install via: ${filePath}?`)) return;
     runCommand(`pm install -r -d "${filePath}"`, 'APK Downgrader');
   };
 
@@ -98,7 +105,7 @@ export function NetSecOps({ onNavigate }) {
         <div className="flex justify-between items-center">
           <div>
             <h4 className="text-xs font-bold text-white uppercase tracking-widest">Shizuku Shell Bridge</h4>
-            <p className="text-[10px] font-mono mt-1 text-zinc-400">Required for SysOps Root execution</p>
+            <p className="text-[10px] font-mono mt-1 text-zinc-400">Required for root-level execution</p>
           </div>
           <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
             {shizukuGranted ? 'CONNECTED' : 'OFFLINE'}
@@ -134,7 +141,7 @@ export function NetSecOps({ onNavigate }) {
             ))}
           </div>
 
-          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-cyan-400 whitespace-pre-wrap shadow-inner h-[30vh]">
+          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-cyan-400 whitespace-pre-wrap shadow-inner h-[40vh]">
             {logs}
           </div>
         </div>
@@ -142,75 +149,82 @@ export function NetSecOps({ onNavigate }) {
 
       {activeMainTab === 'SYSOPS' && (
         <div className="space-y-4 animate-fadeIn">
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => { const cmd = prompt("Enter Shell command:"); if(cmd) runCommand(cmd, 'Terminal'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
-              <span className="text-2xl opacity-80">💻</span>
-              <div className="text-left mt-1">
-                <span className="text-[11px] font-bold text-white block">Local Terminal</span>
-                <span className="text-[9px] font-mono text-zinc-500">Raw shell execution</span>
-              </div>
-            </button>
-            
-            <button onClick={() => runCommand('pm list packages -3', 'Packages')} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
-              <span className="text-2xl opacity-80">📦</span>
-              <div className="text-left mt-1">
-                <span className="text-[11px] font-bold text-white block">AppOps List</span>
-                <span className="text-[9px] font-mono text-zinc-500">List user packages</span>
-              </div>
-            </button>
-            
-            <button onClick={() => { const pkg = prompt("Enter package to force-stop:"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
-              <span className="text-2xl opacity-80">🔪</span>
-              <div className="text-left mt-1">
-                <span className="text-[11px] font-bold text-white block">Process Assassin</span>
-                <span className="text-[9px] font-mono text-zinc-500">Force-kill packages</span>
-              </div>
-            </button>
-            
-            <button onClick={() => runCommand('logcat -d | tail -n 50', 'Logcat')} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow">
-              <span className="text-2xl opacity-80">📋</span>
-              <div className="text-left mt-1">
-                <span className="text-[11px] font-bold text-white block">Logcat Inspector</span>
-                <span className="text-[9px] font-mono text-zinc-500">Live system logs</span>
-              </div>
-            </button>
-          </div>
-
-          <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-3xl space-y-3 shadow-xl">
-            <div className="flex justify-between items-center">
-              <div>
-                <h3 className="text-[11px] font-bold text-white uppercase tracking-widest block">APK Downgrader</h3>
-                <span className="text-[9px] font-mono text-zinc-500">Bypass version blocks (-d flag)</span>
-              </div>
-              <button onClick={() => setShowPicker(!showPicker)} className="bg-amber-600 text-black text-[10px] font-bold px-4 py-2 rounded-xl active:scale-95 shadow">
-                {showPicker ? 'CLOSE' : 'PICK APK'}
-              </button>
-            </div>
-
-            {showPicker && (
-              <div className="bg-black/90 border border-zinc-800 rounded-2xl p-3 space-y-3 animate-fadeIn">
-                <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Search APKs..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none" />
-                <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
-                  {filteredFiles.length === 0 ? (
-                    <div className="flex flex-col gap-2 items-center text-center text-zinc-600 font-mono text-xs py-4">
-                        <span>No local APKs indexed.</span>
-                        <button onClick={runGlobalScan} className="bg-zinc-800 text-white px-3 py-1.5 rounded-lg text-[10px] uppercase font-bold border border-zinc-700">Rescan Storage</button>
-                    </div>
-                  ) : (
-                    filteredFiles.map((file, idx) => (
-                      <div key={idx} onClick={() => executeDowngrade(file.path)} className="bg-zinc-900/90 border border-zinc-800 p-2 rounded-xl cursor-pointer hover:border-amber-500/50 flex justify-between items-center active:scale-95 transition-all">
-                        <span className="text-[10px] font-bold text-white truncate pr-2">{file.name}</span>
-                        <span className="text-[8px] text-zinc-500 font-mono">{file.folder}</span>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-36">
+          
+          {/* TERMINAL UI */}
+          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-32 relative">
             {logs}
+            <button onClick={() => setShowTerminalInput(!showTerminalInput)} className="absolute bottom-2 right-2 bg-zinc-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase active:scale-95 shadow">
+               {showTerminalInput ? 'CLOSE' : 'EXECUTE >_'}
+            </button>
+          </div>
+
+          {showTerminalInput && (
+             <form onSubmit={executeCustomCommand} className="flex gap-2 animate-fadeIn">
+                 <input type="text" value={cmdInput} onChange={(e) => setCmdInput(e.target.value)} placeholder="Type shell command..." className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-amber-500" autoFocus />
+                 <button type="submit" className="bg-amber-600 text-black px-6 rounded-xl font-bold text-[10px] uppercase tracking-widest active:scale-95 shadow">Run</button>
+             </form>
+          )}
+
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => runCommand('pm list packages -3', 'User Apps')} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
+              <span className="text-2xl opacity-80">📦</span>
+              <div className="mt-1">
+                <span className="text-[11px] font-bold text-white block">List User Apps</span>
+                <span className="text-[9px] font-mono text-zinc-500 block leading-tight mt-0.5">Scans all 3rd party package names.</span>
+              </div>
+            </button>
+            
+            <button onClick={() => { const pkg = prompt("Enter package to force-stop (e.g., com.android.chrome):"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
+              <span className="text-2xl opacity-80">🔪</span>
+              <div className="mt-1">
+                <span className="text-[11px] font-bold text-white block">Process Assassin</span>
+                <span className="text-[9px] font-mono text-zinc-500 block leading-tight mt-0.5">Force-kill running background tasks.</span>
+              </div>
+            </button>
+            
+            <button onClick={() => runCommand('logcat -d | tail -n 50', 'Logcat')} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
+              <span className="text-2xl opacity-80">📋</span>
+              <div className="mt-1">
+                <span className="text-[11px] font-bold text-white block">Logcat Inspector</span>
+                <span className="text-[9px] font-mono text-zinc-500 block leading-tight mt-0.5">Dump live Android system logs.</span>
+              </div>
+            </button>
+            
+            <button onClick={() => setShowPicker(!showPicker)} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
+              <span className="text-2xl opacity-80">⬇️</span>
+              <div className="mt-1">
+                <span className="text-[11px] font-bold text-white block">APK Downgrader</span>
+                <span className="text-[9px] font-mono text-zinc-500 block leading-tight mt-0.5">Force install via -d flag bypass.</span>
+              </div>
+            </button>
+          </div>
+
+          {showPicker && (
+            <div className="bg-black/90 border border-zinc-800 rounded-2xl p-3 space-y-3 animate-fadeIn">
+              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Search APKs..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none" />
+              <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
+                {filteredFiles.length === 0 ? (
+                  <div className="flex flex-col gap-2 items-center text-center text-zinc-600 font-mono text-xs py-4">
+                      <span>No local APKs indexed.</span>
+                      <button onClick={runGlobalScan} className="bg-zinc-800 text-white px-3 py-1.5 rounded-lg text-[10px] uppercase font-bold border border-zinc-700 mt-2">Rescan Storage</button>
+                  </div>
+                ) : (
+                  filteredFiles.map((file, idx) => (
+                    <div key={idx} onClick={() => executeDowngrade(file.path)} className="bg-zinc-900/90 border border-zinc-800 p-2 rounded-xl cursor-pointer hover:border-amber-500/50 flex justify-between items-center active:scale-95 transition-all">
+                      <span className="text-[10px] font-bold text-white truncate pr-2">{file.name}</span>
+                      <span className="text-[8px] text-zinc-500 font-mono uppercase">{file.folder}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="shrink-0 mt-4 bg-black/60 backdrop-blur border border-zinc-800 p-5 rounded-3xl shadow-lg">
+            <h4 className="text-[10px] font-bold text-amber-500 uppercase tracking-widest mb-3 flex items-center gap-2"><span>ℹ️</span> Module Disclaimers</h4>
+            <p className="text-[9px] text-zinc-400 font-mono leading-relaxed">
+              These commands require elevated privileges. Execution will route via <span className="text-emerald-400">Shizuku (Root)</span> if connected. If offline, the engine falls back to <span className="text-red-400">Standard (User)</span> which may trigger native Android Permission Denial exceptions.
+            </p>
           </div>
         </div>
       )}
