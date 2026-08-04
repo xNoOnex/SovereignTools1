@@ -1,20 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { registerPlugin } from '@capacitor/core';
-import { useStorage } from '../context/StorageContext';
 
 const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function NetSecOps({ onNavigate }) {
-  const { indexedFiles, runGlobalScan } = useStorage();
   const [shizukuGranted, setShizukuGranted] = useState(false);
-  const [logs, setLogs] = useState('> NetSec Operational Suite Ready...\n');
-  const [activeMainTab, setActiveMainTab] = useState('NETWORK');
-  const [activeNetTab, setActiveNetTab] = useState('Subnet');
-  const [cmdInput, setCmdInput] = useState('');
-  const [showTerminalInput, setShowTerminalInput] = useState(false);
+  const [activeTab, setActiveTab] = useState('NETWORK');
+  const [activeModule, setActiveModule] = useState(null);
   
-  const [showPicker, setShowPicker] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [moduleLog, setModuleLog] = useState('');
+  const [moduleInput, setModuleInput] = useState('');
 
   useEffect(() => {
     checkShizuku();
@@ -23,186 +18,142 @@ export function NetSecOps({ onNavigate }) {
   const checkShizuku = async () => {
     try {
       const res = await ShizukuRunner.checkStatus();
-      setShizukuGranted(res.granted || res.active);
+      setShizukuGranted(res.granted && res.active);
     } catch (e) {
       setShizukuGranted(false);
     }
   };
 
-  const forceRequestShizuku = async () => {
-    try {
-      await ShizukuRunner.requestPermission();
-      checkShizuku();
-    } catch (e) {
-      setLogs(prev => prev + `\n> Permission Request: ${e.message}\n`);
-    }
-  };
-
-  const runCommand = async (cmd, label) => {
-    setLogs(prev => prev + `\n> Executing [${label}]...\n`);
+  const runModuleCommand = async (cmd, label) => {
+    setModuleLog(prev => prev + `\n> Executing [${label}]...\n`);
     try {
       const res = await ShizukuRunner.executeCommand({ command: cmd });
       const engineTag = res.engine ? `[${res.engine}] ` : '';
-      setLogs(prev => prev + engineTag + (res.output || 'Command completed.') + '\n');
+      setModuleLog(prev => prev + engineTag + (res.output || 'Command completed.') + '\n');
     } catch (e) {
-      setLogs(prev => prev + `ERROR: ${e.message}\n`);
+      setModuleLog(prev => prev + `ERROR: ${e.message}\n`);
     }
   };
 
-  const executeCustomCommand = (e) => {
-    e.preventDefault();
-    if (!cmdInput.trim()) return;
-    runCommand(cmdInput, 'Terminal Input');
-    setCmdInput('');
-  };
-
-  const handleNetworkAction = (tab) => {
-    setActiveNetTab(tab);
-    switch(tab) {
-      case 'Subnet':
-        runCommand('ip route || arp -a', 'Subnet Mapping');
-        break;
-      case 'Wi-Fi':
-        runCommand('dumpsys wifi | grep -E "SSID|BSSID|mNetworkInfo"', 'Wi-Fi Telemetry');
-        break;
-      case 'Leak Shield':
-        runCommand('ping -c 4 1.1.1.1', 'ICMP Connectivity');
-        break;
-      case 'Sockets':
-        runCommand('netstat -tuln || ss -tulpn', 'Listening Ports');
-        break;
-      case 'MAC Mask':
-        runCommand('ip link show wlan0', 'Hardware Link State');
-        break;
-      case 'DNS Audit':
-        runCommand('getprop | grep dns', 'DNS Server Resolver');
-        break;
-      default:
-        break;
+  const executeModule = (e) => {
+    e?.preventDefault();
+    if (activeModule.requiresInput && !moduleInput.trim()) return;
+    
+    let finalCmd = activeModule.cmd;
+    if (activeModule.requiresInput) {
+       finalCmd = `${activeModule.cmd} ${moduleInput}`;
     }
+    
+    runModuleCommand(finalCmd, activeModule.title);
   };
 
-  const netTabs = ['Subnet', 'Wi-Fi', 'Leak Shield', 'Sockets', 'MAC Mask', 'DNS Audit'];
-  const filteredApks = indexedFiles.filter(f => f.name.toLowerCase().includes(searchTerm.toLowerCase()) && f.ext === 'apk');
+  const networkModules = [
+    { id: 'subnet', title: 'Subnet Mapping', icon: '🌐', desc: 'Scan routing tables and ARP cache', cmd: 'ip route || arp -a', disclaimer: 'Reveals local gateway paths and hardware addresses of connected network peers.' },
+    { id: 'wifi', title: 'Wi-Fi Telemetry', icon: '📶', desc: 'Dump wireless interface data', cmd: 'dumpsys wifi | grep -E "SSID|BSSID|mNetworkInfo"', disclaimer: 'Requires root. Extracts exact BSSID targets and connection logs from the Android Wi-Fi service.' },
+    { id: 'leak', title: 'Leak Shield Audit', icon: '🛡️', desc: 'Test ICMP packet routing', cmd: 'ping -c 4 1.1.1.1', disclaimer: 'Verifies outward connectivity to Cloudflare DNS to ensure VPN/Gateway is routing correctly.' },
+    { id: 'sockets', title: 'Listening Sockets', icon: '🔌', desc: 'Audit open ports', cmd: 'netstat -tuln || ss -tulpn', disclaimer: 'Requires root to bind to netlink. Reveals all active daemons listening on the device.' }
+  ];
+
+  const sysopsModules = [
+    { id: 'appops', title: 'AppOps List', icon: '📦', desc: 'Scan installed 3rd-party apps', cmd: 'pm list packages -3', disclaimer: 'Requires root (INTERACT_ACROSS_USERS_FULL). Lists all user-installed packages.' },
+    { id: 'assassin', title: 'Process Assassin', icon: '🔪', desc: 'Force-stop running packages', cmd: 'am force-stop', requiresInput: true, inputLabel: 'Target Package (e.g. com.android.chrome)', disclaimer: 'Requires root. Instantly kills the target package and all background services associated with it.' },
+    { id: 'logcat', title: 'Logcat Inspector', icon: '📋', desc: 'View recent system log lines', cmd: 'logcat -d | tail -n 50', disclaimer: 'Dumps the last 50 lines of the system log. Highly sensitive data may be exposed here.' },
+    { id: 'downgrade', title: 'APK Downgrader', icon: '⬇️', desc: 'Install version block bypass', cmd: 'pm install -r -d', requiresInput: true, inputLabel: 'Absolute APK Path (/storage/emulated/0/... )', disclaimer: 'Requires root. Bypasses Android version restrictions to force-install older APK variants.' },
+    { id: 'terminal', title: 'Raw Local Terminal', icon: '💻', desc: 'Execute arbitrary commands', cmd: '', requiresInput: true, inputLabel: 'Shell Command', disclaimer: 'Warning: Direct access to the underlying shell. Commands execute as root if Shizuku is linked.' }
+  ];
+
+  const currentList = activeTab === 'NETWORK' ? networkModules : sysopsModules;
 
   return (
     <div className="p-4 space-y-6 max-w-2xl mx-auto pb-32 select-none font-sans text-white min-h-screen relative z-10 animate-fadeIn">
       
-      <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0">
-        <h2 className="text-2xl font-black text-white flex items-center gap-3">
-          <span className="text-3xl text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">⚡</span> NetSec & SysOps Hub
-        </h2>
-        <p className="text-xs text-zinc-400 mt-2">Unified dashboard for network diagnostics and native shell administration.</p>
-      </div>
+      {!activeModule ? (
+        <>
+          <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0">
+            <h2 className="text-2xl font-black text-white flex items-center gap-3">
+              <span className="text-3xl text-amber-500 drop-shadow-[0_0_10px_rgba(245,158,11,0.8)]">⚡</span> NetSec & SysOps Hub
+            </h2>
+            <p className="text-xs text-zinc-400 mt-2">Unified dashboard for network diagnostics and native shell administration.</p>
+          </div>
 
-      <div className={`p-4 rounded-3xl flex justify-between items-center shadow-xl ${shizukuGranted ? 'bg-emerald-950/30 border border-emerald-900/50' : 'bg-red-950/30 border border-red-900/50'}`}>
-        <div>
-          <h4 className="text-xs font-bold text-white uppercase tracking-widest">Shizuku Shell Bridge</h4>
-          <p className="text-[10px] font-mono text-zinc-400 mt-0.5">Elevated privilege broker</p>
-        </div>
-        <button onClick={checkShizuku} className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
-          {shizukuGranted ? 'CONNECTED' : 'OFFLINE'}
-        </button>
-      </div>
+          <div className={`p-4 rounded-3xl flex justify-between items-center shadow-xl ${shizukuGranted ? 'bg-emerald-950/30 border border-emerald-900/50' : 'bg-red-950/30 border border-red-900/50'}`}>
+            <div>
+              <h4 className="text-xs font-bold text-white uppercase tracking-widest">Shizuku Shell Bridge</h4>
+              <p className="text-[10px] font-mono text-zinc-400 mt-0.5">Elevated privilege broker</p>
+            </div>
+            <span className={`px-4 py-2 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow ${shizukuGranted ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+              {shizukuGranted ? 'LINKED' : 'OFFLINE'}
+            </span>
+          </div>
 
-      <div className="flex gap-2 bg-zinc-900/80 p-1.5 rounded-2xl border border-zinc-800 shrink-0 shadow-inner">
-        <button onClick={() => setActiveMainTab('NETWORK')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeMainTab === 'NETWORK' ? 'bg-cyan-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
-          Network Security
-        </button>
-        <button onClick={() => setActiveMainTab('SYSOPS')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeMainTab === 'SYSOPS' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
-          SysOps Modules
-        </button>
-      </div>
+          <div className="flex gap-2 bg-zinc-900/80 p-1.5 rounded-2xl border border-zinc-800 shrink-0 shadow-inner">
+            <button onClick={() => setActiveTab('NETWORK')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeTab === 'NETWORK' ? 'bg-cyan-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
+              Network Security
+            </button>
+            <button onClick={() => setActiveTab('SYSOPS')} className={`flex-1 py-3 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeTab === 'SYSOPS' ? 'bg-amber-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>
+              SysOps Modules
+            </button>
+          </div>
 
-      {activeMainTab === 'NETWORK' && (
-        <div className="space-y-4 animate-fadeIn">
-          <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 bg-black border border-zinc-900 p-2 rounded-2xl shadow-inner">
-            {netTabs.map(tab => (
+          <div className="grid grid-cols-2 gap-3 animate-fadeIn">
+            {currentList.map(mod => (
               <button 
-                key={tab} 
-                onClick={() => handleNetworkAction(tab)} 
-                className={`px-5 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all shrink-0 ${activeNetTab === tab ? 'bg-cyan-500 text-black shadow' : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700'}`}
+                key={mod.id} 
+                onClick={() => { setActiveModule(mod); setModuleLog(`> Module [${mod.title}] Initialized.\n`); setModuleInput(''); }} 
+                className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left"
               >
-                {tab}
+                <span className="text-2xl opacity-80">{mod.icon}</span>
+                <div>
+                  <span className="text-[11px] font-bold text-white block">{mod.title}</span>
+                  <span className="text-[9px] font-mono text-zinc-500">{mod.desc}</span>
+                </div>
               </button>
             ))}
           </div>
-
-          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-cyan-400 whitespace-pre-wrap shadow-inner h-[38vh]">
-            {logs}
+        </>
+      ) : (
+        /* DEDICATED MODULE VIEW */
+        <div className="space-y-4 animate-fadeIn flex flex-col h-[85vh]">
+          <div className="flex justify-between items-start border-b border-zinc-800 pb-4">
+             <div className="flex items-center gap-3">
+                <span className="text-4xl">{activeModule.icon}</span>
+                <div>
+                   <h3 className="text-xl font-black text-white">{activeModule.title}</h3>
+                   <span className="text-[10px] font-mono text-amber-500 bg-amber-900/30 px-2 py-0.5 rounded border border-amber-900/50">
+                      {shizukuGranted ? 'ROOT CONTEXT' : 'USER CONTEXT'}
+                   </span>
+                </div>
+             </div>
+             <button onClick={() => setActiveModule(null)} className="w-10 h-10 bg-zinc-900 rounded-full flex items-center justify-center text-sm font-bold border border-zinc-700 active:scale-95 text-zinc-400">
+               ✕
+             </button>
           </div>
-        </div>
-      )}
 
-      {activeMainTab === 'SYSOPS' && (
-        <div className="space-y-4 animate-fadeIn">
-          <div className="bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner h-32 relative">
-            {logs}
-            <button onClick={() => setShowTerminalInput(!showTerminalInput)} className="absolute bottom-2 right-2 bg-zinc-800 text-white px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase active:scale-95 shadow">
-               {showTerminalInput ? 'CLOSE' : 'SHELL INPUT >_'}
-            </button>
+          <div className="bg-zinc-900/50 border border-zinc-800 p-4 rounded-2xl shadow-inner">
+             <h4 className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Module Disclaimer</h4>
+             <p className="text-[10px] text-zinc-400 leading-relaxed">{activeModule.disclaimer}</p>
           </div>
 
-          {showTerminalInput && (
-             <form onSubmit={executeCustomCommand} className="flex gap-2 animate-fadeIn">
-                 <input type="text" value={cmdInput} onChange={(e) => setCmdInput(e.target.value)} placeholder="Type ADB shell command..." className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-amber-500" autoFocus />
-                 <button type="submit" className="bg-amber-600 text-black px-6 rounded-xl font-bold text-[10px] uppercase tracking-widest active:scale-95 shadow">Run</button>
+          {activeModule.requiresInput && (
+             <form onSubmit={executeModule} className="flex gap-2">
+                <input 
+                  type="text" 
+                  value={moduleInput} 
+                  onChange={(e) => setModuleInput(e.target.value)} 
+                  placeholder={activeModule.inputLabel} 
+                  className="flex-1 bg-black border border-zinc-800 rounded-xl px-4 py-3 text-xs font-mono text-white focus:outline-none focus:border-amber-500" 
+                  autoFocus 
+                />
              </form>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => runCommand('pm list packages -3', 'User Packages')} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
-              <span className="text-2xl opacity-80">📦</span>
-              <div>
-                <span className="text-[11px] font-bold text-white block">AppOps List</span>
-                <span className="text-[9px] font-mono text-zinc-500">Scan installed 3rd-party apps</span>
-              </div>
-            </button>
-            
-            <button onClick={() => { const pkg = prompt("Enter package to force-stop:"); if(pkg) runCommand(`am force-stop ${pkg}`, 'Process Assassin'); }} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
-              <span className="text-2xl opacity-80">🔪</span>
-              <div>
-                <span className="text-[11px] font-bold text-white block">Process Assassin</span>
-                <span className="text-[9px] font-mono text-zinc-500">Force-stop running packages</span>
-              </div>
-            </button>
-            
-            <button onClick={() => runCommand('logcat -d | tail -n 50', 'Logcat Dump')} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
-              <span className="text-2xl opacity-80">📋</span>
-              <div>
-                <span className="text-[11px] font-bold text-white block">Logcat Inspector</span>
-                <span className="text-[9px] font-mono text-zinc-500">View recent system log lines</span>
-              </div>
-            </button>
-            
-            <button onClick={() => setShowPicker(!showPicker)} className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-amber-500/50 shadow text-left">
-              <span className="text-2xl opacity-80">⬇️</span>
-              <div>
-                <span className="text-[11px] font-bold text-white block">APK Downgrader</span>
-                <span className="text-[9px] font-mono text-zinc-500">Install version block bypass</span>
-              </div>
-            </button>
-          </div>
+          <button onClick={executeModule} className="w-full py-4 bg-amber-600 text-black font-black text-xs uppercase tracking-widest rounded-xl active:scale-95 shadow-[0_0_15px_rgba(217,119,6,0.3)] transition-all shrink-0">
+             Execute Module Sequence
+          </button>
 
-          {showPicker && (
-            <div className="bg-black/90 border border-zinc-800 rounded-2xl p-3 space-y-3 animate-fadeIn">
-              <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="🔍 Search APKs..." className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2 text-xs text-white font-mono focus:outline-none" />
-              <div className="max-h-32 overflow-y-auto space-y-2 pr-1">
-                {filteredApks.length === 0 ? (
-                  <div className="text-center text-zinc-600 font-mono text-xs py-4">
-                    No local APK files indexed in storage.
-                  </div>
-                ) : (
-                  filteredApks.map((file, idx) => (
-                    <div key={idx} onClick={() => { setShowPicker(false); runCommand(`pm install -r -d "${file.path}"`, 'APK Downgrade'); }} className="bg-zinc-900 p-2 rounded-xl cursor-pointer hover:border-amber-500/50 flex justify-between items-center">
-                      <span className="text-[10px] font-bold text-white truncate">{file.name}</span>
-                      <span className="text-[8px] text-zinc-500 font-mono">{file.folder}</span>
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
-          )}
+          <div className="flex-1 bg-black border border-zinc-800 rounded-3xl p-4 overflow-y-auto font-mono text-[9px] text-amber-400 whitespace-pre-wrap shadow-inner relative">
+             {moduleLog}
+          </div>
         </div>
       )}
     </div>

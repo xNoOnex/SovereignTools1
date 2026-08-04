@@ -10,22 +10,18 @@ export function StorageProvider({ children }) {
   const [permGranted, setPermGranted] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
 
-  // Helper function to recursively scan directories
   const deepScanDirectory = async (basePath, folderLabel) => {
     let results = [];
     try {
-      const scan = await Filesystem.readdir({
-        path: basePath,
-        directory: Directory.ExternalStorage
-      });
-
+      const scan = await Filesystem.readdir({ path: basePath, directory: Directory.ExternalStorage });
       if (scan && scan.files) {
         for (const f of scan.files) {
            const fileName = typeof f === 'string' ? f : (f.name || '');
-           const fileType = f.type || 'file'; // Capacitor 4+ provides type: 'directory' or 'file'
+           const fileType = f.type || 'file'; 
            
-           // If it's a directory, recursively scan it (preventing infinite loops by limiting depth if necessary, but standard media folders are fine)
            if (fileType === 'directory' || (!fileName.includes('.') && fileName.length > 0)) {
+               // Prevent scanning Android system folders to save massive CPU time
+               if (fileName.toLowerCase() === 'android' || fileName.toLowerCase() === '.thumbnails') continue;
                const nestedResults = await deepScanDirectory(`${basePath}/${fileName}`, fileName);
                results = [...results, ...nestedResults];
            } else {
@@ -40,7 +36,7 @@ export function StorageProvider({ children }) {
         }
       }
     } catch (e) {
-      // Silently skip inaccessible or empty nested folders
+      // Skip inaccessible
     }
     return results;
   };
@@ -48,25 +44,15 @@ export function StorageProvider({ children }) {
   const runGlobalScan = async () => {
     setIsScanning(true);
     try {
-      try {
-        await StorageIntentBridge.requestAllFilesAccess();
-      } catch (e) {
-        console.warn("Storage intent skipped.");
-      }
+      try { await StorageIntentBridge.requestAllFilesAccess(); } catch (e) {}
 
-      const targetRoots = ['Download', 'Documents', 'Pictures', 'DCIM', 'Music', 'Movies'];
+      // Expanded targets to capture virtually all audio, media, and docs on Android
+      const targetRoots = ['Download', 'Documents', 'Pictures', 'DCIM', 'Music', 'Movies', 'Podcasts', 'Audiobooks', 'Ringtones', 'Notifications', 'Telegram', 'WhatsApp'];
       let aggregatedFiles = [];
 
-      // Run deep scan on all standard root directories
       for (const root of targetRoots) {
          const rootFiles = await deepScanDirectory(root, root);
          aggregatedFiles = [...aggregatedFiles, ...rootFiles];
-      }
-
-      if (aggregatedFiles.length === 0) {
-        aggregatedFiles = [
-          { name: 'sample_target.mp4', path: '/storage/emulated/0/Download/sample_target.mp4', ext: 'mp4', folder: 'Download' }
-        ];
       }
 
       setIndexedFiles(aggregatedFiles);

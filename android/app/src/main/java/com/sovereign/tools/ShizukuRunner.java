@@ -9,12 +9,10 @@ import com.getcapacitor.annotation.Permission;
 import com.getcapacitor.annotation.PermissionCallback;
 import com.getcapacitor.PermissionState;
 import rikka.shizuku.Shizuku;
-import rikka.shizuku.ShizukuBinderWrapper;
-import rikka.shizuku.SystemServiceHelper;
-import android.os.IBinder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
+import java.lang.reflect.Method;
 
 @CapacitorPlugin(
     name = "ShizukuRunner",
@@ -45,7 +43,6 @@ public class ShizukuRunner extends Plugin {
     @PluginMethod
     public void requestPermission(PluginCall call) {
         if (getPermissionState("shizuku") != PermissionState.GRANTED) {
-            // Bypass Shizuku's custom request and force Android OS to handle the intent
             requestPermissionForAlias("shizuku", call, "shizukuPermCallback");
         } else {
             JSObject ret = new JSObject();
@@ -75,10 +72,20 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    IBinder activityManager = SystemServiceHelper.getSystemService("activity");
-                    IBinder wrappedManager = new ShizukuBinderWrapper(activityManager);
-                    process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
-                    engineUsed = "Shizuku (Root)";
+                    // DYNAMIC REFLECTION: Scans library for newProcess and forces it open
+                    Method[] methods = Shizuku.class.getDeclaredMethods();
+                    for (Method m : methods) {
+                        if (m.getName().equals("newProcess")) {
+                            m.setAccessible(true);
+                            process = (Process) m.invoke(null, new String[]{"sh", "-c", cmd}, null, null);
+                            break;
+                        }
+                    }
+                    if (process != null) {
+                        engineUsed = "Shizuku (Root)";
+                    } else {
+                        process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+                    }
                 } catch (Exception e) {
                     process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
                 }
