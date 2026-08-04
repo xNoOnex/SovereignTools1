@@ -9,6 +9,7 @@ import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
+import java.lang.reflect.Method;
 
 @CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
@@ -19,7 +20,6 @@ public class ShizukuRunner extends Plugin {
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            // Direct Android OS permission check for Shizuku API_V23
             boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try {
@@ -73,7 +73,12 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    process = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, null, null);
+                    // CRITICAL FIX: Use Reflection to bypass private access block
+                    Class<?> clazz = Class.forName("rikka.shizuku.Shizuku");
+                    Method method = clazz.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
+                    method.setAccessible(true);
+                    
+                    process = (Process) method.invoke(null, new String[]{"sh", "-c", cmd}, null, null);
                     engineUsed = "Shizuku (Root)";
                 } catch (Exception e) {
                     process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
