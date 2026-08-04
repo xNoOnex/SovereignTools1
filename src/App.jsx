@@ -81,10 +81,10 @@ function AppContent() {
       <header className="absolute top-0 inset-x-0 h-20 bg-gradient-to-b from-black via-black/90 to-transparent z-40 flex items-center justify-between px-4">
         <div className="flex items-center gap-3 mt-2 cursor-pointer" onClick={() => navigateTo('home')}>
           <div className="w-10 h-10 rounded-full flex items-center justify-center overflow-hidden border border-zinc-700 shadow-xl shadow-[var(--accent-glow)] shrink-0">
-             <img src="/assets/icon/icon.png" alt="Logo" className="w-full h-full object-cover" />
+             <span className="text-xl">🏠</span><span className="text-white font-black text-[12px] tracking-widest uppercase ml-2">HOME</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-white font-black text-sm tracking-widest uppercase leading-tight select-none">Sovereign<br/>Tools</span>
+            <span className="text-white font-black text-sm tracking-widest uppercase leading-tight select-none"></span>
           </div>
         </div>
         <div className="flex items-center gap-2 mt-2">

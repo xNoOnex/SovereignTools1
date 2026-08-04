@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function SovereignRecorder({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('RECORD');
@@ -71,6 +72,7 @@ export function SovereignRecorder({ onNavigate }) {
   };
 
   const startRecording = async () => {
+    await ShizukuRunner.requestMic();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);

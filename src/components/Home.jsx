@@ -25,7 +25,7 @@ export function Home({ onNavigate }) {
   const forceConnect = async () => {
     try { 
       // Force Capacitor to trigger the native permission prompt
-      await ShizukuRunner.requestPermissions(); 
+      await ShizukuRunner.forceShizukuLink(); 
       setTimeout(checkEngineStatus, 1500); 
     } catch (e) {
       console.warn("Failed native request.");
