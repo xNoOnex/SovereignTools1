@@ -5,6 +5,9 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.PermissionState;
 import rikka.shizuku.Shizuku;
 import rikka.shizuku.ShizukuBinderWrapper;
 import rikka.shizuku.SystemServiceHelper;
@@ -13,27 +16,24 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
 
-@CapacitorPlugin(name = "ShizukuRunner")
+@CapacitorPlugin(
+    name = "ShizukuRunner",
+    permissions = {
+        @Permission(strings = {"moe.shizuku.manager.permission.API_V23"}, alias = "shizuku")
+    }
+)
 public class ShizukuRunner extends Plugin {
     
-    private static final int SHIZUKU_CODE = 88;
-
     @PluginMethod
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            // Force strict live check of both OS permission AND active binder
-            boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
+            boolean osPermissionGranted = getPermissionState("shizuku") == PermissionState.GRANTED;
             boolean binderAlive = false;
-            try { 
-                binderAlive = Shizuku.pingBinder(); 
-            } catch (Exception ignored) {}
+            try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 
-            // ONLY return true if the binder is physically responding right now
-            boolean isConnected = osPermissionGranted && binderAlive;
-            
-            ret.put("active", isConnected);
-            ret.put("granted", isConnected);
+            ret.put("active", binderAlive);
+            ret.put("granted", osPermissionGranted);
             call.resolve(ret);
         } catch (Exception e) {
             ret.put("active", false);
@@ -44,16 +44,21 @@ public class ShizukuRunner extends Plugin {
 
     @PluginMethod
     public void requestPermission(PluginCall call) {
-        try {
-            if (Shizuku.pingBinder()) { 
-                Shizuku.requestPermission(SHIZUKU_CODE); 
-            }
+        if (getPermissionState("shizuku") != PermissionState.GRANTED) {
+            // Bypass Shizuku's custom request and force Android OS to handle the intent
+            requestPermissionForAlias("shizuku", call, "shizukuPermCallback");
+        } else {
             JSObject ret = new JSObject();
-            ret.put("granted", true); // Assumes user will click allow; checkStatus will verify later
+            ret.put("granted", true);
             call.resolve(ret);
-        } catch (Exception e) {
-            call.reject("Permission request error: " + e.getMessage());
         }
+    }
+
+    @PermissionCallback
+    private void shizukuPermCallback(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", getPermissionState("shizuku") == PermissionState.GRANTED);
+        call.resolve(ret);
     }
 
     @PluginMethod
@@ -61,7 +66,7 @@ public class ShizukuRunner extends Plugin {
         String cmd = call.getString("command");
         JSObject ret = new JSObject();
         try {
-            boolean osGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
+            boolean osGranted = getPermissionState("shizuku") == PermissionState.GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 

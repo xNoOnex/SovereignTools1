@@ -13,7 +13,12 @@ export function Home({ onNavigate, appMode }) {
   const checkEngineStatus = async () => {
     try {
       const res = await ShizukuRunner.checkStatus();
-      setShizukuState(res.active ? 'CONNECTED' : 'OFFLINE');
+      // Ensure BOTH the OS permission is granted and the binder is actively alive
+      if (res.granted && res.active) {
+          setShizukuState('CONNECTED');
+      } else {
+          setShizukuState('OFFLINE');
+      }
     } catch (e) {
       setShizukuState('OFFLINE');
     }
@@ -22,9 +27,10 @@ export function Home({ onNavigate, appMode }) {
   const forceConnect = async () => {
     try {
       await ShizukuRunner.requestPermission();
-      setTimeout(checkEngineStatus, 1500); // Wait for user to click Allow on popup
+      // Wait half a second after the popup resolves before re-checking state
+      setTimeout(checkEngineStatus, 500);
     } catch (e) {
-      console.warn("Failed to trigger Shizuku popup.");
+      console.warn("Failed to trigger native Shizuku intent.");
     }
   };
 
@@ -49,7 +55,6 @@ export function Home({ onNavigate, appMode }) {
   return (
     <div className="p-4 pt-6 space-y-6 max-w-2xl mx-auto select-none animate-fadeIn pb-32">
       
-      {/* CENTRAL CONNECTION HUB */}
       <div className={`p-4 rounded-3xl flex justify-between items-center shadow-xl mb-6 border ${shizukuState === 'CONNECTED' ? 'bg-emerald-950/30 border-emerald-900/50' : shizukuState === 'CHECKING' ? 'bg-zinc-900/50 border-zinc-800' : 'bg-red-950/30 border-red-900/50'}`}>
         <div>
           <h4 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
@@ -69,7 +74,6 @@ export function Home({ onNavigate, appMode }) {
         )}
       </div>
 
-      {/* TOOL GRID */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
         {tools.map(tool => (
           <button 
@@ -83,7 +87,6 @@ export function Home({ onNavigate, appMode }) {
               <span className="text-[9px] font-mono text-zinc-500 block leading-tight mt-0.5">{tool.desc}</span>
             </div>
             
-            {/* Conditional Root Indicator */}
             {['netsec', 'debloat', 'shred'].includes(tool.id) && (
                <div className={`absolute top-0 right-0 w-8 h-8 rounded-bl-3xl flex items-start justify-end p-2 ${shizukuState === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`}>
                   <span className="text-[8px] font-black">R</span>
