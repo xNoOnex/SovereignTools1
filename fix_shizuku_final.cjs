@@ -1,4 +1,24 @@
-package com.sovereign.tools;
+const fs = require('fs');
+
+// 1. FIX MANIFEST PERMISSION PLACEMENT
+const manifestPath = 'android/app/src/main/AndroidManifest.xml';
+let manifest = fs.readFileSync(manifestPath, 'utf8');
+
+// Strip old bad placements
+manifest = manifest.replace(/<uses-permission android:name="moe\.shizuku\.manager\.permission\.API_V23".*\/>/g, '');
+manifest = manifest.replace(/<uses-permission android:name="android\.permission\.RECORD_AUDIO".*\/>/g, '');
+
+// Inject precisely before <application> where Android OS actually reads it
+manifest = manifest.replace(/<application/, '    <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <application');
+fs.writeFileSync(manifestPath, manifest);
+
+// 2. GET PACKAGE NAME
+const pkgMatch = manifest.match(/package="([^"]+)"/);
+const pkgName = pkgMatch[1];
+const javaPath = `android/app/src/main/java/${pkgName.replace(/\./g, '/')}/ShizukuRunner.java`;
+
+// 3. OVERWRITE WITH FLAWLESS NATIVE CAPACITOR CALLBACK ENGINE
+const javaCode = `package ${pkgName};
 
 import android.Manifest;
 import android.content.pm.PackageManager;
@@ -173,10 +193,10 @@ public class ShizukuRunner extends Plugin {
             BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             StringBuilder output = new StringBuilder();
             String line;
-            while ((line = reader.readLine()) != null) { output.append(line).append("\n"); }
+            while ((line = reader.readLine()) != null) { output.append(line).append("\\n"); }
 
             BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
-            while ((line = errorReader.readLine()) != null) { output.append("STDERR: ").append(line).append("\n"); }
+            while ((line = errorReader.readLine()) != null) { output.append("STDERR: ").append(line).append("\\n"); }
             process.waitFor();
             
             ret.put("engine", engineUsed);
@@ -186,3 +206,6 @@ public class ShizukuRunner extends Plugin {
         } catch (Exception e) { call.reject(e.getMessage()); }
     }
 }
+`;
+
+fs.writeFileSync(javaPath, javaCode);
