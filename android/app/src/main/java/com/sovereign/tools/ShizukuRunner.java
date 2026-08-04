@@ -7,7 +7,6 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import rikka.shizuku.Shizuku;
-import rikka.shizuku.ShizukuProvider;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
@@ -38,7 +37,6 @@ public class ShizukuRunner extends Plugin {
     @PluginMethod
     public void requestPermission(PluginCall call) {
         try {
-            // FIX: Completely bypass Capacitor wrappers. Force Shizuku's native API to inject the permission intent.
             if (Shizuku.pingBinder()) {
                 if (getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") != PackageManager.PERMISSION_GRANTED) {
                     Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
