@@ -23,12 +23,19 @@ export function Home({ onNavigate }) {
   };
 
   const forceConnect = async () => {
-    try { await ShizukuRunner.requestPermission(); setTimeout(checkEngineStatus, 1000); } catch (e) {}
+    try { 
+      // Force Capacitor to trigger the native permission prompt
+      await ShizukuRunner.requestPermissions(); 
+      setTimeout(checkEngineStatus, 1500); 
+    } catch (e) {
+      console.warn("Failed native request.");
+    }
   };
 
   const allTools = [
     { id: 'worldclock', icon: '⏱️', label: 'Chronos Hub', desc: 'Stopwatch, Timer, Alarms', isExpert: false },
     { id: 'calendar', icon: '📅', label: 'Calendar Grid', desc: 'Offline Scheduling', isExpert: false },
+    { id: 'recorder', icon: '🎙️', label: 'Stealth Recorder', desc: 'Voice Capture Archive', isExpert: false },
     { id: 'netsec', icon: '⚡', label: 'NetSec & SysOps', desc: 'Network Map & Root Shell', isExpert: true },
     { id: 'debloat', icon: '☣️', label: 'Target Eradication', desc: 'Freeze & Nuke System Bloat', isExpert: true },
     { id: 'shred', icon: '☢️', label: 'Data Shredder', desc: 'Zero-fill Metadata Obfuscation', isExpert: true },
