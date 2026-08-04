@@ -18,7 +18,7 @@ export function NetSecOps({ onNavigate }) {
   const checkShizuku = async () => {
     try {
       const res = await ShizukuRunner.checkStatus();
-      setShizukuGranted(res.granted && res.active);
+      setShizukuGranted(res.granted);
     } catch (e) {
       setShizukuGranted(false);
     }

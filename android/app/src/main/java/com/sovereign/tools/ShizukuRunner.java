@@ -152,7 +152,8 @@ public class ShizukuRunner extends Plugin {
             Process process = null;
             String engineUsed = "Standard (User)";
 
-            if (binderAlive && osGranted) {
+            
+            if (osGranted) {
                 try {
                     Method newProcessMethod = null;
                     for (Method m : Shizuku.class.getDeclaredMethods()) {
@@ -166,7 +167,13 @@ public class ShizukuRunner extends Plugin {
                         String[] shellCmd = new String[]{"sh", "-c", cmd};
                         process = (Process) newProcessMethod.invoke(null, new Object[]{shellCmd, null, null});
                         engineUsed = "Shizuku (Root)";
-                    } else { process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd}); }
+                    }
+                } catch (Exception e) {}
+            }
+            if (process == null) {
+                process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
+            }
+        
                 } catch (Exception e) { process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd}); }
             } else { process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd}); }
             

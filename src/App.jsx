@@ -1,6 +1,6 @@
 import { SovereignRecorder } from "./components/SovereignRecorder";
 import { WorldClock } from "./components/WorldClock";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import { LockScreen } from './components/LockScreen';
 import { Home } from "./components/Home";
 import { StealthCalc } from './components/StealthCalc';
@@ -27,6 +27,40 @@ import { CommsProvider } from './context/CommsContext';
 function AppContent() {
   const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
+
+  const audioRef = useRef(null);
+  const [globalTrackIndex, setGlobalTrackIndex] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioFiles = indexedFiles.filter(f => ['mp3', 'wav', 'aac', 'flac', 'm4a', 'ogg', 'wma'].includes(f.ext?.toLowerCase()));
+  const currentTrack = globalTrackIndex !== null ? audioFiles[globalTrackIndex] : null;
+
+  useEffect(() => {
+    if (currentTrack && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: currentTrack.name, artist: 'Sovereign Audio' });
+      navigator.mediaSession.setActionHandler('play', () => { if(audioRef.current){ audioRef.current.play(); setIsPlaying(true); } });
+      navigator.mediaSession.setActionHandler('pause', () => { if(audioRef.current){ audioRef.current.pause(); setIsPlaying(false); } });
+      navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
+      navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
+    }
+  }, [globalTrackIndex, currentTrack]);
+
+  const handlePlayTrack = (index) => {
+    setGlobalTrackIndex(index);
+    setIsPlaying(true);
+    if (audioRef.current) {
+      audioRef.current.src = Capacitor.convertFileSrc(audioFiles[index].path);
+      audioRef.current.play();
+    }
+  };
+  const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
+  const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
+    else { audioRef.current.play(); setIsPlaying(true); }
+  };
+  const stopAudio = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
+
   const [showSettings, setShowSettings] = useState(false);
   
   const { mode, accentColor, textSize, setAccentColor, setMode, setTextSize } = useSettings();
@@ -92,7 +126,7 @@ function AppContent() {
       {currentScreen === 'camera' && <SovereignCamera onNavigate={navigateTo} />}
       {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
       {currentScreen === 'vault' && <Vault onNavigate={navigateTo} />}
-      {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} />}
+      {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} globalTrackIndex={globalTrackIndex} isPlaying={isPlaying} handlePlayTrack={handlePlayTrack} togglePlay={togglePlay} stopAudio={stopAudio} handleNextTrack={handleNextTrack} handlePrevTrack={handlePrevTrack} audioRef={audioRef} />}
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
