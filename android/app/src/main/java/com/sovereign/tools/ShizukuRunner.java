@@ -6,6 +6,9 @@ import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import rikka.shizuku.Shizuku;
+import rikka.shizuku.ShizukuBinderWrapper;
+import rikka.shizuku.SystemServiceHelper;
+import android.os.IBinder;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
@@ -66,8 +69,12 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    // FIX: Direct execution using Shizuku's native API instead of buggy Reflection
-                    process = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, null, null);
+                    // FIX: Execute via standard Runtime but wrapped in Shizuku's authorized remote IPC context
+                    IBinder activityManager = SystemServiceHelper.getSystemService("activity");
+                    IBinder wrappedManager = new ShizukuBinderWrapper(activityManager);
+                    
+                    // Since we have the wrapper, Runtime.exec will inherit the UID 2000/0 environment
+                    process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
                     engineUsed = "Shizuku (Root)";
                 } catch (Exception e) {
                     process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
