@@ -29,9 +29,13 @@ function fixComponent(oldName, keywords) {
     appCode = appCode.replace(tagRegex, `<${actualName} onNavigate={navigateTo} />`);
 }
 
-fixComponent('DataShredder', ['shred', 'annihilate']);
-fixComponent('Debloat', ['debloat', 'eradication']);
-fixComponent('Settings', ['setting']);
-fixComponent('NetSecOps', ['netsec']);
+// Fix CommLink and everything else that might trigger this error
+fixComponent('CommLink', ['comm', 'p2p', 'message']);
+fixComponent('SmartAI', ['ai', 'smart']);
+fixComponent('SecureVault', ['vault', 'secure']);
+fixComponent('EncryptedDocs', ['doc', 'markdown']);
+fixComponent('SovereignCamera', ['camera']);
+fixComponent('AESCipher', ['aes', 'cipher']);
+fixComponent('StealthCalc', ['calc']);
 
 fs.writeFileSync(appPath, appCode);

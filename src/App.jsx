@@ -14,13 +14,13 @@ import { WorldClock } from "./components/WorldClock";
 import { Calendar } from "./components/Calendar";
 import { UniversalExplorer } from "./components/UniversalExplorer";
 import { Settings } from "./components/Settings";
-import { SmartAI } from "./components/SmartAI";
-import { SecureVault } from "./components/SecureVault";
-import { EncryptedDocs } from "./components/EncryptedDocs";
-import { CommLink } from "./components/CommLink";
-import { SovereignCamera } from "./components/SovereignCamera";
+import { LocalAIAssistant } from "./components/LocalAIAssistant";
+import { SecureGallery } from "./components/SecureGallery";
+import { DocumentManager } from "./components/DocumentManager";
+import { Comms } from "./components/Comms";
+import { ExifFreeCamera } from "./components/ExifFreeCamera";
 import { AESCipher } from "./components/AESCipher";
-import { StealthCalc } from "./components/StealthCalc";
+import { Calculator } from "./components/Calculator";
 
 const StorageIntentBridge = registerPlugin('StorageIntentBridge');
 
@@ -107,13 +107,13 @@ function AppContent() {
         {currentScreen === 'fileviewer' && <UniversalExplorer onNavigate={navigateTo} />}
         {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
         {currentScreen === 'settings' && <Settings onNavigate={navigateTo} />}
-        {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
-        {currentScreen === 'vault' && <SecureVault onNavigate={navigateTo} />}
-        {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
-        {currentScreen === 'comms' && <CommLink onNavigate={navigateTo} />}
-        {currentScreen === 'camera' && <SovereignCamera onNavigate={navigateTo} />}
+        {currentScreen === 'ai' && <LocalAIAssistant onNavigate={navigateTo} />}
+        {currentScreen === 'vault' && <SecureGallery onNavigate={navigateTo} />}
+        {currentScreen === 'docs' && <DocumentManager onNavigate={navigateTo} />}
+        {currentScreen === 'comms' && <Comms onNavigate={navigateTo} />}
+        {currentScreen === 'camera' && <ExifFreeCamera onNavigate={navigateTo} />}
         {currentScreen === 'aes' && <AESCipher onNavigate={navigateTo} />}
-        {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
+        {currentScreen === 'calc' && <Calculator onNavigate={navigateTo} />}
         
         {currentScreen === 'audio' && (
            <SovereignAudio 
