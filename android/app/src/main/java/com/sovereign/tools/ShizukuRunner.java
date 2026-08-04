@@ -20,7 +20,6 @@ public class ShizukuRunner extends Plugin {
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            // DIRECT ANDROID OS CHECK (Bypasses Capacitor alias bug)
             boolean osPermissionGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
@@ -38,9 +37,7 @@ public class ShizukuRunner extends Plugin {
     @PluginMethod
     public void requestPermission(PluginCall call) {
         try {
-            if (Shizuku.pingBinder()) {
-                Shizuku.requestPermission(SHIZUKU_CODE);
-            }
+            if (Shizuku.pingBinder()) { Shizuku.requestPermission(SHIZUKU_CODE); }
             JSObject ret = new JSObject();
             ret.put("granted", true);
             call.resolve(ret);
@@ -63,15 +60,19 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    Method[] methods = Shizuku.class.getDeclaredMethods();
-                    for (Method m : methods) {
-                        if (m.getName().equals("newProcess")) {
-                            m.setAccessible(true);
-                            process = (Process) m.invoke(null, new String[]{"sh", "-c", cmd}, null, null);
+                    Method newProcessMethod = null;
+                    for (Method m : Shizuku.class.getDeclaredMethods()) {
+                        if (m.getName().equals("newProcess") && m.getParameterCount() == 3) {
+                            newProcessMethod = m;
                             break;
                         }
                     }
-                    if (process != null) {
+                    if (newProcessMethod != null) {
+                        newProcessMethod.setAccessible(true);
+                        String[] shellCmd = new String[]{"sh", "-c", cmd};
+                        
+                        // FIX: Explicitly cast to Object[] to prevent Java varargs array unrolling crash
+                        process = (Process) newProcessMethod.invoke(null, new Object[]{shellCmd, null, null});
                         engineUsed = "Shizuku (Root)";
                     } else {
                         process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});
