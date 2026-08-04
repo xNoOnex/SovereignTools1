@@ -157,14 +157,34 @@ export function WorldClock({ onNavigate }) {
 
   const timezones = [
     { label: 'MST (Arizona)', value: 'America/Phoenix' },
-    { label: 'UTC (Zulu)', value: 'UTC' },
-    { label: 'EST (New York)', value: 'America/New_York' },
-    { label: 'CST (Chicago)', value: 'America/Chicago' },
     { label: 'PST (Los Angeles)', value: 'America/Los_Angeles' },
+    { label: 'PDT (Pacific/Vancouver)', value: 'America/Vancouver' },
+    { label: 'MDT (Denver)', value: 'America/Denver' },
+    { label: 'CST (Chicago/Dallas)', value: 'America/Chicago' },
+    { label: 'EST (New York/Miami)', value: 'America/New_York' },
+    { label: 'AST (Anchorage)', value: 'America/Anchorage' },
+    { label: 'HST (Honolulu)', value: 'Pacific/Honolulu' },
+    { label: 'UTC (Universal/Zulu)', value: 'UTC' },
     { label: 'GMT (London)', value: 'Europe/London' },
-    { label: 'CET (Paris)', value: 'Europe/Paris' },
+    { label: 'CET (Paris/Rome)', value: 'Europe/Paris' },
+    { label: 'EET (Berlin)', value: 'Europe/Berlin' },
+    { label: 'MSK (Moscow)', value: 'Europe/Moscow' },
+    { label: 'AST (Riyadh)', value: 'Asia/Riyadh' },
+    { label: 'GST (Dubai)', value: 'Asia/Dubai' },
+    { label: 'IST (New Delhi)', value: 'Asia/Kolkata' },
+    { label: 'ICT (Bangkok)', value: 'Asia/Bangkok' },
+    { label: 'CST (Beijing/Shanghai)', value: 'Asia/Shanghai' },
+    { label: 'HKT (Hong Kong)', value: 'Asia/Hong_Kong' },
     { label: 'JST (Tokyo)', value: 'Asia/Tokyo' },
-    { label: 'AEST (Sydney)', value: 'Australia/Sydney' }
+    { label: 'KST (Seoul)', value: 'Asia/Seoul' },
+    { label: 'SGT (Singapore)', value: 'Asia/Singapore' },
+    { label: 'AWST (Perth)', value: 'Australia/Perth' },
+    { label: 'AEST (Sydney/Melbourne)', value: 'Australia/Sydney' },
+    { label: 'NZST (Auckland)', value: 'Pacific/Auckland' },
+    { label: 'BRT (Sao Paulo)', value: 'America/Sao_Paulo' },
+    { label: 'ART (Buenos Aires)', value: 'America/Argentina/Buenos_Aires' },
+    { label: 'SAST (Johannesburg)', value: 'Africa/Johannesburg' },
+    { label: 'EAT (Cairo/Nairobi)', value: 'Africa/Nairobi' }
   ];
 
   return (
@@ -188,7 +208,6 @@ export function WorldClock({ onNavigate }) {
         ))}
       </div>
 
-      {/* CLOCK TAB */}
       {activeTab === 'CLOCK' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl text-center shadow-xl relative overflow-hidden">
@@ -220,7 +239,6 @@ export function WorldClock({ onNavigate }) {
         </div>
       )}
 
-      {/* STOPWATCH TAB */}
       {activeTab === 'STOPWATCH' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl text-center shadow-xl">
@@ -248,7 +266,6 @@ export function WorldClock({ onNavigate }) {
         </div>
       )}
 
-      {/* TIMER TAB */}
       {activeTab === 'TIMER' && (
         <div className="space-y-6 animate-fadeIn">
           <div className="bg-zinc-900/50 border border-zinc-800 p-8 rounded-3xl text-center shadow-xl">
@@ -285,7 +302,6 @@ export function WorldClock({ onNavigate }) {
         </div>
       )}
 
-      {/* ALARM TAB */}
       {activeTab === 'ALARM' && (
         <div className="bg-zinc-900/80 border border-zinc-800 p-5 rounded-3xl space-y-4 shadow-lg animate-fadeIn">
           <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-4">Set Native OS Alarm</h3>
@@ -302,12 +318,8 @@ export function WorldClock({ onNavigate }) {
           <button onClick={handleSetAlarm} className="w-full py-4 mt-4 bg-cyan-500 text-black font-black text-xs uppercase tracking-widest rounded-xl active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all">
             + Inject Alarm Intent
           </button>
-          <p className="text-[9px] text-zinc-500 text-center mt-2 leading-relaxed">
-            This module binds directly to Android's native AlarmClock API. Alarms created here will ring even if Sovereign Tools is terminated.
-          </p>
         </div>
       )}
-
     </div>
   );
 }

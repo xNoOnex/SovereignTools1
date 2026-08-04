@@ -42,15 +42,14 @@ export function Calendar({ onNavigate }) {
     localStorage.setItem('sovereign_agenda', JSON.stringify(updatedAgenda));
 
     try {
-      // Fire Native OS Alarm Intent
       await AlarmIntentBridge.setNativeAlarm({
         hour: parsedHour,
         minute: parsedMin,
         message: newAgendaItem.label,
-        skipUi: true // Set silently in background
+        skipUi: true
       });
     } catch (e) {
-      console.warn("Native alarm bridge skipped (web context).", e);
+      console.warn("Native alarm bridge skipped.", e);
     }
 
     setAlarmTime('');
@@ -70,12 +69,10 @@ export function Calendar({ onNavigate }) {
     const firstDay = getFirstDayOfMonth(year, month);
     const days = [];
 
-    // Empty slots before 1st day
     for (let i = 0; i < firstDay; i++) {
       days.push(<div key={`empty-${i}`} className="p-2"></div>);
     }
 
-    // Actual days
     for (let d = 1; d <= daysInMonth; d++) {
       const thisDate = new Date(year, month, d);
       const isSelected = selectedDate.getDate() === d && selectedDate.getMonth() === month && selectedDate.getFullYear() === year;
@@ -106,7 +103,6 @@ export function Calendar({ onNavigate }) {
         <p className="text-xs text-zinc-400 mt-2">Local scheduling and native offline OS alarms.</p>
       </div>
 
-      {/* INTERACTIVE CALENDAR GRID */}
       <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl shadow-xl">
         <div className="flex justify-between items-center mb-4">
           <button onClick={handlePrevMonth} className="w-8 h-8 flex items-center justify-center bg-black rounded-full border border-zinc-700 text-zinc-400 active:scale-95">◀</button>
@@ -124,7 +120,6 @@ export function Calendar({ onNavigate }) {
         </div>
       </div>
 
-      {/* ALARM BINDING TOOL */}
       <div className="bg-zinc-900/80 border border-zinc-800 p-5 rounded-3xl space-y-4 shadow-lg">
         <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-4">Set Native OS Alarm</h3>
         
@@ -145,7 +140,12 @@ export function Calendar({ onNavigate }) {
               <option>None (One-time)</option>
               <option>Daily</option>
               <option>Weekly</option>
+              <option>Monthly</option>
+              <option>Yearly</option>
             </select>
+            <p className="text-[8px] text-zinc-500 mt-2 px-1">
+              Note: Android OS intents do not natively support Monthly or Yearly injection. These will be tracked in your active Agenda below but injected as a one-time alarm for the selected date.
+            </p>
           </div>
 
           <div>
@@ -159,7 +159,6 @@ export function Calendar({ onNavigate }) {
         </button>
       </div>
 
-      {/* AGENDA VIEW */}
       <div className="bg-zinc-900/50 border border-zinc-800 p-5 rounded-3xl shadow-lg">
         <h3 className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest mb-4">Active Agenda</h3>
         
