@@ -1,17 +1,27 @@
 package com.sovereign.tools;
 
+import android.Manifest;
 import android.content.pm.PackageManager;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
+import com.getcapacitor.PermissionState;
 import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 
-@CapacitorPlugin(name = "ShizukuRunner")
+@CapacitorPlugin(
+    name = "ShizukuRunner",
+    permissions = {
+        @Permission(strings = {"moe.shizuku.manager.permission.API_V23"}, alias = "shizuku"),
+        @Permission(strings = {Manifest.permission.RECORD_AUDIO}, alias = "microphone")
+    }
+)
 public class ShizukuRunner extends Plugin {
 
     private static final int REQUEST_CODE_SHIZUKU = 88;
@@ -20,7 +30,6 @@ public class ShizukuRunner extends Plugin {
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
-            // FIX: Force raw OS read, bypass Capacitor completely
             boolean osGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
@@ -35,11 +44,14 @@ public class ShizukuRunner extends Plugin {
         }
     }
 
+    // FIX: Renamed away from Capacitor's reserved 'requestPermissions' namespace
     @PluginMethod
-    public void requestPermissions(PluginCall call) {
+    public void forceShizukuLink(PluginCall call) {
         try {
             if (Shizuku.pingBinder()) {
-                Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+                if (getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") != PackageManager.PERMISSION_GRANTED) {
+                    Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+                }
             }
             JSObject ret = new JSObject();
             ret.put("granted", true);
@@ -47,6 +59,25 @@ public class ShizukuRunner extends Plugin {
         } catch (Exception e) {
             call.reject("Failed native request.");
         }
+    }
+
+    // MIC BRIDGE
+    @PluginMethod
+    public void requestMic(PluginCall call) {
+        if (getPermissionState("microphone") != PermissionState.GRANTED) {
+            requestPermissionForAlias("microphone", call, "micCallback");
+        } else {
+            JSObject ret = new JSObject();
+            ret.put("granted", true);
+            call.resolve(ret);
+        }
+    }
+
+    @PermissionCallback
+    private void micCallback(PluginCall call) {
+        JSObject ret = new JSObject();
+        ret.put("granted", getPermissionState("microphone") == PermissionState.GRANTED);
+        call.resolve(ret);
     }
 
     @PluginMethod
@@ -96,9 +127,7 @@ public class ShizukuRunner extends Plugin {
             while ((line = errorReader.readLine()) != null) {
                 output.append("STDERR: ").append(line).append("\n");
             }
-            
             process.waitFor();
-            
             ret.put("engine", engineUsed);
             ret.put("output", output.toString());
             ret.put("success", true);
