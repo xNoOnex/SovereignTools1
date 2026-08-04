@@ -1,23 +1,15 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStorage } from '../context/StorageContext';
-import { Capacitor } from '@capacitor/core';
 
-export function SovereignAudio({ onNavigate }) {
+export function SovereignAudio({ globalTrackIndex, isPlaying, handlePlayTrack, togglePlay, stopAudio, handleNextTrack, handlePrevTrack, audioRef }) {
   const { indexedFiles, runGlobalScan } = useStorage();
-  const [currentTrackIndex, setCurrentTrackIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [activeTab, setActiveTab] = useState('LIBRARY');
   const [playlists, setPlaylists] = useState([]);
   const [newPlaylistName, setNewPlaylistName] = useState('');
-  
-  // New state to manage the active playlist selection menu
   const [showPlaylistMenu, setShowPlaylistMenu] = useState(null);
 
-  const audioRef = useRef(null);
-
-  const audioFiles = indexedFiles.filter(f => 
-    ['mp3', 'wav', 'aac', 'flac', 'm4a', 'ogg', 'wma'].includes(f.ext?.toLowerCase())
-  );
+  const audioFiles = indexedFiles.filter(f => ['mp3', 'wav', 'aac', 'flac', 'm4a', 'ogg', 'wma'].includes(f.ext?.toLowerCase()));
+  const currentTrack = globalTrackIndex !== null ? audioFiles[globalTrackIndex] : null;
 
   useEffect(() => {
     try {
@@ -26,46 +18,9 @@ export function SovereignAudio({ onNavigate }) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed)) setPlaylists(parsed);
       }
-    } catch (e) { setPlaylists([]); }
+    } catch (e) {}
   }, []);
 
-  const currentTrack = currentTrackIndex !== null ? audioFiles[currentTrackIndex] : null;
-
-  const getWebUrl = (path) => {
-    if (!path) return '';
-    return Capacitor.convertFileSrc(path);
-  };
-
-  useEffect(() => {
-    if (currentTrack && 'mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: currentTrack.name,
-        artist: 'Sovereign Audio',
-        album: currentTrack.folder || 'Storage'
-      });
-      navigator.mediaSession.setActionHandler('play', handlePlay);
-      navigator.mediaSession.setActionHandler('pause', handlePause);
-      navigator.mediaSession.setActionHandler('previoustrack', handlePrev);
-      navigator.mediaSession.setActionHandler('nexttrack', handleNext);
-      navigator.mediaSession.setActionHandler('seekbackward', handleRewind);
-      navigator.mediaSession.setActionHandler('seekforward', handleFastForward);
-    }
-  }, [currentTrackIndex]);
-
-  const handlePlayTrack = (index) => {
-    setCurrentTrackIndex(index);
-    setIsPlaying(true);
-    if (audioRef.current) {
-      audioRef.current.src = getWebUrl(audioFiles[index].path);
-      audioRef.current.play();
-    }
-  };
-
-  const handlePlay = () => { if (audioRef.current) { audioRef.current.play(); setIsPlaying(true); } };
-  const handlePause = () => { if (audioRef.current) { audioRef.current.pause(); setIsPlaying(false); } };
-  const handleStop = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
-  const handleNext = () => { if (audioFiles.length > 0) handlePlayTrack((currentTrackIndex + 1) % audioFiles.length); };
-  const handlePrev = () => { if (audioFiles.length > 0) handlePlayTrack((currentTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
   const handleRewind = () => { if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10); };
   const handleFastForward = () => { if (audioRef.current) audioRef.current.currentTime = Math.min(audioRef.current.duration || 0, audioRef.current.currentTime + 10); };
 
@@ -90,13 +45,11 @@ export function SovereignAudio({ onNavigate }) {
   };
 
   return (
-    <div className="p-4 space-y-6 max-w-2xl mx-auto pb-36 select-none text-white min-h-screen animate-fadeIn font-sans">
-      <audio ref={audioRef} onEnded={handleNext} className="hidden" />
-
+    <div className="p-4 space-y-6 max-w-2xl mx-auto pb-36 select-none text-white animate-fadeIn font-sans">
       <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0 flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-black flex items-center gap-3"><span className="text-3xl text-cyan-400">🎧</span> Sovereign Audio</h2>
-          <p className="text-xs text-zinc-400 mt-1">Native background media engine ({audioFiles.length} tracks)</p>
+          <p className="text-xs text-zinc-400 mt-1">Global background media engine ({audioFiles.length} tracks)</p>
         </div>
         <button onClick={runGlobalScan} className="bg-zinc-900 border border-zinc-700 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest active:scale-95">Rescan</button>
       </div>
@@ -105,22 +58,20 @@ export function SovereignAudio({ onNavigate }) {
         <div className="bg-zinc-900/90 border border-cyan-500/40 p-5 rounded-3xl space-y-4 shadow-2xl animate-fadeIn">
           <div className="flex justify-between items-start">
             <div className="truncate max-w-[80%]">
-              <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest">Now Playing</span>
+              <span className="text-[9px] font-bold text-cyan-400 uppercase tracking-widest">Now Playing Globally</span>
               <h3 className="text-sm font-bold text-white truncate mt-0.5">{currentTrack.name}</h3>
               <span className="text-[9px] font-mono text-zinc-500">{currentTrack.folder}</span>
             </div>
-            <button onClick={handleStop} className="text-xs font-mono text-zinc-500 hover:text-white bg-black px-2 py-1 rounded-lg border border-zinc-800">STOP ⏹</button>
+            <button onClick={stopAudio} className="text-xs font-mono text-zinc-500 hover:text-white bg-black px-2 py-1 rounded-lg border border-zinc-800">STOP ⏹</button>
           </div>
           <div className="flex items-center justify-center gap-4 pt-2">
-            <button onClick={handlePrev} className="w-10 h-10 bg-black rounded-full border border-zinc-800 flex items-center justify-center text-xs active:scale-95">⏮</button>
+            <button onClick={handlePrevTrack} className="w-10 h-10 bg-black rounded-full border border-zinc-800 flex items-center justify-center text-xs active:scale-95">⏮</button>
             <button onClick={handleRewind} className="w-10 h-10 bg-black rounded-full border border-zinc-800 flex items-center justify-center text-xs active:scale-95 text-cyan-400">-10s</button>
-            {isPlaying ? (
-              <button onClick={handlePause} className="w-14 h-14 bg-cyan-500 text-black font-black rounded-full flex items-center justify-center text-lg active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.4)]">⏸</button>
-            ) : (
-              <button onClick={handlePlay} className="w-14 h-14 bg-cyan-500 text-black font-black rounded-full flex items-center justify-center text-lg active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.4)]">▶</button>
-            )}
+            <button onClick={togglePlay} className="w-14 h-14 bg-cyan-500 text-black font-black rounded-full flex items-center justify-center text-lg active:scale-95 shadow-[0_0_15px_rgba(6,182,212,0.4)]">
+               {isPlaying ? '⏸' : '▶'}
+            </button>
             <button onClick={handleFastForward} className="w-10 h-10 bg-black rounded-full border border-zinc-800 flex items-center justify-center text-xs active:scale-95 text-cyan-400">+10s</button>
-            <button onClick={handleNext} className="w-10 h-10 bg-black rounded-full border border-zinc-800 flex items-center justify-center text-xs active:scale-95">⏭</button>
+            <button onClick={handleNextTrack} className="w-10 h-10 bg-black rounded-full border border-zinc-800 flex items-center justify-center text-xs active:scale-95">⏭</button>
           </div>
         </div>
       )}
@@ -134,9 +85,9 @@ export function SovereignAudio({ onNavigate }) {
         <div className="space-y-2 relative">
           {audioFiles.map((file, idx) => (
             <div key={idx} className="relative">
-              <div onClick={() => handlePlayTrack(idx)} className={`p-3.5 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95 transition-all shadow border ${currentTrackIndex === idx ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'}`}>
+              <div onClick={() => handlePlayTrack(idx)} className={`p-3.5 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95 transition-all shadow border ${globalTrackIndex === idx ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'}`}>
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <span className="text-xl opacity-80">{currentTrackIndex === idx && isPlaying ? '🔊' : '🎵'}</span>
+                  <span className="text-xl opacity-80">{globalTrackIndex === idx && isPlaying ? '🔊' : '🎵'}</span>
                   <div className="truncate">
                     <span className="text-xs font-bold text-white block truncate">{file.name}</span>
                     <span className="text-[9px] font-mono text-zinc-500 uppercase">{file.folder} • .{file.ext}</span>
@@ -149,7 +100,6 @@ export function SovereignAudio({ onNavigate }) {
                 )}
               </div>
               
-              {/* Dynamic Playlist Selector Menu */}
               {showPlaylistMenu === idx && (
                  <div className="absolute right-0 top-full mt-2 w-48 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl z-50 overflow-hidden animate-fadeIn">
                     <div className="p-2 border-b border-zinc-800 bg-black/50 text-[9px] font-bold text-zinc-400 uppercase tracking-widest text-center">Select Destination</div>
@@ -191,7 +141,7 @@ export function SovereignAudio({ onNavigate }) {
                             });
                             setPlaylists(updated);
                             localStorage.setItem('sovereign_playlists', JSON.stringify(updated));
-                        }} className="text-red-500 font-bold px-2 py-0.5 rounded bg-red-950/30 text-[8px] opacity-50 group-hover:opacity-100">✕</button>
+                        }} className="text-red-500 font-bold px-2 py-0.5 rounded bg-red-950/30 text-[8px] opacity-50 hover:opacity-100">✕</button>
                     </div>
                   ))}
                 </div>

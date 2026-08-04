@@ -6,27 +6,21 @@ import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
-import com.getcapacitor.annotation.Permission;
-import com.getcapacitor.annotation.PermissionCallback;
-import com.getcapacitor.PermissionState;
 import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.lang.reflect.Method;
 
-// Bind Shizuku to Capacitor's official permission framework
-@CapacitorPlugin(
-    name = "ShizukuRunner",
-    permissions = {
-        @Permission(strings = {"moe.shizuku.manager.permission.API_V23"}, alias = "shizuku")
-    }
-)
+@CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
+
+    private static final int REQUEST_CODE_SHIZUKU = 88;
 
     @PluginMethod
     public void checkStatus(PluginCall call) {
         JSObject ret = new JSObject();
         try {
+            // FIX: Force raw OS read, bypass Capacitor completely
             boolean osGranted = getContext().checkSelfPermission("moe.shizuku.manager.permission.API_V23") == PackageManager.PERMISSION_GRANTED;
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
@@ -41,23 +35,18 @@ public class ShizukuRunner extends Plugin {
         }
     }
 
-    // Force override the requestPermissions call to trigger native intent
     @PluginMethod
     public void requestPermissions(PluginCall call) {
-        if (getPermissionState("shizuku") != PermissionState.GRANTED) {
-            requestPermissionForAlias("shizuku", call, "shizukuCallback");
-        } else {
+        try {
+            if (Shizuku.pingBinder()) {
+                Shizuku.requestPermission(REQUEST_CODE_SHIZUKU);
+            }
             JSObject ret = new JSObject();
             ret.put("granted", true);
             call.resolve(ret);
+        } catch (Exception e) {
+            call.reject("Failed native request.");
         }
-    }
-
-    @PermissionCallback
-    private void shizukuCallback(PluginCall call) {
-        JSObject ret = new JSObject();
-        ret.put("granted", getPermissionState("shizuku") == PermissionState.GRANTED);
-        call.resolve(ret);
     }
 
     @PluginMethod
