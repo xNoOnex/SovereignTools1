@@ -9,7 +9,6 @@ import rikka.shizuku.Shizuku;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import android.content.pm.PackageManager;
-import java.lang.reflect.Method;
 
 @CapacitorPlugin(name = "ShizukuRunner")
 public class ShizukuRunner extends Plugin {
@@ -24,7 +23,7 @@ public class ShizukuRunner extends Plugin {
             boolean binderAlive = false;
             try { binderAlive = Shizuku.pingBinder(); } catch (Exception ignored) {}
 
-            boolean isConnected = osPermissionGranted || binderAlive;
+            boolean isConnected = osPermissionGranted && binderAlive;
             ret.put("active", isConnected);
             ret.put("granted", isConnected);
             call.resolve(ret);
@@ -67,13 +66,8 @@ public class ShizukuRunner extends Plugin {
 
             if (binderAlive && osGranted) {
                 try {
-                    // FIX: Pass the exact string as a direct array to prevent Shizuku parsing failures
-                    String[] execCmd = {"sh", "-c", cmd};
-                    Class<?> clazz = Class.forName("rikka.shizuku.Shizuku");
-                    Method method = clazz.getDeclaredMethod("newProcess", String[].class, String[].class, String.class);
-                    method.setAccessible(true);
-                    
-                    process = (Process) method.invoke(null, execCmd, null, null);
+                    // FIX: Direct execution using Shizuku's native API instead of buggy Reflection
+                    process = Shizuku.newProcess(new String[]{"sh", "-c", cmd}, null, null);
                     engineUsed = "Shizuku (Root)";
                 } catch (Exception e) {
                     process = Runtime.getRuntime().exec(new String[]{"sh", "-c", cmd});

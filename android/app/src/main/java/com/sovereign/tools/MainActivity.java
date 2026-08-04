@@ -1,15 +1,12 @@
 package com.sovereign.tools;
-
 import android.os.Bundle;
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // 1. MUST register custom native bridges BEFORE initializing Capacitor
         registerPlugin(ShizukuRunner.class);
-        
-        // 2. Boot the Capacitor WebView and lock the plugin registry
+        registerPlugin(StorageIntentBridge.class); // ADDED STORAGE BRIDGE
         super.onCreate(savedInstanceState);
     }
 }
