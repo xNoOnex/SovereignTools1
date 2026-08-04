@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { Capacitor } from '@capacitor/core';
-import { VoiceRecorder } from 'capacitor-voice-recorder';
+import { Capacitor, registerPlugin } from '@capacitor/core';
+
+// CONNECT DIRECTLY TO OUR PURE JAVA PLUGIN
+const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function SovereignRecorder({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('RECORD');
@@ -27,10 +29,7 @@ export function SovereignRecorder({ onNavigate }) {
   }, []);
 
   const checkMicPermission = async () => {
-    try {
-      const { hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
-      if (!hasPermission) await VoiceRecorder.requestAudioRecordingPermission();
-    } catch (e) {}
+    try { await ShizukuRunner.requestMic(); } catch (e) {}
   };
 
   const initStorage = async () => {
@@ -55,25 +54,25 @@ export function SovereignRecorder({ onNavigate }) {
 
   const startRecording = async () => {
     try {
-      const { hasPermission } = await VoiceRecorder.hasAudioRecordingPermission();
-      if (!hasPermission) {
-         const { granted } = await VoiceRecorder.requestAudioRecordingPermission();
-         if (!granted) return alert("Microphone access denied by Android OS.");
-      }
+      const res = await ShizukuRunner.requestMic();
+      if (!res.granted) return alert("Microphone access denied by Android OS.");
       
-      await VoiceRecorder.startRecording();
+      // CALL OUR PURE JAVA ENGINE
+      await ShizukuRunner.startNativeRecord();
+      
       setIsRecording(true);
       setRecordTime(0);
       timerRef.current = setInterval(() => setRecordTime(prev => prev + 1), 1000);
     } catch (e) {
-      alert("Native recorder initialization failed.");
+      alert("Native Java engine initialization failed.");
     }
   };
 
   const stopRecording = async () => {
     if (isRecording) {
       try {
-        const result = await VoiceRecorder.stopRecording();
+        // RETRIEVE BASE64 FROM JAVA ENGINE
+        const result = await ShizukuRunner.stopNativeRecord();
         setIsRecording(false);
         clearInterval(timerRef.current);
 
@@ -82,12 +81,12 @@ export function SovereignRecorder({ onNavigate }) {
 
         await Filesystem.writeFile({
           path: `${FOLDER_PATH}/${fileName}`,
-          data: result.value.recordDataBase64,
+          data: result.base64,
           directory: Directory.Documents
         });
         
         loadRecords();
-      } catch (e) { alert("Failed to save native recording."); }
+      } catch (e) { alert("Failed to save native Java recording."); }
     }
   };
 
@@ -153,7 +152,7 @@ export function SovereignRecorder({ onNavigate }) {
 
       <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0">
         <h2 className="text-2xl font-black flex items-center gap-3"><span className="text-3xl text-rose-500">🎙️</span> Stealth Recorder</h2>
-        <p className="text-xs text-zinc-400 mt-1">Native hardware voice capture.</p>
+        <p className="text-xs text-zinc-400 mt-1">Pure Java hardware capture engine.</p>
       </div>
 
       {currentPlayback && (
@@ -181,7 +180,7 @@ export function SovereignRecorder({ onNavigate }) {
            <button onClick={isRecording ? stopRecording : startRecording} className={`w-32 h-32 rounded-full flex items-center justify-center border-4 shadow-2xl transition-all active:scale-95 ${isRecording ? 'bg-rose-900/50 border-rose-500 animate-pulse' : 'bg-zinc-900 border-zinc-700'}`}>
              {isRecording ? <div className="w-10 h-10 bg-rose-500 rounded-sm"></div> : <div className="w-12 h-12 bg-rose-600 rounded-full"></div>}
            </button>
-           <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{isRecording ? 'Capturing native audio stream...' : 'Tap to begin secure capture'}</p>
+           <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{isRecording ? 'Engine active: Capturing stream...' : 'Tap to initialize Java Engine'}</p>
         </div>
       )}
 
