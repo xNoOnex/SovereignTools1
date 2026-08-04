@@ -35,7 +35,7 @@ export function SovereignRecorder({ onNavigate }) {
       if (scan && scan.files) {
         const parsed = scan.files
           .filter(f => { const name = typeof f === 'string' ? f : f.name; return name.endsWith('.aac') || name.endsWith('.mp4'); })
-          .map(f => { const name = typeof f === 'string' ? f : f.name; return { name: name, path: \`/storage/emulated/0/Documents/\${FOLDER_PATH}/\${name}\` }; });
+          .map(f => { const name = typeof f === 'string' ? f : f.name; return { name: name, path: `/storage/emulated/0/Documents/${FOLDER_PATH}/${name}` }; });
         setRecords(parsed.reverse());
       }
     } catch (e) {}
@@ -61,9 +61,9 @@ export function SovereignRecorder({ onNavigate }) {
         clearInterval(timerRef.current);
 
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-        const fileName = \`Record_\${timestamp}.aac\`;
+        const fileName = `Record_${timestamp}.aac`;
 
-        await Filesystem.writeFile({ path: \`\${FOLDER_PATH}/\${fileName}\`, data: result.base64, directory: Directory.Documents });
+        await Filesystem.writeFile({ path: `${FOLDER_PATH}/${fileName}`, data: result.base64, directory: Directory.Documents });
         loadRecords();
       } catch (e) { alert("Failed to save native Java recording."); }
     }
@@ -72,7 +72,7 @@ export function SovereignRecorder({ onNavigate }) {
   const formatTime = (seconds) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
     const s = (seconds % 60).toString().padStart(2, '0');
-    return \`\${m}:\${s}\`;
+    return `${m}:${s}`;
   };
 
   const getWebUrl = (path) => Capacitor.convertFileSrc(path);
@@ -95,7 +95,7 @@ export function SovereignRecorder({ onNavigate }) {
   const deleteRecord = async (record) => {
     if (!window.confirm("Permanently delete this recording?")) return;
     try {
-      await Filesystem.deleteFile({ path: \`\${FOLDER_PATH}/\${record.name}\`, directory: Directory.Documents });
+      await Filesystem.deleteFile({ path: `${FOLDER_PATH}/${record.name}`, directory: Directory.Documents });
       if (currentPlayback?.name === record.name) { setCurrentPlayback(null); setIsPlaying(false); }
       loadRecords();
     } catch (e) {}
@@ -124,14 +124,14 @@ export function SovereignRecorder({ onNavigate }) {
 
       <div className="flex gap-2 bg-zinc-900/80 p-1.5 rounded-2xl border border-zinc-800 shrink-0 shadow-inner">
         {['RECORD', 'ARCHIVE'].map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)} className={\`flex-1 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all \${activeTab === tab ? 'bg-rose-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}\`}>{tab}</button>
+          <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-2.5 rounded-xl text-[10px] font-bold tracking-widest uppercase transition-all ${activeTab === tab ? 'bg-rose-500 text-black shadow-md' : 'text-zinc-400 hover:text-white'}`}>{tab}</button>
         ))}
       </div>
 
       {activeTab === 'RECORD' && (
         <div className="flex flex-col items-center justify-center py-12 space-y-8 animate-fadeIn">
-           <div className={\`text-6xl font-mono font-black tabular-nums transition-colors \${isRecording ? 'text-rose-500' : 'text-white'}\`}>{formatTime(recordTime)}</div>
-           <button onClick={isRecording ? stopRecording : startRecording} className={\`w-32 h-32 rounded-full flex items-center justify-center border-4 shadow-2xl transition-all active:scale-95 \${isRecording ? 'bg-rose-900/50 border-rose-500 animate-pulse' : 'bg-zinc-900 border-zinc-700'}\`}>
+           <div className={`text-6xl font-mono font-black tabular-nums transition-colors ${isRecording ? 'text-rose-500' : 'text-white'}`}>{formatTime(recordTime)}</div>
+           <button onClick={isRecording ? stopRecording : startRecording} className={`w-32 h-32 rounded-full flex items-center justify-center border-4 shadow-2xl transition-all active:scale-95 ${isRecording ? 'bg-rose-900/50 border-rose-500 animate-pulse' : 'bg-zinc-900 border-zinc-700'}`}>
              {isRecording ? <div className="w-10 h-10 bg-rose-500 rounded-sm"></div> : <div className="w-12 h-12 bg-rose-600 rounded-full"></div>}
            </button>
            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">{isRecording ? 'Engine active: Capturing stream...' : 'Tap to initialize Java Engine'}</p>
@@ -144,7 +144,7 @@ export function SovereignRecorder({ onNavigate }) {
             <div className="bg-zinc-900/40 border border-zinc-800 rounded-3xl p-8 text-center text-zinc-500 font-mono text-xs">No local recordings found.</div>
           ) : (
             records.map((rec, idx) => (
-              <div key={idx} className={\`p-3.5 rounded-2xl flex flex-col gap-3 transition-all shadow border \${currentPlayback?.name === rec.name ? 'bg-rose-950/30 border-rose-500/50' : 'bg-zinc-900/80 border-zinc-800'}\`}>
+              <div key={idx} className={`p-3.5 rounded-2xl flex flex-col gap-3 transition-all shadow border ${currentPlayback?.name === rec.name ? 'bg-rose-950/30 border-rose-500/50' : 'bg-zinc-900/80 border-zinc-800'}`}>
                 <div className="flex justify-between items-center cursor-pointer" onClick={() => playRecord(rec)}>
                   <div className="flex items-center gap-3 overflow-hidden">
                     <span className="text-xl opacity-80">{currentPlayback?.name === rec.name && isPlaying ? '🎙️' : '📄'}</span>
