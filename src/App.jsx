@@ -77,6 +77,13 @@ function AppContent() {
     else { audioRef.current.play(); setIsPlaying(true); }
   };
   
+  
+  const closePlayer = (e) => {
+    if (e) e.stopPropagation();
+    stopAudio();
+    setGlobalTrackIndex(null);
+  };
+
   const stopAudio = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
 
   const [isLocked, setIsLocked] = useState(true);
@@ -182,6 +189,7 @@ function AppContent() {
                   </div>
                   <div className="truncate flex-1">
                      <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest block mb-1">Now Playing</span>
+                     <button onClick={closePlayer} className="absolute top-2 right-3 text-zinc-400 hover:text-white text-xs font-black p-1 rounded-full bg-black/60 border border-zinc-800 active:scale-90 z-20">✕</button>
                      <span className="text-sm font-bold text-white truncate block">{currentTrack.name || 'Unknown Track'}</span>
                   </div>
                </div>
