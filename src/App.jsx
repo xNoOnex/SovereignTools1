@@ -161,26 +161,34 @@ function AppContent() {
         </button>
       )}
     
-      {currentTrack && (typeof currentScreen !== 'undefined' ? currentScreen : '') !== 'audio' && (
-         <div className="absolute bottom-24 inset-x-0 p-4 z-50 animate-fadeIn pointer-events-none">
-            <div className="bg-zinc-900/95 border border-cyan-500/30 p-3 rounded-2xl flex items-center justify-between shadow-2xl backdrop-blur pointer-events-auto">
-               <div className="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer" onClick={() => (typeof navigateTo === 'function' ? navigateTo('audio') : setCurrentScreen('audio'))}>
-                  <span className="text-xl opacity-80">{isPlaying ? '🔊' : '🎵'}</span>
-                  <div className="truncate">
-                     <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">Now Playing</span>
-                     <span className="text-xs font-bold text-white truncate block">{currentTrack.name || 'Unknown Track'}</span>
+      
+      {currentTrack && (
+         <div className="fixed bottom-20 inset-x-0 p-3 z-[9999] animate-fadeIn">
+            <div className="bg-zinc-950/95 border-t border-cyan-500/50 p-4 rounded-3xl shadow-[0_0_30px_rgba(0,0,0,0.9)] backdrop-blur-xl flex flex-col gap-3">
+               <div className="flex items-center gap-4 overflow-hidden cursor-pointer" onClick={() => (typeof navigateTo === 'function' ? navigateTo('audio') : (typeof setCurrentScreen === 'function' ? setCurrentScreen('audio') : null))}>
+                  <div className="w-12 h-12 bg-cyan-900/40 rounded-full flex items-center justify-center border border-cyan-500/50 shrink-0 shadow-inner">
+                      <span className="text-2xl animate-pulse text-cyan-400">{isPlaying ? '🔊' : '🎵'}</span>
+                  </div>
+                  <div className="truncate flex-1">
+                     <span className="text-[10px] font-black text-cyan-500 uppercase tracking-widest block mb-1">Now Playing</span>
+                     <span className="text-sm font-bold text-white truncate block">{currentTrack.name || 'Unknown Track'}</span>
                   </div>
                </div>
-               <div className="flex gap-2 shrink-0 ml-2">
-                  <button onClick={handlePrevTrack} className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-[10px] border border-zinc-700 active:scale-95 text-white">⏮</button>
-                  <button onClick={togglePlay} className="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500 active:scale-95 text-black shadow-lg">
-                     {isPlaying ? '⏸' : '▶'}
-                  </button>
-                  <button onClick={handleNextTrack} className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-[10px] border border-zinc-700 active:scale-95 text-white">⏭</button>
+               <div className="flex justify-between items-center px-2 mt-1">
+                  <button onClick={(e) => { e.stopPropagation(); if (audioRef.current) audioRef.current.currentTime -= 15; }} className="text-zinc-400 hover:text-white font-black text-xl p-2 active:scale-90 transition-transform">⏪</button>
+                  <div className="flex gap-4 items-center">
+                     <button onClick={(e) => { e.stopPropagation(); handlePrevTrack(); }} className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center text-lg border border-zinc-700 active:scale-95 text-white shadow-md">⏮</button>
+                     <button onClick={(e) => { e.stopPropagation(); togglePlay(); }} className="w-16 h-16 bg-cyan-600 rounded-full flex items-center justify-center text-2xl font-black border border-cyan-400 active:scale-95 text-black shadow-[0_0_15px_rgba(6,182,212,0.5)] transition-all">
+                        {isPlaying ? '⏸' : '▶'}
+                     </button>
+                     <button onClick={(e) => { e.stopPropagation(); handleNextTrack(); }} className="w-12 h-12 bg-zinc-900 rounded-full flex items-center justify-center text-lg border border-zinc-700 active:scale-95 text-white shadow-md">⏭</button>
+                  </div>
+                  <button onClick={(e) => { e.stopPropagation(); if (audioRef.current) audioRef.current.currentTime += 15; }} className="text-zinc-400 hover:text-white font-black text-xl p-2 active:scale-90 transition-transform">⏩</button>
                </div>
             </div>
          </div>
       )}
+
       <audio ref={audioRef} onEnded={handleNextTrack} className="hidden" />
 
 </div>

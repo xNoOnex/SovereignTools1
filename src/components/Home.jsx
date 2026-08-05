@@ -36,13 +36,13 @@ export function Home({ onNavigate }) {
     { id: 'worldclock', icon: '⏱️', label: 'Chronos Hub', desc: 'Stopwatch, Timer, Alarms', isExpert: false },
     { id: 'calendar', icon: '📅', label: 'Calendar Grid', desc: 'Offline Scheduling', isExpert: false },
     { id: 'recorder', icon: '🎙️', label: 'Stealth Recorder', desc: 'Voice Capture Archive', isExpert: false },
-    { id: 'netsec', icon: '⚡', label: 'NetSec & SysOps', desc: 'Network Map & Root Shell', isExpert: true },
-    { id: 'debloat', icon: '☣️', label: 'Target Eradication', desc: 'Freeze & Nuke System Bloat', isExpert: true },
-    { id: 'shred', icon: '☢️', label: 'Data Shredder', desc: 'Zero-fill Metadata Obfuscation', isExpert: true },
+    { id: 'netsec', icon: '⚡', label: 'NetSec & SysOps', desc: 'Network scanners & diagnostics', isExpert: true },
+    { id: 'debloat', icon: '☣️', label: 'Target Eradication', desc: 'Remove bloatware & hidden apps', isExpert: true },
+    { id: 'shred', icon: '☢️', label: 'Data Shredder', desc: 'Permanently erase sensitive files', isExpert: true },
     { id: 'fileviewer', icon: '📁', label: 'Universal Explorer', desc: 'Raw Filesystem Navigator', isExpert: false },
     { id: 'audio', icon: '🎧', label: 'Sovereign Audio', desc: 'Local Background Player', isExpert: false },
     { id: 'gallery', icon: '🖼️', label: 'Secure Gallery', desc: 'Encrypted Media Viewer', isExpert: false },
-    { id: 'comms', icon: '📡', label: 'Comm Link', desc: 'P2P Encrypted Messaging', isExpert: false },
+    { id: 'comms', icon: '📡', label: 'Comm Link', desc: 'Secure offline chat', isExpert: false },
     { id: 'aes', icon: '🔐', label: 'AES Cipher', desc: 'Military-Grade Text Crypto', isExpert: false },
     { id: 'camera', icon: '📸', label: 'Sovereign Camera', desc: 'Stealth Capture Engine', isExpert: false },
     { id: 'docs', icon: '📝', label: 'Encrypted Docs', desc: 'Local Markdown Vault', isExpert: false },
@@ -51,7 +51,7 @@ export function Home({ onNavigate }) {
     { id: 'calc', icon: '🧮', label: 'Stealth Calc', desc: 'Decoy Interface Masking', isExpert: false }
   ];
 
-  const visibleTools = currentMode === 'BASIC' ? allTools.filter(t => !t.isExpert) : allTools;
+const visibleTools = currentMode === 'EXPERT' ? allTools.filter(t => !['netsec', 'debloat', 'shred', 'comms'].includes(t.id)) : allTools.filter(t => !t.isExpert);
 
   return (
     <div className="p-4 pt-6 space-y-6 max-w-2xl mx-auto select-none animate-fadeIn pb-32">

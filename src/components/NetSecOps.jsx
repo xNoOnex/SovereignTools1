@@ -48,14 +48,14 @@ export function NetSecOps({ onNavigate }) {
   };
 
   const networkModules = [
-    { id: 'subnet', title: 'Subnet Mapping', icon: '🌐', desc: 'Scan routing tables and ARP cache', cmd: 'ip route || arp -a', disclaimer: 'Reveals local gateway paths and hardware addresses of connected network peers.' },
+    { id: 'subnet', title: 'Subnet Mapping', icon: '🌐', desc: 'Scan routing tables and ARP cache', cmd: 'ip route || ip neigh show', disclaimer: 'Reveals local gateway paths and hardware addresses of connected network peers.' },
     { id: 'wifi', title: 'Wi-Fi Telemetry', icon: '📶', desc: 'Dump wireless interface data', cmd: 'dumpsys wifi | grep -E "SSID|BSSID|mNetworkInfo"', disclaimer: 'Requires root. Extracts exact BSSID targets and connection logs from the Android Wi-Fi service.' },
     { id: 'leak', title: 'Leak Shield Audit', icon: '🛡️', desc: 'Test ICMP packet routing', cmd: 'ping -c 4 1.1.1.1', disclaimer: 'Verifies outward connectivity to Cloudflare DNS to ensure VPN/Gateway is routing correctly.' },
-    { id: 'sockets', title: 'Listening Sockets', icon: '🔌', desc: 'Audit open ports', cmd: 'netstat -tuln || ss -tulpn', disclaimer: 'Requires root to bind to netlink. Reveals all active daemons listening on the device.' }
+    { id: 'sockets', title: 'Listening Sockets', icon: '🔌', desc: 'Audit open ports', cmd: 'ss -tunlp || ss -tulpn', disclaimer: 'Requires root to bind to netlink. Reveals all active daemons listening on the device.' }
   ];
 
   const sysopsModules = [
-    { id: 'appops', title: 'AppOps List', icon: '📦', desc: 'Scan installed 3rd-party apps', cmd: 'pm list packages -3', disclaimer: 'Requires root (INTERACT_ACROSS_USERS_FULL). Lists all user-installed packages.' },
+    { id: 'appops', title: 'AppOps List', icon: '📦', desc: 'Scan installed 3rd-party apps', cmd: 'pm list packages --user 0 -3', disclaimer: 'Requires root (INTERACT_ACROSS_USERS_FULL). Lists all user-installed packages.' },
     { id: 'assassin', title: 'Process Assassin', icon: '🔪', desc: 'Force-stop running packages', cmd: 'am force-stop', requiresInput: true, inputLabel: 'Target Package (e.g. com.android.chrome)', disclaimer: 'Requires root. Instantly kills the target package and all background services associated with it.' },
     { id: 'logcat', title: 'Logcat Inspector', icon: '📋', desc: 'View recent system log lines', cmd: 'logcat -d | tail -n 50', disclaimer: 'Dumps the last 50 lines of the system log. Highly sensitive data may be exposed here.' },
     { id: 'downgrade', title: 'APK Downgrader', icon: '⬇️', desc: 'Install version block bypass', cmd: 'pm install -r -d', requiresInput: true, inputLabel: 'Absolute APK Path (/storage/emulated/0/... )', disclaimer: 'Requires root. Bypasses Android version restrictions to force-install older APK variants.' },
