@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core';
 import { SovereignRecorder } from "./components/SovereignRecorder";
 import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect, useRef } from "react";
@@ -49,10 +50,16 @@ function AppContent() {
        setGlobalTrackIndex(index);
        setIsPlaying(true);
        if (audioRef.current) {
-         import('@capacitor/core').then(({ Capacitor }) => {
+         
+         try {
              audioRef.current.src = Capacitor.convertFileSrc(files[index].path);
-             audioRef.current.play();
-         }).catch(()=>{});
+             audioRef.current.load();
+             const playPromise = audioRef.current.play();
+             if (playPromise !== undefined) {
+                 playPromise.catch(err => console.error("Playback error:", err));
+             }
+         } catch(e) { console.error("Audio error:", e); }
+    
        }
     }
   };
