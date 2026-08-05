@@ -85,7 +85,7 @@ export function SovereignAudio({ globalTrackIndex, isPlaying, handlePlayTrack, t
         <div className="space-y-2 relative">
           {audioFiles.map((file, idx) => (
             <div key={idx} className="relative">
-              <div onClick={() => handlePlayTrack(idx)} className={`p-3.5 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95 transition-all shadow border ${globalTrackIndex === idx ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'}`}>
+              <div onClick={() => handlePlayTrack(idx, typeof tracks !== "undefined" ? tracks : (typeof files !== "undefined" ? files : (typeof audioFiles !== "undefined" ? audioFiles : [])))} className={`p-3.5 rounded-2xl flex justify-between items-center cursor-pointer active:scale-95 transition-all shadow border ${globalTrackIndex === idx ? 'bg-cyan-950/40 border-cyan-500/50' : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-700'}`}>
                 <div className="flex items-center gap-3 overflow-hidden">
                   <span className="text-xl opacity-80">{globalTrackIndex === idx && isPlaying ? '🔊' : '🎵'}</span>
                   <div className="truncate">

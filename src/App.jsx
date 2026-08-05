@@ -45,39 +45,29 @@ function AppContent() {
     }
   }, [globalTrackIndex, currentTrack]);
 
-  const handlePlayTrack = async (index, files = audioFiles) => {
-    if(files && files.length > 0 && files[index]) {
-       setAudioFiles(files);
+  const handlePlayTrack = (index, filesParam = null) => {
+    // If SovereignAudio hands us the scanned files, update the global state instantly
+    const targetFiles = (filesParam && filesParam.length > 0) ? filesParam : audioFiles;
+    
+    if(targetFiles && targetFiles.length > 0 && targetFiles[index]) {
+       setAudioFiles(targetFiles);
        setGlobalTrackIndex(index);
+       
        if (audioRef.current) {
-         try {
-             // READ RAW DATA INSTEAD OF USING A BLOCKED URL BRIDGE
-             const fileData = await Filesystem.readFile({ path: files[index].path });
-             
-             // Determine MIME type based on extension
-             const ext = files[index].ext ? files[index].ext.toLowerCase() : 'mp3';
-             let mime = 'audio/mpeg';
-             if (ext === 'aac') mime = 'audio/aac';
-             if (ext === 'wav') mime = 'audio/wav';
-             if (ext === 'flac') mime = 'audio/flac';
-             if (ext === 'ogg') mime = 'audio/ogg';
-
-             // Force-feed raw data directly to the HTML5 audio tag
-             audioRef.current.src = `data:${mime};base64,${fileData.data}`;
-             audioRef.current.load();
-             
-             const playPromise = audioRef.current.play();
-             if (playPromise !== undefined) {
-                 playPromise.then(() => setIsPlaying(true)).catch(err => {
-                     console.error("Base64 Playback failed:", err);
-                     setIsPlaying(false);
-                 });
-             }
-         } catch(e) { console.error("Raw File Read Error:", e); }
+           try {
+               const safeUrl = Capacitor.convertFileSrc(targetFiles[index].path);
+               audioRef.current.src = safeUrl;
+               audioRef.current.load();
+               const p = audioRef.current.play();
+               if(p !== undefined) {
+                   p.then(() => setIsPlaying(true)).catch(e => console.error("Playback block:", e));
+               } else {
+                   setIsPlaying(true);
+               }
+           } catch(err) { console.error(err); }
        }
     }
-  };
-
+};
   const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
   const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
   
