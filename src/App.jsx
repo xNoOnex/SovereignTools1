@@ -1,147 +1,136 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Capacitor } from '@capacitor/core';
+import { SovereignRecorder } from "./components/SovereignRecorder";
+import { WorldClock } from "./components/WorldClock";
+import React, { useState, useEffect, useRef } from "react";
 import { LockScreen } from './components/LockScreen';
-import { Home } from './components/Home';
+import { Home } from "./components/Home";
 import { StealthCalc } from './components/StealthCalc';
 import { Calendar } from './components/Calendar';
-import { SovereignRecorder } from './components/SovereignRecorder';
-import { NetSec } from './components/NetSec';
-import { UniversalExplorer } from './components/UniversalExplorer';
+import { SmartAI } from './components/SmartAI';
+import { Support } from './components/Support';
+import { Debloat } from './components/Debloat';
+import { Comms } from './components/Comms';
+import { AESCipher } from './components/AESCipher';
+import { Shredder } from './components/Shredder';
+import { NetSecOps } from './components/NetSecOps';
+import { SovereignCamera } from './components/SovereignCamera';
+import { SecureGallery } from './components/SecureGallery';
+import { Vault } from './components/Vault';
 import { SovereignAudio } from './components/SovereignAudio';
+import { EncryptedDocs } from './components/EncryptedDocs';
+import { FileViewer } from './components/FileViewer';
 import { Settings } from './components/Settings';
+import { StorageProvider } from './context/StorageContext';
+import { SettingsProvider, useSettings } from './context/SettingsContext';
+import { AudioProvider } from './context/AudioContext';
+import { CommsProvider } from './context/CommsContext';
 
-export function App() {
+function AppContent() {
   const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
+  const [showSettings, setShowSettings] = useState(false);
   
-  // Fully Safe Global Audio State
-  const audioRef = useRef(null);
-  const [globalTrackIndex, setGlobalTrackIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioFiles, setAudioFiles] = useState([]);
-  
-  const currentTrack = globalTrackIndex !== null && audioFiles[globalTrackIndex] ? audioFiles[globalTrackIndex] : null;
+  const { mode, accentColor, textSize, setAccentColor, setMode, setTextSize } = useSettings();
 
   useEffect(() => {
-    if (currentTrack && 'mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({ title: currentTrack.name || 'Sovereign Audio', artist: 'Sovereign Tools' });
-      navigator.mediaSession.setActionHandler('play', () => { if(audioRef.current){ audioRef.current.play(); setIsPlaying(true); } });
-      navigator.mediaSession.setActionHandler('pause', () => { if(audioRef.current){ audioRef.current.pause(); setIsPlaying(false); } });
-      navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
-      navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
-    }
-  }, [globalTrackIndex, currentTrack]);
-
-  const handlePlayTrack = (index, files = audioFiles) => {
-    if(files.length > 0 && files[index]) {
-       setAudioFiles(files); 
-       setGlobalTrackIndex(index);
-       setIsPlaying(true);
-       if (audioRef.current) {
-         audioRef.current.src = Capacitor.convertFileSrc(files[index].path);
-         audioRef.current.play();
-       }
-    }
-  };
-
-  const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
-  const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
-  
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
-    else { audioRef.current.play(); setIsPlaying(true); }
-  };
-  
-  const stopAudio = () => { 
-    if (audioRef.current) { 
-      audioRef.current.pause(); 
-      audioRef.current.currentTime = 0; 
-      setIsPlaying(false); 
-    } 
-  };
+    document.documentElement.className = `theme-${accentColor} text-scale-${textSize}`;
+    
+    // Dynamic Wallpaper Engine
+    const bgImages = {
+      cyan: 'url(https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=1080&auto=format&fit=crop)',
+      emerald: 'url(https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?q=80&w=1080&auto=format&fit=crop)',
+      amber: 'url(https://images.unsplash.com/photo-1614064016629-8798cb3d77ad?q=80&w=1080&auto=format&fit=crop)',
+      purple: 'url(https://images.unsplash.com/photo-1550751827-4bd374c3f58b?q=80&w=1080&auto=format&fit=crop)',
+      rose: 'url(https://images.unsplash.com/photo-1618044733300-9472054094ee?q=80&w=1080&auto=format&fit=crop)'
+    };
+    
+    document.body.style.backgroundImage = `linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0.95)), ${bgImages[accentColor] || bgImages.cyan}`;
+    document.body.style.backgroundSize = 'cover';
+    document.body.style.backgroundPosition = 'center';
+    document.body.style.backgroundAttachment = 'fixed';
+  }, [accentColor, textSize]);
 
   const navigateTo = (screen) => {
     setCurrentScreen(screen);
+    setShowSettings(false);
+    window.scrollTo(0, 0);
   };
 
+  if (isLocked) {
+    return <LockScreen onUnlock={() => setIsLocked(false)} />;
+  }
+
   return (
-    <div className="bg-black min-h-screen text-white font-sans select-none overflow-x-hidden">
-      {isLocked && <LockScreen onUnlock={() => setIsLocked(false)} />}
+    <div className="min-h-screen text-white font-sans select-none pb-24 relative z-10">
       
-      {!isLocked && (
-        <div className="relative min-h-screen pb-20">
-          <header className="flex justify-between items-center px-4 py-3 border-b border-zinc-900 bg-black/80 sticky top-0 z-40 backdrop-blur">
-            <h1 className="text-sm font-black tracking-widest text-white uppercase">Sovereign Tools</h1>
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigateTo('settings')} className="text-xs text-zinc-400 hover:text-white uppercase font-bold tracking-widest bg-zinc-900 px-3 py-1.5 rounded-xl border border-zinc-800">Settings</button>
-              <button onClick={() => setIsLocked(true)} className="text-xs bg-red-950/40 text-rose-500 border border-rose-900/50 px-3 py-1.5 rounded-xl font-bold uppercase tracking-widest active:scale-95">Lock</button>
-            </div>
-          </header>
-
-          <main className="pb-12">
-            {currentScreen === 'home' && <Home onNavigate={navigateTo} />}
-            {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
-            {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
-            {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
-            {currentScreen === 'netsec' && <NetSec onNavigate={navigateTo} />}
-            {currentScreen === 'explorer' && <UniversalExplorer onNavigate={navigateTo} />}
-            {currentScreen === 'audio' && (
-              <SovereignAudio 
-                onNavigate={navigateTo} 
-                globalTrackIndex={globalTrackIndex} 
-                isPlaying={isPlaying} 
-                handlePlayTrack={handlePlayTrack} 
-                togglePlay={togglePlay} 
-                stopAudio={stopAudio} 
-                handleNextTrack={handleNextTrack} 
-                handlePrevTrack={handlePrevTrack} 
-                audioRef={audioRef} 
-              />
-            )}
-            {currentScreen === 'settings' && <Settings onNavigate={navigateTo} />}
-          </main>
-
-          {currentTrack && currentScreen !== 'audio' && (
-             <div className="absolute bottom-16 inset-x-0 p-4 bg-gradient-to-t from-black via-black to-transparent z-50 animate-fadeIn">
-                <div className="bg-zinc-900/95 border border-cyan-500/30 p-3 rounded-2xl flex items-center justify-between shadow-2xl backdrop-blur">
-                   <div className="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer" onClick={() => navigateTo('audio')}>
-                      <span className="text-xl opacity-80">{isPlaying ? '🔊' : '🎵'}</span>
-                      <div className="truncate">
-                         <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">Now Playing</span>
-                         <span className="text-xs font-bold text-white truncate block">{currentTrack.name || 'Unknown Track'}</span>
-                      </div>
-                   </div>
-                   <div className="flex gap-2 shrink-0 ml-2">
-                      <button onClick={handlePrevTrack} className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-[10px] border border-zinc-700 active:scale-95 text-white">⏮</button>
-                      <button onClick={togglePlay} className="w-10 h-10 bg-cyan-600 rounded-full flex items-center justify-center text-xs font-black border border-cyan-500 active:scale-95 text-black shadow-lg">
-                         {isPlaying ? '⏸' : '▶'}
-                      </button>
-                      <button onClick={handleNextTrack} className="w-8 h-8 bg-black rounded-full flex items-center justify-center text-[10px] border border-zinc-700 active:scale-95 text-white">⏭</button>
-                   </div>
-                </div>
-             </div>
-          )}
-          <audio ref={audioRef} onEnded={handleNextTrack} className="hidden" />
-
-          <nav className="fixed bottom-0 inset-x-0 bg-black/90 border-t border-zinc-900 p-3 flex justify-around items-center z-50 backdrop-blur">
-            <button onClick={() => navigateTo('home')} className={`flex flex-col items-center gap-1 ${currentScreen === 'home' ? 'text-rose-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              <span className="text-xl">🏠</span>
-            </button>
-            <button onClick={() => navigateTo('calc')} className={`flex flex-col items-center gap-1 ${currentScreen === 'calc' ? 'text-rose-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              <span className="text-xl">🔢</span>
-            </button>
-            <button onClick={() => navigateTo('explorer')} className={`flex flex-col items-center gap-1 ${currentScreen === 'explorer' ? 'text-rose-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              <span className="text-xl">📁</span>
-            </button>
-            <button onClick={() => navigateTo('audio')} className={`flex flex-col items-center gap-1 ${currentScreen === 'audio' ? 'text-rose-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
-              <span className="text-xl">🎵</span>
-            </button>
-          </nav>
+      <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
+        <div className="flex items-center gap-2">
+          <h1 className="text-sm font-black tracking-widest text-white uppercase">SOVEREIGN TOOLS</h1>
+          <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full uppercase">{mode}</span>
         </div>
+        <div className="flex gap-2">
+          <button onClick={() => setShowSettings(true)} className="theme-glass-panel text-zinc-300 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5 shadow">
+            <span className="text-sm">⚙️</span> Settings
+          </button>
+          <button onClick={() => { setIsLocked(true); setCurrentScreen('home'); }} className="bg-red-950/40 border border-red-900/50 text-red-400 px-3 py-1.5 rounded-xl text-xs font-bold active:scale-95 flex items-center gap-1.5 shadow">
+            <span className="text-sm">🔒</span> Lock
+          </button>
+        </div>
+      </div>
+
+      {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
+        {currentScreen === 'home' && <Home onNavigate={navigateTo} />}
+      {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
+      {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
+      {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
+      {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
+      {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
+      {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
+      {currentScreen === 'comms' && <Comms onNavigate={navigateTo} />}
+      {currentScreen === 'aes' && <AESCipher onNavigate={navigateTo} />}
+      {currentScreen === 'shred' && <Shredder onNavigate={navigateTo} />}
+      {currentScreen === 'netsec' && <NetSecOps onNavigate={navigateTo} />}
+      {currentScreen === 'camera' && <SovereignCamera onNavigate={navigateTo} />}
+      {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
+      {currentScreen === 'vault' && <Vault onNavigate={navigateTo} />}
+      {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} globalTrackIndex={globalTrackIndex} isPlaying={isPlaying} handlePlayTrack={handlePlayTrack} togglePlay={togglePlay} stopAudio={stopAudio} handleNextTrack={handleNextTrack} handlePrevTrack={handlePrevTrack} audioRef={audioRef} />}
+      {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
+      {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
+
+      {showSettings && (
+        <Settings 
+          closeSettings={() => setShowSettings(false)} 
+          appMode={mode} 
+          setAppMode={setMode} 
+          accentColor={accentColor} 
+          setAccentColor={setAccentColor} 
+          textSize={textSize} 
+          setTextSize={setTextSize}
+          onNavigate={navigateTo} 
+        />
+      )}
+
+      {currentScreen !== 'home' && !showSettings && (
+        <button 
+          onClick={() => navigateTo('home')} 
+          className="fixed bottom-6 left-1/2 transform -translate-x-1/2 w-14 h-14 bg-black/80 backdrop-blur-xl border border-zinc-700 rounded-full flex items-center justify-center text-2xl shadow-[0_0_20px_rgba(0,0,0,0.8)] z-50 active:scale-95 transition-transform hover:border-[var(--accent-text)] group"
+        >
+          <span className="opacity-80 group-hover:opacity-100 transition-opacity">🏠</span>
+        </button>
       )}
     </div>
   );
 }
 
-export default App;
+export default function App() {
+  return (
+    <SettingsProvider>
+      <StorageProvider>
+        <AudioProvider>
+          <CommsProvider>
+            <AppContent />
+          </CommsProvider>
+        </AudioProvider>
+      </StorageProvider>
+    </SettingsProvider>
+  );
+}
