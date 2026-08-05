@@ -51,7 +51,7 @@ export function Home({ onNavigate }) {
     { id: 'calc', icon: '🧮', label: 'Stealth Calc', desc: 'Decoy Interface Masking', isExpert: false }
   ];
 
-const visibleTools = currentMode === 'BASIC' ? allTools.filter(t => !t.isExpert) : allTools;
+const visibleTools = currentMode === 'BASIC' ? allTools.filter(t => !['netsec', 'debloat', 'shred', 'comms'].includes(t.id)) : allTools;
 
   return (
     <div className="p-4 pt-6 space-y-6 max-w-2xl mx-auto select-none animate-fadeIn pb-32">

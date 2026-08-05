@@ -51,14 +51,20 @@ function AppContent() {
        setIsPlaying(true);
        if (audioRef.current) {
          
-         try {
-             audioRef.current.src = Capacitor.convertFileSrc(files[index].path);
-             audioRef.current.load();
-             const playPromise = audioRef.current.play();
-             if (playPromise !== undefined) {
-                 playPromise.catch(err => console.error("Playback error:", err));
-             }
-         } catch(e) { console.error("Audio error:", e); }
+         
+         if (audioRef.current && files[index]) {
+             import('@capacitor/core').then(({ Capacitor }) => {
+                 // Convert absolute local path to an accessible localhost web URL
+                 const safeUrl = Capacitor.convertFileSrc(files[index].path);
+                 audioRef.current.src = safeUrl;
+                 audioRef.current.load();
+                 const playPromise = audioRef.current.play();
+                 if (playPromise !== undefined) {
+                     playPromise.catch(err => console.error("Playback prevented by browser policy:", err));
+                 }
+             }).catch(err => console.error("Capacitor failed to load:", err));
+         }
+    
     
        }
     }
