@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { Filesystem } from '@capacitor/filesystem';
 import { SovereignRecorder } from "./components/SovereignRecorder";
 import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect, useRef } from "react";
@@ -44,32 +45,39 @@ function AppContent() {
     }
   }, [globalTrackIndex, currentTrack]);
 
-  const handlePlayTrack = (index, files = audioFiles) => {
+  const handlePlayTrack = async (index, files = audioFiles) => {
     if(files && files.length > 0 && files[index]) {
-       setAudioFiles(files); 
+       setAudioFiles(files);
        setGlobalTrackIndex(index);
-       setIsPlaying(true);
        if (audioRef.current) {
-         
-         
-         if (audioRef.current && files[index]) {
-             import('@capacitor/core').then(({ Capacitor }) => {
-                 // Convert absolute local path to an accessible localhost web URL
-                 const safeUrl = Capacitor.convertFileSrc(files[index].path);
-                 audioRef.current.src = safeUrl;
-                 audioRef.current.load();
-                 const playPromise = audioRef.current.play();
-                 if (playPromise !== undefined) {
-                     playPromise.catch(err => console.error("Playback prevented by browser policy:", err));
-                 }
-             }).catch(err => console.error("Capacitor failed to load:", err));
-         }
-    
-    
+         try {
+             // READ RAW DATA INSTEAD OF USING A BLOCKED URL BRIDGE
+             const fileData = await Filesystem.readFile({ path: files[index].path });
+             
+             // Determine MIME type based on extension
+             const ext = files[index].ext ? files[index].ext.toLowerCase() : 'mp3';
+             let mime = 'audio/mpeg';
+             if (ext === 'aac') mime = 'audio/aac';
+             if (ext === 'wav') mime = 'audio/wav';
+             if (ext === 'flac') mime = 'audio/flac';
+             if (ext === 'ogg') mime = 'audio/ogg';
+
+             // Force-feed raw data directly to the HTML5 audio tag
+             audioRef.current.src = `data:${mime};base64,${fileData.data}`;
+             audioRef.current.load();
+             
+             const playPromise = audioRef.current.play();
+             if (playPromise !== undefined) {
+                 playPromise.then(() => setIsPlaying(true)).catch(err => {
+                     console.error("Base64 Playback failed:", err);
+                     setIsPlaying(false);
+                 });
+             }
+         } catch(e) { console.error("Raw File Read Error:", e); }
        }
     }
   };
-  
+
   const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
   const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
   
