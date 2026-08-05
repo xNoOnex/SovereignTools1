@@ -25,6 +25,49 @@ import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
+  
+  // -- SOVEREIGN AUDIO BACKGROUND STATE --
+  const audioRef = useRef(null);
+  const [globalTrackIndex, setGlobalTrackIndex] = useState(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioFiles, setAudioFiles] = useState([]);
+  const currentTrack = globalTrackIndex !== null && audioFiles[globalTrackIndex] ? audioFiles[globalTrackIndex] : null;
+
+  useEffect(() => {
+    if (currentTrack && 'mediaSession' in navigator) {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: currentTrack?.name || 'Sovereign Audio', artist: 'Sovereign Tools' });
+      navigator.mediaSession.setActionHandler('play', () => { if(audioRef.current){ audioRef.current.play(); setIsPlaying(true); } });
+      navigator.mediaSession.setActionHandler('pause', () => { if(audioRef.current){ audioRef.current.pause(); setIsPlaying(false); } });
+      navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
+      navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
+    }
+  }, [globalTrackIndex, currentTrack]);
+
+  const handlePlayTrack = (index, files = audioFiles) => {
+    if(files && files.length > 0 && files[index]) {
+       setAudioFiles(files); 
+       setGlobalTrackIndex(index);
+       setIsPlaying(true);
+       if (audioRef.current) {
+         import('@capacitor/core').then(({ Capacitor }) => {
+             audioRef.current.src = Capacitor.convertFileSrc(files[index].path);
+             audioRef.current.play();
+         }).catch(()=>{});
+       }
+    }
+  };
+  
+  const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
+  const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
+  
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
+    else { audioRef.current.play(); setIsPlaying(true); }
+  };
+  
+  const stopAudio = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
+
   const [isLocked, setIsLocked] = useState(true);
   const [currentScreen, setCurrentScreen] = useState('home');
   const [showSettings, setShowSettings] = useState(false);
@@ -92,7 +135,7 @@ function AppContent() {
       {currentScreen === 'camera' && <SovereignCamera onNavigate={navigateTo} />}
       {currentScreen === 'gallery' && <SecureGallery onNavigate={navigateTo} />}
       {currentScreen === 'vault' && <Vault onNavigate={navigateTo} />}
-      {currentScreen === 'audio' && <SovereignAudio onNavigate={navigateTo} globalTrackIndex={globalTrackIndex} isPlaying={isPlaying} handlePlayTrack={handlePlayTrack} togglePlay={togglePlay} stopAudio={stopAudio} handleNextTrack={handleNextTrack} handlePrevTrack={handlePrevTrack} audioRef={audioRef} />}
+      {currentScreen === 'audio' && <SovereignAudio onNavigate={(s) => typeof navigateTo === 'function' ? navigateTo(s) : setCurrentScreen(s)} globalTrackIndex={globalTrackIndex} isPlaying={isPlaying} handlePlayTrack={handlePlayTrack} togglePlay={togglePlay} stopAudio={stopAudio} handleNextTrack={handleNextTrack} handlePrevTrack={handlePrevTrack} audioRef={audioRef} />}
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
       {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
 
@@ -118,10 +161,10 @@ function AppContent() {
         </button>
       )}
     
-      {currentTrack && currentScreen !== 'audio' && (
+      {currentTrack && (typeof currentScreen !== 'undefined' ? currentScreen : '') !== 'audio' && (
          <div className="absolute bottom-24 inset-x-0 p-4 z-50 animate-fadeIn pointer-events-none">
             <div className="bg-zinc-900/95 border border-cyan-500/30 p-3 rounded-2xl flex items-center justify-between shadow-2xl backdrop-blur pointer-events-auto">
-               <div className="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer" onClick={() => navigateTo('audio')}>
+               <div className="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer" onClick={() => (typeof navigateTo === 'function' ? navigateTo('audio') : setCurrentScreen('audio'))}>
                   <span className="text-xl opacity-80">{isPlaying ? '🔊' : '🎵'}</span>
                   <div className="truncate">
                      <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-widest block">Now Playing</span>
@@ -145,51 +188,6 @@ function AppContent() {
 }
 
 export default function App() {
-
-  // -- SOVEREIGN AUDIO BACKGROUND STATE --
-  const audioRef = useRef(null);
-  const [globalTrackIndex, setGlobalTrackIndex] = useState(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [audioFiles, setAudioFiles] = useState([]);
-  
-  const currentTrack = globalTrackIndex !== null && audioFiles[globalTrackIndex] ? audioFiles[globalTrackIndex] : null;
-
-  useEffect(() => {
-    if (currentTrack && 'mediaSession' in navigator) {
-      navigator.mediaSession.metadata = new MediaMetadata({ title: currentTrack.name || 'Sovereign Audio', artist: 'Sovereign Tools' });
-      navigator.mediaSession.setActionHandler('play', () => { if(audioRef.current){ audioRef.current.play(); setIsPlaying(true); } });
-      navigator.mediaSession.setActionHandler('pause', () => { if(audioRef.current){ audioRef.current.pause(); setIsPlaying(false); } });
-      navigator.mediaSession.setActionHandler('previoustrack', handlePrevTrack);
-      navigator.mediaSession.setActionHandler('nexttrack', handleNextTrack);
-    }
-  }, [globalTrackIndex, currentTrack]);
-
-  const handlePlayTrack = (index, files = audioFiles) => {
-    if(files && files.length > 0 && files[index]) {
-       setAudioFiles(files); 
-       setGlobalTrackIndex(index);
-       setIsPlaying(true);
-       if (audioRef.current) {
-         import('@capacitor/core').then(({ Capacitor }) => {
-             audioRef.current.src = Capacitor.convertFileSrc(files[index].path);
-             audioRef.current.play();
-         });
-       }
-    }
-  };
-  
-  const handleNextTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex + 1) % audioFiles.length); };
-  const handlePrevTrack = () => { if (audioFiles.length > 0) handlePlayTrack((globalTrackIndex - 1 + audioFiles.length) % audioFiles.length); };
-  
-  const togglePlay = () => {
-    if (!audioRef.current) return;
-    if (isPlaying) { audioRef.current.pause(); setIsPlaying(false); }
-    else { audioRef.current.play(); setIsPlaying(true); }
-  };
-  
-  const stopAudio = () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.currentTime = 0; setIsPlaying(false); } };
-  // --------------------------------------
-
   return (
     <SettingsProvider>
       <StorageProvider>
