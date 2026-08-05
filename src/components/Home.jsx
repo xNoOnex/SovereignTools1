@@ -51,7 +51,7 @@ export function Home({ onNavigate }) {
     { id: 'calc', icon: '🧮', label: 'Stealth Calc', desc: 'Decoy Interface Masking', isExpert: false }
   ];
 
-const visibleTools = currentMode === 'BASIC' ? allTools.filter(t => !t.isExpert && t.label !== 'Comm Link') : allTools;
+
 
   return (
     <div className="p-4 pt-6 space-y-6 max-w-2xl mx-auto select-none animate-fadeIn pb-32">
@@ -69,7 +69,7 @@ const visibleTools = currentMode === 'BASIC' ? allTools.filter(t => !t.isExpert 
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {visibleTools.map(tool => (
+        {allTools.filter(t => currentMode === 'EXPERT' ? true : (!t.isExpert && !['netsec', 'debloat', 'shred', 'comms'].includes(t.id))).map(tool => (
           <button key={tool.id} onClick={() => onNavigate(tool.id)} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-[var(--accent-text)] shadow-lg text-left relative overflow-hidden">
             <span className="text-3xl mb-1 relative z-10">{tool.icon}</span>
             <div className="relative z-10">
