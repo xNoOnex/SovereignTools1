@@ -64,7 +64,7 @@ export function Debloat({ onNavigate }) {
     // Safely enforce user profile to prevent crashing
     if (action === 'disable') cmd = `pm disable-user --user 0 ${pkg}`;
     else if (action === 'enable') cmd = `pm enable --user 0 ${pkg}`;
-    else if (action === 'uninstall') cmd = `pm uninstall --user 0 ${pkg}`;
+    else if (action === 'uninstall') cmd = `cmd package uninstall --user 0 ${pkg}`;
     else if (action === 'reinstall') cmd = `cmd package install-existing --user 0 ${pkg}`;
 
     log(`> Executing: ${cmd}`);
@@ -144,7 +144,7 @@ export function Debloat({ onNavigate }) {
           )}
       </div>
 
-      <div className="h-28 bg-black border border-zinc-800 rounded-xl p-3 overflow-y-auto font-mono text-[9px] text-zinc-500 whitespace-pre-wrap flex flex-col-reverse shrink-0 shadow-inner z-10">
+      <div className="h-28 bg-black border border-zinc-800 rounded-xl p-3 overflow-y-auto font-mono text-[9px] text-zinc-500 whitespace-pre-wrap flex flex-col-reverse shrink-0 shadow-inner z-10 min-h-[250px]">
           {logs}
       </div>
     </div>
