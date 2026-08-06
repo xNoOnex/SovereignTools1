@@ -27,6 +27,7 @@ import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
+  const { mode } = useSettings();
   
   // -- SOVEREIGN AUDIO BACKGROUND STATE --
   const audioRef = useRef(null);
@@ -139,7 +140,7 @@ function AppContent() {
       </div>
 
       {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
-        {currentScreen === 'home' && <Home onNavigate={navigateTo} currentMode={currentMode} />}
+        {currentScreen === 'home' && <Home onNavigate={navigateTo} currentMode={mode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
       {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
