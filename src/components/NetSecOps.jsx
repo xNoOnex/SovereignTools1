@@ -48,7 +48,6 @@ const sysTools = [
     disclaimer: "DANGER: FORCING A KERNEL-LEVEL STOP ON CRITICAL SYSTEM DAEMONS WILL IMMEDIATELY SOFT-BRICK OR REBOOT LOOP YOUR DEVICE. ALL UNSAVED DATA WILL BE VAPORIZED.",
     needsInput: true, inputPlaceholder: 'App Name (e.g., chrome, youtube)',
     getCmd: (input) => `PKG=$(pm list packages | grep -i "${input}" | head -n 1 | cut -d: -f2 | tr -d '\r'); if [ -z "$PKG" ]; then echo "> Error: No package found matching '${input}'"; else echo "> Target locked: $PKG\n> Executing force-stop..."; am force-stop --user 0 $PKG && echo "> $PKG successfully terminated."; fi`
-  } && echo "> Sequence sent."`
   },
   {
     id: 'logcat', name: 'Logcat Inspector', icon: '📋',
