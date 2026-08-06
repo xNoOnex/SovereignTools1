@@ -64,7 +64,7 @@ export function Debloat({ onNavigate }) {
     // Safely enforce user profile to prevent crashing
     if (action === 'disable') cmd = `pm disable-user --user 0 ${pkg}`;
     else if (action === 'enable') cmd = `pm enable --user 0 ${pkg}`;
-    else if (action === 'uninstall') cmd = `cmd package uninstall --user 0 ${pkg}`;
+    else if (action === 'uninstall') cmd = `eradicate() { echo "> Bypassing Samsung NPE..."; pm clear $1 >/dev/null 2>&1; pm disable-user --user 0 $1; pm hide $1 >/dev/null 2>&1; echo "> System target neutralized."; }; eradicate ${pkg}`;
     else if (action === 'reinstall') cmd = `cmd package install-existing --user 0 ${pkg}`;
 
     log(`> Executing: ${cmd}`);
