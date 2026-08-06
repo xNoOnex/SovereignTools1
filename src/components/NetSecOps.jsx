@@ -7,7 +7,7 @@ const sysTools = [
   {
     id: 'subnet', name: 'Subnet Mapping', icon: '🌐',
     details: "Performs a rapid, asynchronous ping sweep across your current Wi-Fi subnet to identify the IP addresses of other active devices, bypassing standard netlink socket restrictions.",
-    disclaimer: "As noted, this requires full Root access on modern Android versions. Running active network scans on enterprise or public networks may trigger Intrusion Detection Systems (IDS) and flag your device to network administrators.",
+    disclaimer: "Because this uses ICMP ping requests instead of ARP tables, devices with strict network firewalls configured to ignore pings may not appear in this scan. Frequent sweeps on enterprise networks may still trigger IDS alerts.",
     needsInput: false, inputPlaceholder: '',
     getCmd: () => 'PREFIX=$(ip -4 addr show wlan0 | grep inet | tr -s " " | cut -d" " -f3 | cut -d/ -f1 | cut -d. -f1,2,3); if [ -z "$PREFIX" ]; then echo "> Error: Not connected to Wi-Fi (wlan0)."; else echo "> Initiating Ping Sweep on $PREFIX.0/24...\n"; for i in $(seq 1 254); do ping -c 1 -W 1 $PREFIX.$i >/dev/null 2>&1 && echo "[ACTIVE HOST] $PREFIX.$i" & done; wait; echo "\n> Sweep Complete."; fi'
   },

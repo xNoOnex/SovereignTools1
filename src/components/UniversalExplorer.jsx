@@ -153,6 +153,13 @@ export function UniversalExplorer({ onNavigate }) {
         <button onClick={() => typeof onNavigate === 'function' ? onNavigate('home') : null} className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center border border-zinc-700 active:scale-95 text-zinc-400 font-black">✕</button>
       </div>
 
+      <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl mb-3 shrink-0 shadow-lg">
+          <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest mb-1">Details</h3>
+          <p className="text-[11px] text-zinc-300 mb-4 leading-relaxed">Navigates the raw Android filesystem using Shizuku shell privileges, bypassing standard Android Scoped Storage restrictions.</p>
+          <h3 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-1">Disclaimer</h3>
+          <p className="text-[11px] text-rose-400/80 leading-relaxed font-mono">You are viewing files at the system shell level. Executing or modifying unknown configuration files in root directories can cause system instability.</p>
+      </div>
+
       {/* Path Bar */}
       <div className="flex items-center gap-2 bg-zinc-950 p-2.5 rounded-xl border border-zinc-800 mb-3 shrink-0">
         <button onClick={navigateUp} className="bg-zinc-900 hover:bg-zinc-800 text-cyan-400 border border-zinc-700 px-3 py-1.5 rounded-lg text-xs font-black active:scale-95 shrink-0">
