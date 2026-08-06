@@ -64,7 +64,7 @@ export function Debloat({ onNavigate }) {
     // Safely enforce user profile to prevent crashing
     if (action === 'disable') cmd = `pm disable-user --user 0 ${pkg}`;
     else if (action === 'enable') cmd = `pm enable --user 0 ${pkg}`;
-    else if (action === 'uninstall') cmd = `pm uninstall -k --user 0 ${pkg}`;
+    else if (action === 'uninstall') cmd = `pm uninstall --user 0 ${pkg}`;
     else if (action === 'reinstall') cmd = `cmd package install-existing --user 0 ${pkg}`;
 
     log(`> Executing: ${cmd}`);
@@ -89,21 +89,24 @@ export function Debloat({ onNavigate }) {
          <button onClick={() => typeof onNavigate === 'function' ? onNavigate('home') : null} className="w-8 h-8 rounded-full bg-zinc-900 flex items-center justify-center border border-zinc-700 active:scale-95 text-zinc-400 font-black">✕</button>
       </div>
 
-      <div className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl mb-4 shrink-0 shadow-lg z-10">
-          <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest mb-1">Details</h3>
-          <p className="text-[11px] text-zinc-300 mb-4 leading-relaxed">Scans the system registry to map all installed packages. Allows you to safely disable telemetry daemons or permanently eradicate bloatware using Shizuku privileges.</p>
-          
-          <h3 className="text-xs font-black text-red-500 uppercase tracking-widest mb-1 animate-pulse mt-2 text-sm">⚠️ CRITICAL WARNING ⚠️</h3>
-          <p className="text-[11px] text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-900/80 font-bold shadow-inner leading-relaxed font-mono mb-2">Modifying package states at the root level bypasses standard Android safeguards. Eradicating critical system apps like System UI or Android Framework will IMMEDIATELY SOFT-BRICK YOUR DEVICE.</p>
-          
-          <input 
-              type="text" 
-              placeholder="Search packages (e.g. com.samsung...)" 
-              className="w-full bg-black border border-zinc-700 rounded-lg p-3 text-xs font-mono text-cyan-400 focus:outline-none focus:border-orange-500 transition-colors mt-2"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-          />
-      </div>
+      <details className="bg-zinc-950 border border-zinc-800 p-4 rounded-2xl mb-3 shrink-0 shadow-lg z-10 group">
+          <summary className="text-xs font-black text-cyan-400 uppercase tracking-widest cursor-pointer list-none flex justify-between items-center outline-none">
+             <span>Info & Warnings</span>
+             <span className="text-zinc-500 group-open:rotate-180 transition-transform duration-300">▼</span>
+          </summary>
+          <div className="pt-3 mt-3 border-t border-zinc-800/50">
+              <p className="text-[11px] text-zinc-300 mb-4 leading-relaxed">Scans the system registry to map all installed packages. Allows you to safely disable telemetry daemons or permanently eradicate bloatware using Shizuku privileges.</p>
+              <h3 className="text-xs font-black text-red-500 uppercase tracking-widest mb-1 animate-pulse text-sm mt-2">⚠️ CRITICAL WARNING ⚠️</h3>
+              <p className="text-[11px] text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-900/80 font-bold shadow-inner leading-relaxed font-mono">Modifying package states at the root level bypasses standard Android safeguards. Eradicating critical system apps like System UI or Android Framework will IMMEDIATELY SOFT-BRICK YOUR DEVICE.</p>
+          </div>
+      </details>
+      <input 
+          type="text" 
+          placeholder="Search packages (e.g. com.samsung...)" 
+          className="w-full bg-zinc-950 border border-zinc-700 rounded-xl p-3 text-xs font-mono text-cyan-400 focus:outline-none focus:border-orange-500 transition-colors mb-4 shrink-0 shadow-lg"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+      />
 
       <div className="flex-1 overflow-y-auto space-y-2 mb-2 pr-1 relative z-0">
           {isLoading ? (
