@@ -44,10 +44,11 @@ const sysTools = [
   },
   {
     id: 'assassin', name: 'Process Assassin', icon: '🔪',
-    details: "Force-stops running packages, effectively mimicking the system's am force-stop shell command. It forcefully terminates an app's background processes and services.",
-    disclaimer: "Using this on critical system services can lead to device instability, freezing, or a reboot loop. Unsaved data in targeted apps will be lost.",
-    needsInput: true, inputPlaceholder: 'Target Package (e.g., com.android.chrome)',
-    getCmd: (input) => `am force-stop --user 0 ${input} && echo "> Sequence sent."`
+    details: "Force-stops running packages. Now features Smart-Match targeting: type common names like 'chrome' or 'spotify' and the script will automatically resolve the full package name.",
+    disclaimer: "DANGER: FORCING A KERNEL-LEVEL STOP ON CRITICAL SYSTEM DAEMONS WILL IMMEDIATELY SOFT-BRICK OR REBOOT LOOP YOUR DEVICE. ALL UNSAVED DATA WILL BE VAPORIZED.",
+    needsInput: true, inputPlaceholder: 'App Name (e.g., chrome, youtube)',
+    getCmd: (input) => `PKG=$(pm list packages | grep -i "${input}" | head -n 1 | cut -d: -f2 | tr -d '\r'); if [ -z "$PKG" ]; then echo "> Error: No package found matching '${input}'"; else echo "> Target locked: $PKG\n> Executing force-stop..."; am force-stop --user 0 $PKG && echo "> $PKG successfully terminated."; fi`
+  } && echo "> Sequence sent."`
   },
   {
     id: 'logcat', name: 'Logcat Inspector', icon: '📋',
@@ -145,8 +146,12 @@ export function NetSecOps({ onNavigate }) {
                   <h3 className="text-xs font-black text-cyan-400 uppercase tracking-widest mb-1">Details</h3>
                   <p className="text-[11px] text-zinc-300 mb-4 leading-relaxed">{activeTool.details}</p>
                   
-                  <h3 className="text-xs font-black text-rose-500 uppercase tracking-widest mb-1">Disclaimer</h3>
-                  <p className="text-[11px] text-rose-400/80 leading-relaxed font-mono">{activeTool.disclaimer}</p>
+                  <h3 className={`text-xs font-black uppercase tracking-widest mb-1 ${activeTool.id === 'assassin' ? 'text-red-500 animate-pulse text-sm mt-2' : 'text-rose-500'}`}>
+                  {activeTool.id === 'assassin' ? '⚠️ CRITICAL WARNING ⚠️' : 'Disclaimer'}
+              </h3>
+              <p className={`text-[11px] leading-relaxed font-mono ${activeTool.id === 'assassin' ? 'text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-900/80 font-bold shadow-inner' : 'text-rose-400/80'}`}>
+                  {activeTool.disclaimer}
+              </p>
               </div>
 
               {activeTool.needsInput && (
