@@ -19,7 +19,7 @@ const sysTools = [
     details: "Extracts a detailed data dump from your device's wireless interfaces. It reveals metrics like BSSID, signal attenuation, link speed, and hidden network configurations.",
     disclaimer: "BSSID and telemetry data can be used to accurately geolocate your device even if standard GPS services are disabled.",
     needsInput: false, inputPlaceholder: '',
-    getCmd: () => 'dumpsys wifi | grep -E "mNetworkInfo|BSSID|LinkSpeed|SSID"'
+    getCmd: () => 'cmd wifi status && echo "\n--- EXTENDED DUMP ---\n" && dumpsys wifi | grep -iE "bssid|ssid|link speed|rssi|mnetworkinfo|mac|freq" | head -n 25'
   },
   {
     id: 'leak', name: 'Leak Shield Audit', icon: '🛡️',
