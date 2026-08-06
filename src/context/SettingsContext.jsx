@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const SettingsContext = createContext();
 
 export function SettingsProvider({ children }) {
-  const [mode, setMode] = useState('EXPERT');
+  const [mode, setMode] = useState('BASIC');
   const [accentColor, setAccentColor] = useState('cyan');
   const [textSize, setTextSize] = useState(1); // 0: Small, 1: Normal, 2: Large
 
