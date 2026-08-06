@@ -27,7 +27,6 @@ import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
-  const { mode } = useSettings();
   
   // -- SOVEREIGN AUDIO BACKGROUND STATE --
   const audioRef = useRef(null);
