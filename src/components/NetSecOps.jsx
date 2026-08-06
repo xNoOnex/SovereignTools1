@@ -9,7 +9,7 @@ const sysTools = [
     details: "Performs a rapid, asynchronous ping sweep across your current Wi-Fi subnet to identify the IP addresses of other active devices, bypassing standard netlink socket restrictions.",
     disclaimer: "Because this uses ICMP ping requests instead of ARP tables, devices with strict network firewalls configured to ignore pings may not appear in this scan. Frequent sweeps on enterprise networks may still trigger IDS alerts.",
     needsInput: false, inputPlaceholder: '',
-    getCmd: () => 'PREFIX=$(ip -4 addr show wlan0 | grep inet | tr -s " " | cut -d" " -f3 | cut -d/ -f1 | cut -d. -f1,2,3); if [ -z "$PREFIX" ]; then echo "> Error: Not connected to Wi-Fi (wlan0)."; else echo "> Initiating Ping Sweep on $PREFIX.0/24...\n"; for i in $(seq 1 254); do ping -c 1 -W 1 $PREFIX.$i >/dev/null 2>&1 && echo "[ACTIVE HOST] $PREFIX.$i" & done; wait; echo "\n> Sweep Complete."; fi'
+    getCmd: () => `PREFIX=$(ifconfig wlan0 2>/dev/null | grep -i inet | head -n 1 | awk '{print $2}' | cut -d: -f2 | cut -d. -f1,2,3); if [ -z "$PREFIX" ]; then PREFIX=$(getprop dhcp.wlan0.ipaddress 2>/dev/null | cut -d. -f1,2,3); fi; if [ -z "$PREFIX" ]; then echo "> Error: Could not determine local IP. The system blocked the request."; else echo "> Initiating Ping Sweep on $PREFIX.0/24...\n"; for i in $(seq 1 254); do ping -c 1 -W 1 $PREFIX.$i >/dev/null 2>&1 && echo "[ACTIVE HOST] $PREFIX.$i" & done; wait; echo "\n> Sweep Complete."; fi`
   },
   {
     id: 'wifi', name: 'Wi-Fi Telemetry', icon: '📶',
