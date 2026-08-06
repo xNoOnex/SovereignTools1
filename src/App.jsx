@@ -139,7 +139,7 @@ function AppContent() {
       </div>
 
       {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
-        {currentScreen === 'home' && <Home onNavigate={navigateTo} />}
+        {currentScreen === 'home' && <Home onNavigate={navigateTo} currentMode={currentMode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
       {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
