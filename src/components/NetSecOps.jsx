@@ -6,10 +6,10 @@ const ShizukuRunner = registerPlugin('ShizukuRunner');
 const sysTools = [
   {
     id: 'subnet', name: 'Subnet Mapping', icon: '🌐',
-    details: "Scans the device's routing tables and ARP (Address Resolution Protocol) cache to identify the IP and hardware MAC addresses of other devices connected to your local network.",
+    details: "Performs a rapid, asynchronous ping sweep across your current Wi-Fi subnet to identify the IP addresses of other active devices, bypassing standard netlink socket restrictions.",
     disclaimer: "As noted, this requires full Root access on modern Android versions. Running active network scans on enterprise or public networks may trigger Intrusion Detection Systems (IDS) and flag your device to network administrators.",
     needsInput: false, inputPlaceholder: '',
-    getCmd: () => 'ip neigh show || echo "\\n> [STDERR]: Cannot bind netlink socket. Shizuku (UID 2000) lacks privileges. Full Root (UID 0) required."'
+    getCmd: () => 'PREFIX=$(ip -4 addr show wlan0 | grep inet | tr -s " " | cut -d" " -f3 | cut -d/ -f1 | cut -d. -f1,2,3); if [ -z "$PREFIX" ]; then echo "> Error: Not connected to Wi-Fi (wlan0)."; else echo "> Initiating Ping Sweep on $PREFIX.0/24...\n"; for i in $(seq 1 254); do ping -c 1 -W 1 $PREFIX.$i >/dev/null 2>&1 && echo "[ACTIVE HOST] $PREFIX.$i" & done; wait; echo "\n> Sweep Complete."; fi'
   },
   {
     id: 'wifi', name: 'Wi-Fi Telemetry', icon: '📶',
