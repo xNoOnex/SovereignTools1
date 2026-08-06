@@ -69,7 +69,7 @@ export function Home({ onNavigate }) {
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-        {allTools.filter(t => currentMode === 'EXPERT' ? true : (!t.isExpert && !['netsec', 'debloat', 'shred', 'comms'].includes(t.id))).map(tool => (
+	{allTools.filter(tool => currentMode === 'EXPERT' || !['NetSec & SysOps', 'Target Eradication', 'Data Shredder', 'Comm Link'].includes(tool.label)).map(tool => (
           <button key={tool.id} onClick={() => onNavigate(tool.id)} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-[var(--accent-text)] shadow-lg text-left relative overflow-hidden">
             <span className="text-3xl mb-1 relative z-10">{tool.icon}</span>
             <div className="relative z-10">
