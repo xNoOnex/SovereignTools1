@@ -96,6 +96,7 @@ export function Debloat({ onNavigate }) {
           </summary>
           <div className="pt-3 mt-3 border-t border-zinc-800/50">
               <p className="text-[11px] text-zinc-300 mb-4 leading-relaxed">Scans the system registry to map all installed packages. Allows you to safely disable telemetry daemons or permanently eradicate bloatware using Shizuku privileges.</p>
+              <p className="text-[11px] text-orange-400/90 mb-4 leading-relaxed font-mono">NOTE: Due to a Samsung OneUI 6 AppOps bug, standard uninstalls via Shizuku UID 2000 crash with a NullPointerException. The UNINSTALL button now executes a custom bypass that forcefully clears data, disables, and completely hides the target package from the system registry instead.</p>
               <h3 className="text-xs font-black text-red-500 uppercase tracking-widest mb-1 animate-pulse text-sm mt-2">⚠️ CRITICAL WARNING ⚠️</h3>
               <p className="text-[11px] text-red-400 bg-red-950/40 p-3 rounded-xl border border-red-900/80 font-bold shadow-inner leading-relaxed font-mono">Modifying package states at the root level bypasses standard Android safeguards. Eradicating critical system apps like System UI or Android Framework will IMMEDIATELY SOFT-BRICK YOUR DEVICE.</p>
           </div>
