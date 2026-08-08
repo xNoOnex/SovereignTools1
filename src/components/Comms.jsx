@@ -1,3 +1,4 @@
+import { BleScout } from './services/BleMeshEngine';
 import { QRCodeSVG } from 'qrcode.react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useComms } from '../context/CommsContext';
@@ -9,6 +10,7 @@ export function Comms({ onNavigate }) {
   } = useComms();
   
   const [inputMsg, setInputMsg] = useState('');
+  const [bleActive, setBleActive] = useState(false);
   const [syncLogs, setSyncLogs] = useState([]);
   const [meshConnected, setMeshConnected] = useState(false);
   const [qrSyncData, setQrSyncData] = useState('');
@@ -155,7 +157,37 @@ export function Comms({ onNavigate }) {
             </button>
           </div>
 
-        {/* Sovereign Hardware & Optical Network Engines */}
+        {/* Layer 2: Wi-Fi Firehose */}
+
+            {/* Layer 1: BLE Scout Engine */}
+            <div className="border border-blue-900/50 bg-blue-950/20 rounded-2xl p-4 shadow-lg shrink-0 mb-4 mt-2">
+                <h3 className="text-xs font-black text-blue-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                   <span className="flex items-center gap-2"><span>📡</span> BLE Scout (Layer 1)</span>
+                   {bleActive && <span className="flex h-2 w-2 relative"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span></span>}
+                </h3>
+                <p className="text-[11px] text-blue-200/70 mb-4 leading-relaxed font-sans">
+                   Deploy a low-energy background scanner to silently ping nearby peers (30ft) and blindly swap encrypted Swarm ledgers without Wi-Fi.
+                </p>
+                <div className="flex gap-2 mt-3">
+                   <button 
+                      onClick={async () => { 
+                          setBleActive(true); 
+                          await BleScout.deployScout(logSync); 
+                      }} 
+                      className="flex-1 bg-blue-900/60 border border-blue-500/50 text-blue-400 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-blue-500 hover:text-black transition-all shadow-inner active:scale-95">
+                      DEPLOY SCOUT
+                   </button>
+                   <button 
+                      onClick={async () => { 
+                          setBleActive(false); 
+                          await BleScout.killScout(logSync); 
+                      }} 
+                      className="flex-1 bg-zinc-900 border border-zinc-700 text-zinc-400 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-zinc-800 transition-all active:scale-95">
+                      RECALL
+                   </button>
+                </div>
+            </div>
+        
         <div className="mb-4 space-y-4">
             <div className="border border-emerald-900/50 bg-emerald-950/20 rounded-2xl p-4 shadow-lg shrink-0">
                 <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2">
