@@ -9,6 +9,8 @@ export function Comms({ onNavigate }) {
   } = useComms();
   
   const [inputMsg, setInputMsg] = useState('');
+  const [syncLogs, setSyncLogs] = useState([]);
+  const [meshConnected, setMeshConnected] = useState(false);
   const [qrSyncData, setQrSyncData] = useState('');
   const [apActive, setApActive] = useState(false);
   const [tempRemoteSDP, setTempRemoteSDP] = useState('');
@@ -33,7 +35,56 @@ export function Comms({ onNavigate }) {
     alert('Local handshake copied to clipboard.');
   };
 
-  return (
+  
+    const logSync = (msg) => {
+        setSyncLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-5));
+    };
+
+    const triggerGossipSync = (dataChannel) => {
+        logSync("GOSSIP PROTOCOL INITIATED.");
+        const ledgers = {};
+        
+        // Rummage through local storage for encrypted vaults
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith('swarm_ledger_')) {
+                ledgers[key] = localStorage.getItem(key);
+            }
+        }
+        
+        const payload = JSON.stringify({ type: 'SWARM_SYNC', data: ledgers });
+        dataChannel.send(payload);
+        logSync(`TRANSMITTED ${Object.keys(ledgers).length} ENCRYPTED BLOCKS.`);
+    };
+
+    const handleIncomingGossip = (event) => {
+        try {
+            const payload = JSON.parse(event.data);
+            if (payload.type === 'SWARM_SYNC') {
+                logSync(`RECEIVED ${Object.keys(payload.data).length} ENCRYPTED BLOCKS.`);
+                let updated = 0;
+                
+                Object.keys(payload.data).forEach(key => {
+                    const localData = localStorage.getItem(key);
+                    const incomingData = payload.data[key];
+                    
+                    // Basic length-based overwrite (assumes longer string = more messages)
+                    // In a production environment, you'd decrypt and merge based on timestamps
+                    if (!localData || incomingData.length > localData.length) {
+                        localStorage.setItem(key, incomingData);
+                        updated++;
+                    }
+                });
+                
+                if (updated > 0) logSync(`${updated} LOCAL VAULTS UPDATED.`);
+                else logSync("LOCAL VAULTS ALREADY UP TO DATE.");
+            }
+        } catch (e) {
+            console.log("Ignored non-gossip data packet.");
+        }
+    };
+        
+    return (
     <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white min-h-screen flex flex-col relative z-10 animate-fadeIn">
       
       <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0 flex justify-between items-center">
@@ -47,6 +98,22 @@ export function Comms({ onNavigate }) {
           </button>
         )}
       </div>
+
+            {/* Gossip Sync Terminal */}
+            <div className="border border-indigo-900/50 bg-indigo-950/20 rounded-2xl p-4 shadow-lg shrink-0 mt-4">
+                <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center justify-between">
+                   <span className="flex items-center gap-2"><span>📡</span> Background Sync Engine</span>
+                   {meshConnected ? <span className="text-emerald-500">LINKED</span> : <span className="text-zinc-500">IDLE</span>}
+                </h3>
+                <div className="bg-black border border-zinc-800 rounded-lg p-3 h-24 overflow-y-auto font-mono text-[9px] text-emerald-400 flex flex-col justify-end">
+                    {syncLogs.length === 0 ? (
+                        <span className="text-zinc-600">Awaiting WebRTC Peer Connection...</span>
+                    ) : (
+                        syncLogs.map((log, i) => <span key={i}>{log}</span>)
+                    )}
+                </div>
+            </div>
+        
 
       <div className="flex justify-center shrink-0">
         <span className={`text-[10px] font-bold px-3 py-1.5 rounded-xl uppercase tracking-widest shadow-inner border ${
