@@ -1,3 +1,35 @@
+
+// --- INJECTED GOSSIP ENGINE ---
+const syncSwarms = (channel) => {
+    if (!channel) return;
+    const ledgers = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('swarm_ledger_')) {
+            ledgers[key] = localStorage.getItem(key);
+        }
+    }
+    const count = Object.keys(ledgers).length;
+    window.dispatchEvent(new CustomEvent('gossip_log', { detail: `TRANSMITTED ${count} ENCRYPTED BLOCKS.` }));
+    if (count > 0) {
+        channel.send(JSON.stringify({ type: 'SWARM_SYNC', data: ledgers }));
+    }
+};
+
+const handleGossip = (payloadData) => {
+    let updated = 0;
+    Object.keys(payloadData).forEach(key => {
+        const localData = localStorage.getItem(key);
+        const incomingData = payloadData[key];
+        if (!localData || incomingData.length > localData.length) {
+            localStorage.setItem(key, incomingData);
+            updated++;
+        }
+    });
+    window.dispatchEvent(new CustomEvent('gossip_log', { detail: `RECEIVED ${Object.keys(payloadData).length} BLOCKS. ${updated} UPDATED.` }));
+};
+// -----------------------------
+
 import React, { createContext, useContext, useState, useRef, useEffect } from 'react';
 
 const CommsContext = createContext();
@@ -49,9 +81,18 @@ export function CommsProvider({ children }) {
       dataChannel.current = receiveChannel;
       
       receiveChannel.onmessage = (e) => {
+            if (typeof e.data === 'string' && e.data.includes('"type":"SWARM_SYNC"')) {
+                try {
+                    const parsed = JSON.parse(e.data);
+                    handleGossip(parsed.data);
+                } catch(err) {}
+                return;
+            }
+            
         setMessages(prev => [...prev, { sender: 'peer', text: e.data }]);
         playPing(); // Trigger sound on receive
-      };
+      
+        };
       receiveChannel.onopen = () => setStatus('CONNECTED');
       receiveChannel.onclose = () => setStatus('DISCONNECTED');
     };
@@ -73,9 +114,18 @@ export function CommsProvider({ children }) {
     dataChannel.current = dc;
     
     dc.onmessage = (e) => {
+            if (typeof e.data === 'string' && e.data.includes('"type":"SWARM_SYNC"')) {
+                try {
+                    const parsed = JSON.parse(e.data);
+                    handleGossip(parsed.data);
+                } catch(err) {}
+                return;
+            }
+            
       setMessages(prev => [...prev, { sender: 'peer', text: e.data }]);
       playPing(); // Trigger sound on receive
-    };
+    
+        };
     dc.onopen = () => setStatus('CONNECTED');
     dc.onclose = () => setStatus('DISCONNECTED');
 

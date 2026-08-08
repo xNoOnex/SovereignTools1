@@ -40,8 +40,18 @@ export function Comms({ onNavigate }) {
 
   
     const logSync = (msg) => {
-        setSyncLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-5));
+    setSyncLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`].slice(-5));
+};
+
+useEffect(() => {
+    const handler = (e) => {
+        setSyncLogs(prev => [...prev, `[${new Date().toLocaleTimeString()}] ${e.detail}`].slice(-5));
+        setMeshConnected(true);
     };
+    window.addEventListener('gossip_log', handler);
+    return () => window.removeEventListener('gossip_log', handler);
+}, []);
+            
 
     const triggerGossipSync = (dataChannel) => {
         logSync("GOSSIP PROTOCOL INITIATED.");
