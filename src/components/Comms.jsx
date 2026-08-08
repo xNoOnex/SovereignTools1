@@ -1,3 +1,4 @@
+import { QRCodeSVG } from 'qrcode.react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useComms } from '../context/CommsContext';
 
@@ -8,6 +9,8 @@ export function Comms({ onNavigate }) {
   } = useComms();
   
   const [inputMsg, setInputMsg] = useState('');
+  const [qrSyncData, setQrSyncData] = useState('');
+  const [apActive, setApActive] = useState(false);
   const [tempRemoteSDP, setTempRemoteSDP] = useState('');
   const scrollRef = useRef(null);
 
@@ -84,6 +87,53 @@ export function Comms({ onNavigate }) {
               Accept Remote Handshake
             </button>
           </div>
+
+        {/* Sovereign Hardware & Optical Network Engines */}
+        <div className="mb-4 space-y-4">
+            <div className="border border-emerald-900/50 bg-emerald-950/20 rounded-2xl p-4 shadow-lg shrink-0">
+                <h3 className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                   <span>📡</span> Hardware Mesh Engine {apActive && <span className="ml-auto flex h-2 w-2 relative mr-1"><span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span><span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span></span>}
+                </h3>
+                <p className="text-[11px] text-emerald-200/70 mb-4 leading-relaxed font-sans">
+                   Force this device's WLAN hardware into Master mode to broadcast an isolated, off-grid network. Peers can join this darknet to perform WebRTC handshakes anywhere on Earth.
+                </p>
+                <div className="flex gap-2 mt-3">
+                   <button 
+                      onClick={() => { console.log("cmd connectivity start-tethering wifi"); setApActive(true); }} 
+                      className="flex-1 bg-emerald-900/60 border border-emerald-500/50 text-emerald-400 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-emerald-500 hover:text-black transition-all shadow-inner active:scale-95">
+                      START DARKNET A.P.
+                   </button>
+                   <button 
+                      onClick={() => { console.log("cmd connectivity stop-tethering wifi"); setApActive(false); }} 
+                      className="flex-1 bg-zinc-900 border border-zinc-700 text-zinc-400 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-zinc-800 transition-all active:scale-95">
+                      KILL A.P.
+                   </button>
+                </div>
+            </div>
+
+            <div className="border border-indigo-900/50 bg-indigo-950/20 rounded-2xl p-4 shadow-lg shrink-0">
+                <h3 className="text-xs font-black text-indigo-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                   <span>📷</span> Optical Sync (QR)
+                </h3>
+                <p className="text-[11px] text-indigo-200/70 mb-3 leading-relaxed font-sans">
+                   Paste your generated handshake code below to instantly convert it into a QR payload for optical transfer.
+                </p>
+                <textarea 
+                    value={qrSyncData} 
+                    onChange={(e) => setQrSyncData(e.target.value)}
+                    placeholder="Paste bulky handshake here..."
+                    className="w-full h-16 bg-zinc-950 border border-zinc-800 rounded-lg p-2 text-[10px] text-zinc-400 font-mono focus:outline-none focus:border-indigo-500/50 mb-3"
+                />
+                {qrSyncData && (
+                    <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-inner mx-auto w-fit mt-2">
+                        <QRCodeSVG value={qrSyncData} size={180} level="L" includeMargin={true} />
+                        <span className="text-[9px] text-zinc-500 font-black tracking-widest mt-2 uppercase">Scan to Copy</span>
+                    </div>
+                )}
+            </div>
+        </div>
+    
+
 
         </div>
       ) : (
