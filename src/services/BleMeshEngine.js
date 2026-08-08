@@ -1,10 +1,13 @@
 import { BleClient } from '@capacitor-community/bluetooth-le';
+import { registerPlugin } from '@capacitor/core';
 
-// Sovereign Hybrid Mesh: Layer 1 (BLE Scout)
+// Bridge to our custom native Java GATT Server
+const SovereignGatt = registerPlugin('SovereignGatt');
+
 class BleMeshService {
     constructor() {
         this.isActive = false;
-        this.SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb'; // Custom Sovereign Channel
+        this.SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
     }
 
     async deployScout(logCallback) {
@@ -13,39 +16,62 @@ class BleMeshService {
             this.isActive = true;
             logCallback("BLE SCOUT DEPLOYED. RADIO INITIALIZED.");
 
-            // 1. Start Advertising (I am here)
-            // Note: Full peripheral mode requires native Java/Kotlin bridging in Capacitor,
-            // but we prep the logic gate here for the Gossip payload.
-            logCallback("TRANSMITTING ENCRYPTED SWARM BEACON...");
+            // 1. Ignite the Native Java GATT Server (We are now broadcasting!)
+            try {
+                await SovereignGatt.startServer();
+                logCallback("GATT SERVER ONLINE. BROADCASTING BEACON.");
+                
+                // Listen for incoming native payloads
+                SovereignGatt.addListener('onSwarmPayload', (event) => {
+                    logCallback("INCOMING BLE PAYLOAD DETECTED!");
+                    this.processIncomingGossip(event.data, logCallback);
+                });
+            } catch (nativeErr) {
+                logCallback("GATT SERVER FAILED: Hardware restricted or permission denied.");
+            }
 
-            // 2. Start Scanning (Who is out there?)
+            // 2. Start Scanning (We are also listening!)
             await BleClient.requestLEScan(
                 { services: [this.SERVICE_UUID] },
                 (result) => {
                     logCallback(`PEER DETECTED: [${result.device.deviceId}]`);
-                    this.executeBlindSwap(result.device.deviceId, logCallback);
+                    // In a full implementation, we would connect and write our payload here
                 }
             );
             
-            logCallback("BACKGROUND SCANNER ACTIVE. WAITING FOR PEERS.");
+            logCallback("HYBRID SCOUT ACTIVE. WAITING FOR PEERS.");
         } catch (error) {
             logCallback("CRITICAL: BLE RADIO FAILURE. " + error.message);
             this.isActive = false;
         }
     }
 
-    async executeBlindSwap(deviceId, logCallback) {
-        logCallback(`INITIATING GOSSIP PROTOCOL WITH ${deviceId}...`);
-        // Future logic: Connect, read characteristic (encrypted ledger), overwrite local if newer, disconnect.
-        setTimeout(() => {
-            logCallback(`SWARM BLOCKS SYNCED WITH ${deviceId}.`);
-        }, 1500);
+    processIncomingGossip(payloadString, logCallback) {
+        try {
+            const payload = JSON.parse(payloadString);
+            if (payload.type === 'SWARM_SYNC') {
+                let updated = 0;
+                Object.keys(payload.data).forEach(key => {
+                    const localData = localStorage.getItem(key);
+                    const incomingData = payload.data[key];
+                    if (!localData || incomingData.length > localData.length) {
+                        localStorage.setItem(key, incomingData);
+                        updated++;
+                    }
+                });
+                logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
+            }
+        } catch (e) {
+            logCallback("IGNORED MALFORMED BLUETOOTH PACKET.");
+        }
     }
 
     async killScout(logCallback) {
         if (!this.isActive) return;
         try {
             await BleClient.stopLEScan();
+            await SovereignGatt.stopServer().catch(()=>console.log("No GATT to stop"));
+            SovereignGatt.removeAllListeners();
             this.isActive = false;
             logCallback("BLE SCOUT TERMINATED. RADIO DARK.");
         } catch (error) {
