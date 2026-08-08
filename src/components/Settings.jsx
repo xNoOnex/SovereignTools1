@@ -17,6 +17,17 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] p-6 animate-fadeIn overflow-y-auto">
+
+          {/* Protocol Manual Button */}
+          <div className="mb-6">
+              <button 
+                  onClick={() => onNavigate('mesh_protocol')} 
+                  className="w-full bg-emerald-950/20 border border-emerald-900/50 text-emerald-400 py-4 rounded-2xl flex items-center justify-center gap-3 font-black tracking-widest hover:bg-emerald-900/40 transition-all active:scale-95 shadow-lg">
+                  <span>📖</span> MESH NETWORK PROTOCOL
+              </button>
+          </div>
+        
+
       
       <div className="flex justify-between items-center mb-8 border-b border-zinc-800 pb-4">
         <h2 className="text-xl font-bold text-white uppercase tracking-widest flex items-center gap-2">
