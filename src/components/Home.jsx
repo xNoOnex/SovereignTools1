@@ -35,6 +35,7 @@ export function Home({ onNavigate }) {
 
   const allTools = [
     { id: 'worldclock', icon: '⏱️', label: 'Chronos Hub', desc: 'Stopwatch, Timer, Alarms', isExpert: false },
+    { id: 'swarm_comms', icon: '🐝', label: 'Swarm Comms', desc: 'Encrypted Gossip Relay', isExpert: false },
     { id: 'calendar', icon: '📅', label: 'Calendar Grid', desc: 'Offline Scheduling', isExpert: false },
     { id: 'recorder', icon: '🎙️', label: 'Stealth Recorder', desc: 'Voice Capture Archive', isExpert: false },
     { id: 'netsec', icon: '⚡', label: 'NetSec & SysOps', isExpert: true, desc: 'Network scanners & diagnostics', isExpert: true },
