@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 
 export function StealthCalc({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('STANDARD');
+  const [payMultiplier, setPayMultiplier] = useState(1);
 
   // Standard & Scientific State
   const [display, setDisplay] = useState('0');
