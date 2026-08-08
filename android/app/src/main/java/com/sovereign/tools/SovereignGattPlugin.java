@@ -81,10 +81,7 @@ public class SovereignGattPlugin extends Plugin {
                 return;
             }
             
-            if (!adapter.isMultipleAdvertisementSupported()) {
-                call.reject("HARDWARE RESTRICTED: Device chipset physically blocks Peripheral Mode (Broadcasting).");
-                return;
-            }
+            // Bypassed strict multiple-advertisement check. Forcing single beacon broadcast.
 
             advertiser = adapter.getBluetoothLeAdvertiser();
             if (advertiser == null) {
