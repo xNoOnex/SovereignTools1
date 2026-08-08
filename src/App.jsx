@@ -1,3 +1,4 @@
+import { SwarmComms } from './components/SwarmComms';
 import { Capacitor } from '@capacitor/core';
 import { MeshProtocol } from './components/MeshProtocol';
 import { Filesystem } from '@capacitor/filesystem';
@@ -147,7 +148,12 @@ function AppContent() {
       {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
       
       {currentScreen === 'mesh_protocol' && (
-        <MeshProtocol closeScreen={() => setCurrentScreen('home')} />
+        <MeshProtocol closeScreen={() => setCurrentScreen('home')}
+
+      {currentScreen === 'swarm_comms' && (
+        <SwarmComms onNavigate={setCurrentScreen} />
+      )}
+             />
       )}
         {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
       {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
