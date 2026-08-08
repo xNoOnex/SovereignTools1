@@ -47,25 +47,22 @@ public class SovereignGattPlugin extends Plugin {
 
     @PluginMethod
     public void startServer(PluginCall call) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (getPermissionState("advertise") != PermissionState.GRANTED || getPermissionState("connect") != PermissionState.GRANTED) {
-            requestAllPermissions(call, "permissionCallback");
-            return;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (getPermissionState("advertise") != PermissionState.GRANTED || getPermissionState("connect") != PermissionState.GRANTED) {
+                requestAllPermissions(call, "permissionCallback");
+                return;
+            }
         }
+        executeStartServer(call);
     }
-    executeStartServer(call);
-}
 
     @PermissionCallback
     private void permissionCallback(PluginCall call) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (getPermissionState("advertise") == PermissionState.GRANTED && getPermissionState("connect") == PermissionState.GRANTED) {
-            executeStartServer(call);
-        } else {
-            call.reject("OS DENIED: BLUETOOTH_ADVERTISE or BLUETOOTH_CONNECT permission missing.");
-        }
-    } else {
-                call.reject("OS DENIED: BLUETOOTH_ADVERTISE runtime permission missing.");
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (getPermissionState("advertise") == PermissionState.GRANTED && getPermissionState("connect") == PermissionState.GRANTED) {
+                executeStartServer(call);
+            } else {
+                call.reject("OS DENIED: BLUETOOTH_ADVERTISE or BLUETOOTH_CONNECT permission missing.");
             }
         } else {
             executeStartServer(call);
@@ -83,13 +80,14 @@ public class SovereignGattPlugin extends Plugin {
                 return;
             }
             
-            // Bypassed strict multiple-advertisement check. Forcing single beacon broadcast.
-
             if (!adapter.isEnabled()) {
-            call.reject("HARDWARE RESTRICTED: Bluetooth is currently turned off.");
-            return;
-        }
-        advertiser = adapter.getBluetoothLeAdvertiser();
+                call.reject("HARDWARE RESTRICTED: Bluetooth is currently turned off.");
+                return;
+            }
+            
+            // Bypassed strict multiple-advertisement check. Forcing single beacon broadcast for Samsung compatibility.
+
+            advertiser = adapter.getBluetoothLeAdvertiser();
             if (advertiser == null) {
                  call.reject("HARDWARE RESTRICTED: Bluetooth LE Advertiser module is null.");
                  return;
