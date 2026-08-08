@@ -1,4 +1,5 @@
-import { BleScout } from './services/BleMeshEngine';
+import { BleScout } from '../services/BleMeshEngine';
+
 import { QRCodeSVG } from 'qrcode.react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useComms } from '../context/CommsContext';
