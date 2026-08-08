@@ -1,5 +1,6 @@
 package com.sovereign.tools;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -14,17 +15,27 @@ import android.bluetooth.le.AdvertiseData;
 import android.bluetooth.le.AdvertiseSettings;
 import android.bluetooth.le.BluetoothLeAdvertiser;
 import android.content.Context;
+import android.os.Build;
 import android.os.ParcelUuid;
 
 import com.getcapacitor.JSObject;
+import com.getcapacitor.PermissionState;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.annotation.Permission;
+import com.getcapacitor.annotation.PermissionCallback;
 
 import java.util.UUID;
 
-@CapacitorPlugin(name = "SovereignGatt")
+@CapacitorPlugin(
+    name = "SovereignGatt",
+    permissions = {
+        @Permission(strings = {Manifest.permission.BLUETOOTH_ADVERTISE}, alias = "advertise"),
+        @Permission(strings = {Manifest.permission.BLUETOOTH_CONNECT}, alias = "connect")
+    }
+)
 public class SovereignGattPlugin extends Plugin {
 
     private BluetoothManager bluetoothManager;
@@ -34,45 +45,85 @@ public class SovereignGattPlugin extends Plugin {
     private static final UUID SERVICE_UUID = UUID.fromString("0000ffe0-0000-1000-8000-00805f9b34fb");
     private static final UUID CHAR_UUID = UUID.fromString("0000ffe1-0000-1000-8000-00805f9b34fb");
 
-    @SuppressLint("MissingPermission")
     @PluginMethod
     public void startServer(PluginCall call) {
-        bluetoothManager = (BluetoothManager) getContext().getSystemService(Context.BLUETOOTH_SERVICE);
-        BluetoothAdapter adapter = bluetoothManager.getAdapter();
-
-        if (adapter == null || !adapter.isMultipleAdvertisementSupported()) {
-            call.reject("Hardware does not support BLE broadcasting.");
-            return;
+        // Force the OS to grant us broadcasting rights on modern Android
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (getPermissionState("advertise") != PermissionState.GRANTED) {
+                requestAllPermissions(call, "permissionCallback");
+                return;
+            }
         }
+        executeStartServer(call);
+    }
 
-        advertiser = adapter.getBluetoothLeAdvertiser();
-        gattServer = bluetoothManager.openGattServer(getContext(), gattServerCallback);
+    @PermissionCallback
+    private void permissionCallback(PluginCall call) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (getPermissionState("advertise") == PermissionState.GRANTED) {
+                executeStartServer(call);
+            } else {
+                call.reject("OS DENIED: BLUETOOTH_ADVERTISE runtime permission missing.");
+            }
+        } else {
+            executeStartServer(call);
+        }
+    }
 
-        // Setup the Swarm Characteristic (Writeable by peers)
-        BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
-                CHAR_UUID,
-                BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_READ,
-                BluetoothGattCharacteristic.PERMISSION_WRITE | BluetoothGattCharacteristic.PERMISSION_READ
-        );
-        
-        BluetoothGattService service = new BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
-        service.addCharacteristic(characteristic);
-        gattServer.addService(service);
+    @SuppressLint("MissingPermission")
+    private void executeStartServer(PluginCall call) {
+        try {
+            bluetoothManager = (BluetoothManager) getContext().getSystemService(Context.BLUETOOTH_SERVICE);
+            BluetoothAdapter adapter = bluetoothManager.getAdapter();
 
-        // Start Advertising the Beacon
-        AdvertiseSettings settings = new AdvertiseSettings.Builder()
-                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-                .setConnectable(true)
-                .build();
+            if (adapter == null) {
+                call.reject("HARDWARE FATAL: No Bluetooth adapter found on motherboard.");
+                return;
+            }
+            
+            if (!adapter.isMultipleAdvertisementSupported()) {
+                call.reject("HARDWARE RESTRICTED: Device chipset physically blocks Peripheral Mode (Broadcasting).");
+                return;
+            }
 
-        AdvertiseData data = new AdvertiseData.Builder()
-                .setIncludeDeviceName(false)
-                .addServiceUuid(new ParcelUuid(SERVICE_UUID))
-                .build();
+            advertiser = adapter.getBluetoothLeAdvertiser();
+            if (advertiser == null) {
+                 call.reject("HARDWARE RESTRICTED: Bluetooth LE Advertiser module is null.");
+                 return;
+            }
 
-        advertiser.startAdvertising(settings, data, advertiseCallback);
-        
-        call.resolve();
+            gattServer = bluetoothManager.openGattServer(getContext(), gattServerCallback);
+            if (gattServer == null) {
+                 call.reject("OS RESTRICTED: Kernel failed to open GATT Server.");
+                 return;
+            }
+
+            BluetoothGattCharacteristic characteristic = new BluetoothGattCharacteristic(
+                    CHAR_UUID,
+                    BluetoothGattCharacteristic.PROPERTY_WRITE | BluetoothGattCharacteristic.PROPERTY_READ,
+                    BluetoothGattCharacteristic.PERMISSION_WRITE | BluetoothGattCharacteristic.PERMISSION_READ
+            );
+            
+            BluetoothGattService service = new BluetoothGattService(SERVICE_UUID, BluetoothGattService.SERVICE_TYPE_PRIMARY);
+            service.addCharacteristic(characteristic);
+            gattServer.addService(service);
+
+            AdvertiseSettings settings = new AdvertiseSettings.Builder()
+                    .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+                    .setConnectable(true)
+                    .build();
+
+            AdvertiseData data = new AdvertiseData.Builder()
+                    .setIncludeDeviceName(false)
+                    .addServiceUuid(new ParcelUuid(SERVICE_UUID))
+                    .build();
+
+            advertiser.startAdvertising(settings, data, advertiseCallback);
+            call.resolve();
+
+        } catch (Exception e) {
+            call.reject("SYSTEM CRASH: " + e.getMessage());
+        }
     }
 
     @SuppressLint("MissingPermission")
@@ -100,8 +151,6 @@ public class SovereignGattPlugin extends Plugin {
             
             if (CHAR_UUID.equals(characteristic.getUuid())) {
                 String payload = new String(value);
-                
-                // Blast the received payload up to the JavaScript layer!
                 JSObject ret = new JSObject();
                 ret.put("data", payload);
                 notifyListeners("onSwarmPayload", ret);

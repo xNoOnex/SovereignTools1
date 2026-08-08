@@ -26,9 +26,7 @@ class BleMeshService {
                     logCallback("INCOMING BLE PAYLOAD DETECTED!");
                     this.processIncomingGossip(event.data, logCallback);
                 });
-            } catch (nativeErr) {
-                logCallback("GATT SERVER FAILED: Hardware restricted or permission denied.");
-            }
+            } catch (nativeErr) { logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure.")); }
 
             // 2. Start Scanning (We are also listening!)
             await BleClient.requestLEScan(
