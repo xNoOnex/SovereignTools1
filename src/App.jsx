@@ -150,11 +150,13 @@ function AppContent() {
       {currentScreen === 'mesh_protocol' && (
         <MeshProtocol closeScreen={() => setCurrentScreen('home')}
 
+             />
+      )}
+
       {currentScreen === 'swarm_comms' && (
         <SwarmComms onNavigate={setCurrentScreen} />
       )}
-             />
-      )}
+        
         {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
       {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
       {currentScreen === 'comms' && <Comms onNavigate={navigateTo} />}
