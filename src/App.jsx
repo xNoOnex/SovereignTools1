@@ -1,4 +1,5 @@
 import { Capacitor } from '@capacitor/core';
+import { MeshProtocol } from './components/MeshProtocol';
 import { Filesystem } from '@capacitor/filesystem';
 import { SovereignRecorder } from "./components/SovereignRecorder";
 import { WorldClock } from "./components/WorldClock";
@@ -144,7 +145,11 @@ function AppContent() {
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
       {currentScreen === 'worldclock' && <WorldClock onNavigate={navigateTo} />}
       {currentScreen === 'ai' && <SmartAI onNavigate={navigateTo} />}
-      {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
+      
+      {currentScreen === 'mesh_protocol' && (
+        <MeshProtocol closeScreen={() => setCurrentScreen('home')} />
+      )}
+        {currentScreen === 'support' && <Support onNavigate={navigateTo} />}
       {currentScreen === 'debloat' && <Debloat onNavigate={navigateTo} />}
       {currentScreen === 'comms' && <Comms onNavigate={navigateTo} />}
       {currentScreen === 'aes' && <AESCipher onNavigate={navigateTo} />}
