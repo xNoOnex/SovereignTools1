@@ -162,6 +162,48 @@ export function SovereignCamera({ onNavigate }) {
     };
   }, [mode, qrResult, stream]);
 
+  
+  // --- Sovereign Headless QR Engine ---
+  React.useEffect(() => {
+      let scanLoop;
+      const runScan = () => {
+          const video = document.querySelector('video');
+          if (!video) { scanLoop = requestAnimationFrame(runScan); return; }
+          
+          let canvas = document.getElementById('sovereign-qr-canvas');
+          if (!canvas) {
+              canvas = document.createElement('canvas');
+              canvas.id = 'sovereign-qr-canvas';
+              canvas.style.display = 'none';
+              document.body.appendChild(canvas);
+          }
+
+          if (video.readyState >= 2) {
+              canvas.width = video.videoWidth;
+              canvas.height = video.videoHeight;
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
+              ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+              
+              try {
+                  const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                  const qr = jsQR(imageData.data, imageData.width, imageData.height);
+                  
+                  if (qr && qr.data && qr.data.length > 20) {
+                      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
+                      navigator.clipboard.writeText(qr.data).catch(()=>{});
+                      alert("🟢 MESH PAYLOAD ACQUIRED\n\nHandshake securely copied to clipboard. Exit camera and paste into Comm Link.");
+                      setTimeout(() => { scanLoop = requestAnimationFrame(runScan); }, 5000);
+                      return;
+                  }
+              } catch (err) {}
+          }
+          scanLoop = requestAnimationFrame(runScan);
+      };
+      scanLoop = requestAnimationFrame(runScan);
+      return () => cancelAnimationFrame(scanLoop);
+  }, []);
+  // ------------------------------------
+        
   return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col font-sans select-none">
       

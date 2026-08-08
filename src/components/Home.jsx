@@ -5,6 +5,7 @@ const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function Home({ onNavigate }) {
   const [shizukuState, setShizukuState] = useState('CHECKING');
+  const [meshOptIn, setMeshOptIn] = useState(localStorage.getItem('sovereign_mesh_node') === 'true');
   const [currentMode, setCurrentMode] = useState('EXPERT');
 
   useEffect(() => {
@@ -55,6 +56,39 @@ export function Home({ onNavigate }) {
 
   return (
     <div className="p-4 pt-6 space-y-6 max-w-2xl mx-auto select-none animate-fadeIn pb-32">
+
+        {/* Sovereign Mesh Permanent Opt-In */}
+        {!meshOptIn ? (
+            <div className="mb-6 border-l-4 border-orange-500 bg-orange-950/20 p-4 rounded-r-xl shadow-lg shrink-0 mt-2 mx-4">
+                <h3 className="text-[11px] font-black text-orange-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+                    ⚠️ Sovereign Mesh Participation
+                </h3>
+                <p className="text-[10px] text-orange-200/70 mb-3 leading-relaxed font-sans">
+                    By opting in, you authorize this device to permanently participate in the localized darknet. This allows you to host or join encrypted WebRTC tunnels without external infrastructure.
+                    <br/><br/><strong className="text-orange-400">WARNING:</strong> This is a one-way, permanent execution.
+                </p>
+                <button 
+                    onClick={() => { localStorage.setItem('sovereign_mesh_node', 'true'); setMeshOptIn(true); }} 
+                    className="w-full bg-orange-900/60 border border-orange-500/50 text-orange-400 py-3 rounded-xl text-[10px] font-black tracking-widest hover:bg-orange-500 hover:text-black transition-all active:scale-95 shadow-inner">
+                    UNDERSTOOD: PERMANENTLY OPT-IN
+                </button>
+            </div>
+        ) : (
+            <div className="mb-6 mx-4 mt-2 flex items-center justify-between border border-emerald-900/50 bg-emerald-950/20 p-3 rounded-xl shadow-inner shrink-0">
+                <div className="flex items-center gap-3">
+                    <span className="relative flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    </span>
+                    <div>
+                        <h3 className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Sovereign Node Active</h3>
+                        <p className="text-[9px] text-emerald-200/60 uppercase font-sans">Permanent Mesh Opt-In Confirmed</p>
+                    </div>
+                </div>
+                <span className="text-[9px] text-emerald-900 font-black px-2 py-1 bg-emerald-400 rounded">LOCKED</span>
+            </div>
+        )}
+
       {currentMode !== 'BASIC' && (
         <div className={`p-4 rounded-3xl flex justify-between items-center shadow-xl mb-6 border ${shizukuState === 'CONNECTED' ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-red-950/30 border-red-900/50'}`}>
           <div>
