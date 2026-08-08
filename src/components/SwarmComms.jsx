@@ -7,9 +7,14 @@ export function SwarmComms({ onNavigate }) {
     const [activeSwarm, setActiveSwarm] = useState(null);
     const [draftMessage, setDraftMessage] = useState('');
     const [errorMsg, setErrorMsg] = useState('');
+    
+    // Demolition States
+    const [showDestruct, setShowDestruct] = useState(false);
+    const [destructPin, setDestructPin] = useState('');
+    const MASTER_PIN = '9999'; 
+    
     const chatEndRef = useRef(null);
 
-    // Auto-scroll to bottom of chat
     useEffect(() => {
         if (activeSwarm) {
             chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -17,6 +22,10 @@ export function SwarmComms({ onNavigate }) {
     }, [activeSwarm?.messages]);
 
     const handleUnlock = () => {
+        // Reset destruct states on new attempt
+        setShowDestruct(false);
+        setDestructPin('');
+        
         if (!swarmId.trim() || !passphrase) {
             setErrorMsg("SWARM ID AND PASSPHRASE REQUIRED.");
             return;
@@ -27,7 +36,6 @@ export function SwarmComms({ onNavigate }) {
 
         if (existingLedger) {
             try {
-                // Attempt AES-256 Decryption
                 const bytes = CryptoJS.AES.decrypt(existingLedger, passphrase);
                 const decryptedData = bytes.toString(CryptoJS.enc.Utf8);
 
@@ -40,12 +48,26 @@ export function SwarmComms({ onNavigate }) {
                 setErrorMsg("ACCESS DENIED: INCORRECT PASSPHRASE OR CORRUPT LEDGER.");
             }
         } else {
-            // Forge new encrypted ledger
             const initialData = JSON.stringify([]);
             const encrypted = CryptoJS.AES.encrypt(initialData, passphrase).toString();
             localStorage.setItem(storageKey, encrypted);
             setActiveSwarm({ id: swarmId.trim(), key: passphrase, messages: [] });
             setErrorMsg("");
+        }
+    };
+
+    const executeDestruct = () => {
+        if (destructPin === MASTER_PIN) {
+            localStorage.removeItem(`swarm_ledger_${swarmId.trim().toLowerCase()}`);
+            setErrorMsg('');
+            setPassphrase('');
+            setSwarmId('');
+            setShowDestruct(false);
+            setDestructPin('');
+        } else {
+            setErrorMsg("CRITICAL ERROR: INVALID DESTRUCTION PIN.");
+            setShowDestruct(false);
+            setDestructPin('');
         }
     };
 
@@ -56,19 +78,14 @@ export function SwarmComms({ onNavigate }) {
             id: Date.now().toString() + Math.random().toString(36).substring(7),
             text: draftMessage.trim(),
             timestamp: new Date().toISOString(),
-            sender: 'LOCAL_NODE' // Will be important for Phase 3 sync
+            sender: 'LOCAL_NODE'
         };
 
         const updatedMessages = [...activeSwarm.messages, newMessage];
-
-        // Re-encrypt the entire updated ledger
         const storageKey = `swarm_ledger_${activeSwarm.id.toLowerCase()}`;
         const encrypted = CryptoJS.AES.encrypt(JSON.stringify(updatedMessages), activeSwarm.key).toString();
         
-        // Bury it in local storage
         localStorage.setItem(storageKey, encrypted);
-        
-        // Update UI
         setActiveSwarm({ ...activeSwarm, messages: updatedMessages });
         setDraftMessage('');
     };
@@ -78,6 +95,7 @@ export function SwarmComms({ onNavigate }) {
         setSwarmId('');
         setPassphrase('');
         setErrorMsg('');
+        setShowDestruct(false);
     };
 
     return (
@@ -121,8 +139,33 @@ export function SwarmComms({ onNavigate }) {
                             </p>
                             
                             {errorMsg && (
-                                <div className="bg-red-950/50 border border-red-900 text-red-400 p-3 rounded-lg text-[10px] font-black tracking-widest uppercase mb-4">
-                                    ⚠️ {errorMsg}
+                                <div className="bg-red-950/50 border border-red-900 text-red-400 p-3 rounded-lg text-[10px] font-black tracking-widest uppercase mb-4 flex flex-col gap-2">
+                                    <span>⚠️ {errorMsg}</span>
+                                    
+                                    {!showDestruct ? (
+                                        <button 
+                                            onClick={() => setShowDestruct(true)} 
+                                            className="bg-red-900/60 border border-red-500/50 text-red-200 py-2 rounded-lg mt-1 hover:bg-red-500 hover:text-black transition-all active:scale-95"
+                                        >
+                                            INITIATE LEDGER DESTRUCTION
+                                        </button>
+                                    ) : (
+                                        <div className="flex gap-2 mt-1">
+                                            <input 
+                                                type="password" 
+                                                placeholder="ENTER DESTRUCT PIN"
+                                                value={destructPin}
+                                                onChange={(e) => setDestructPin(e.target.value)}
+                                                className="flex-1 bg-red-950 border border-red-500/50 text-red-200 p-2 rounded-lg text-center placeholder-red-900/50 focus:outline-none focus:border-red-500"
+                                            />
+                                            <button 
+                                                onClick={executeDestruct}
+                                                className="w-16 bg-red-600 text-black font-black rounded-lg hover:bg-red-500 active:scale-95 transition-all"
+                                            >
+                                                EXEC
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
