@@ -121,14 +121,17 @@ export function Home({ onNavigate }) {
     </div>
   );
 }
+        
+        
+
         {/* Swarm Comms Module */}
-        <button onClick={() => onNavigate('swarm_comms')} className="bg-zinc-950 border border-zinc-800 p-4 rounded-3xl flex flex-col items-start justify-center hover:border-orange-500/50 transition-all active:scale-95 text-left h-28 relative overflow-hidden group shadow-lg">
+        <div onClick={() => onNavigate('swarm_comms')} className="bg-zinc-950 border border-zinc-800 p-4 rounded-3xl flex flex-col items-start justify-center hover:border-orange-500/50 transition-all active:scale-95 text-left h-28 relative overflow-hidden group shadow-lg cursor-pointer">
             <div className="absolute top-0 right-0 p-3 opacity-20 group-hover:opacity-100 transition-opacity">
                 <span className="text-orange-500 text-xs">🐝</span>
             </div>
             <span className="text-2xl mb-2 relative z-10 opacity-80">🐝</span>
             <h3 className="text-[11px] font-black text-zinc-200 tracking-widest uppercase relative z-10">Swarm Comms</h3>
             <p className="text-[9px] text-zinc-500 mt-1 font-sans relative z-10">Encrypted Gossip Relay</p>
-        </button>
-        
+        </div>
+            
 
