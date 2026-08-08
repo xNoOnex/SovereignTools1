@@ -11,7 +11,7 @@ export function Comms({ onNavigate }) {
   } = useComms();
   
   const [inputMsg, setInputMsg] = useState('');
-  const [bleActive, setBleActive] = useState(false);
+  const [bleActive, setBleActive] = useState(BleScout.isActive);
   const [syncLogs, setSyncLogs] = useState([]);
   const [meshConnected, setMeshConnected] = useState(false);
   const [qrSyncData, setQrSyncData] = useState('');
