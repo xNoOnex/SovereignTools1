@@ -1,13 +1,14 @@
 import { BleClient } from '@capacitor-community/bluetooth-le';
 import { registerPlugin } from '@capacitor/core';
 
-// Bridge to our custom native Java GATT Server
 const SovereignGatt = registerPlugin('SovereignGatt');
 
 class BleMeshService {
     constructor() {
         this.isActive = false;
         this.SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+        this.CHAR_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
+        this.activeConnections = new Set();
     }
 
     async deployScout(logCallback) {
@@ -16,24 +17,22 @@ class BleMeshService {
             this.isActive = true;
             logCallback("BLE SCOUT DEPLOYED. RADIO INITIALIZED.");
 
-            // 1. Ignite the Native Java GATT Server (We are now broadcasting!)
             try {
                 await SovereignGatt.startServer();
                 logCallback("GATT SERVER ONLINE. BROADCASTING BEACON.");
                 
-                // Listen for incoming native payloads
                 SovereignGatt.addListener('onSwarmPayload', (event) => {
                     logCallback("INCOMING BLE PAYLOAD DETECTED!");
                     this.processIncomingGossip(event.data, logCallback);
                 });
-            } catch (nativeErr) { logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure.")); }
+            } catch (nativeErr) {
+                logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure."));
+            }
 
-            // 2. Start Scanning (We are also listening!)
             await BleClient.requestLEScan(
                 { services: [this.SERVICE_UUID] },
                 (result) => {
-                    logCallback(`PEER DETECTED: [${result.device.deviceId}]`);
-                    // In a full implementation, we would connect and write our payload here
+                    this.executeDataSwap(result.device.deviceId, logCallback);
                 }
             );
             
@@ -42,6 +41,50 @@ class BleMeshService {
             logCallback("CRITICAL: BLE RADIO FAILURE. " + error.message);
             this.isActive = false;
         }
+    }
+
+    async executeDataSwap(deviceId, logCallback) {
+        // Prevent spamming the same device if we are already connected to it
+        if (this.activeConnections.has(deviceId)) return; 
+        this.activeConnections.add(deviceId);
+        
+        logCallback(`TARGET LOCKED: [${deviceId}]. ESTABLISHING UPLINK...`);
+        
+        try {
+            await BleClient.connect(deviceId);
+            
+            // Request max MTU bandwidth (up to 512 bytes on modern Android)
+            try { await BleClient.requestMtu(deviceId, 512); } catch (e) {}
+
+            // Package the local Swarm Ledgers
+            const ledgers = {};
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key.startsWith('swarm_ledger_')) {
+                    ledgers[key] = localStorage.getItem(key);
+                }
+            }
+            const payloadString = JSON.stringify({ type: 'SWARM_SYNC', data: ledgers });
+            
+            // Convert to byte stream
+            const encoder = new TextEncoder();
+            const data = encoder.encode(payloadString);
+            const dataView = new DataView(data.buffer);
+            
+            // Fire the payload directly into the peer's GATT Server
+            await BleClient.write(deviceId, this.SERVICE_UUID, this.CHAR_UUID, dataView);
+            logCallback(`PAYLOAD DELIVERED TO [${deviceId}].`);
+            
+            // Instantly sever connection to save power
+            await BleClient.disconnect(deviceId);
+        } catch (err) {
+            logCallback(`UPLINK FAILED WITH [${deviceId}]: ` + err.message);
+        }
+        
+        // 15-second cooldown before we allow a reconnect to the exact same device
+        setTimeout(() => {
+            this.activeConnections.delete(deviceId);
+        }, 15000);
     }
 
     processIncomingGossip(payloadString, logCallback) {
@@ -57,7 +100,13 @@ class BleMeshService {
                         updated++;
                     }
                 });
-                logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
+                if (updated > 0) {
+                    logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
+                    // Force the UI to refresh if you are currently looking at the chat
+                    window.dispatchEvent(new Event('storage'));
+                } else {
+                    logCallback("INCOMING PAYLOAD IDENTICAL. NO UPDATES.");
+                }
             }
         } catch (e) {
             logCallback("IGNORED MALFORMED BLUETOOTH PACKET.");
