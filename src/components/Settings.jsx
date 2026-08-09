@@ -2,6 +2,9 @@ import React, { useState } from 'react';
 
 export function Settings({ closeSettings, appMode, setAppMode, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
   const [pin, setPin] = useState(localStorage.getItem('sovereign_pin') || '');
+
+  const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
+  const [wipeLimit, setWipeLimit] = useState(localStorage.getItem('sovereign_wipe_limit') || 'None');
   const [saveStatus, setSaveStatus] = useState('');
 
   const handleSavePin = () => {
@@ -13,6 +16,24 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
     localStorage.setItem('sovereign_pin', pin);
     setSaveStatus('Saved!');
     setTimeout(() => setSaveStatus(''), 2000);
+  };
+
+  
+  const handleUpdateDuress = () => {
+      if (duressPin.length >= 4) {
+          localStorage.setItem('sovereign_duress_pin', duressPin);
+          alert("Duress PIN updated. Entering this PIN will incinerate all data.");
+      } else {
+          localStorage.removeItem('sovereign_duress_pin');
+          alert("Duress PIN disabled.");
+      }
+  };
+
+  const handleUpdateWipeLimit = (limit) => {
+      setWipeLimit(limit);
+      localStorage.setItem('sovereign_wipe_limit', limit);
+      // Reset failed attempts when changing limits
+      localStorage.setItem('sovereign_failed_attempts', '0');
   };
 
   return (
@@ -68,6 +89,49 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
             {saveStatus && <span className="absolute -top-8 right-2 text-[10px] font-bold text-emerald-400 uppercase tracking-widest bg-black px-3 py-1 rounded-full border border-emerald-900/50">{saveStatus}</span>}
           </div>
         </div>
+
+            {/* PROTOCOL ZERO: DURESS PIN */}
+            <div className="bg-[#111111] border border-red-900/30 rounded-2xl p-5 mb-6 shadow-lg">
+                <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span>☢️</span> DURESS / WIPE PIN
+                </h3>
+                <p className="text-[11px] text-zinc-400 mb-4 font-sans leading-relaxed">
+                    Entering this code on the lock screen will silently incinerate all local data, drop encryption keys, and reset the app.
+                </p>
+                <div className="flex gap-3">
+                    <input 
+                        type="password" 
+                        value={duressPin}
+                        onChange={(e) => setDuressPin(e.target.value)}
+                        placeholder="Leave blank to disable"
+                        className="flex-1 bg-black border border-red-900/50 rounded-xl px-4 py-3 text-red-500 tracking-[0.3em] font-mono focus:outline-none focus:border-red-500 transition-colors placeholder:tracking-normal placeholder:text-zinc-700"
+                    />
+                    <button 
+                        onClick={handleUpdateDuress}
+                        className="bg-red-950/40 border border-red-900 text-red-500 px-6 py-3 rounded-xl text-xs font-bold tracking-wider hover:bg-red-900 hover:text-white transition-all">
+                        ARM
+                    </button>
+                </div>
+            </div>
+
+            {/* PROTOCOL ZERO: BRUTE FORCE LIMIT */}
+            <div className="bg-[#111111] border border-zinc-800 rounded-2xl p-5 mb-6 shadow-lg">
+                <h3 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest mb-4">
+                    MAX FAILED ATTEMPTS (AUTO-WIPE)
+                </h3>
+                <div className="grid grid-cols-4 gap-2">
+                    {['None', '3', '6', '9'].map(limit => (
+                        <button
+                            key={limit}
+                            onClick={() => handleUpdateWipeLimit(limit)}
+                            className={`py-3 rounded-xl text-xs font-bold transition-all ${wipeLimit === limit ? 'bg-red-900 text-white border border-red-500' : 'bg-black border border-zinc-800 text-zinc-500 hover:border-zinc-600'}`}
+                        >
+                            {limit}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
 
         {/* ACCENT COLOR PROFILE */}
         <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl space-y-4 shadow-xl">
