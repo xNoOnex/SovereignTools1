@@ -4,7 +4,7 @@ import { registerPlugin } from "@capacitor/core";
 // Restore the native Capacitor bridge!
 const ShizukuRunner = registerPlugin('ShizukuRunner');
 
-export default function Home({ onNavigate, navigateTo }) {
+export function Home({ onNavigate, navigateTo }) {
     const [shizukuStatus, setShizukuStatus] = useState("CHECKING");
     const [meshActive, setMeshActive] = useState(localStorage.getItem("sovereign_mesh_node") === "true");
     const [currentMode, setCurrentMode] = useState("EXPERT");
