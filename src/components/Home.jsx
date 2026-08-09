@@ -9,10 +9,17 @@ export function Home({ onNavigate }) {
   const [currentMode, setCurrentMode] = useState('EXPERT');
 
   useEffect(() => {
-    const savedMode = localStorage.getItem('sovereign_mode') || 'EXPERT';
-    setCurrentMode(savedMode);
-    checkEngineStatus();
-  }, []);
+        const syncMode = () => {
+            const savedMode = localStorage.getItem("sovereign_mode") || "EXPERT";
+            setCurrentMode(prev => prev !== savedMode ? savedMode : prev);
+        };
+        syncMode();
+        checkEngineStatus();
+        
+        // Listen for top-bar toggle clicks 4x a second
+        const interval = setInterval(syncMode, 250);
+        return () => clearInterval(interval);
+    }, []);
 
   const checkEngineStatus = async () => {
     try {
