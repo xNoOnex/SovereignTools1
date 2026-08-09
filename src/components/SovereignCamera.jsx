@@ -62,7 +62,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = \`stealth_video_\${Date.now()}.webm\`;
+                a.download = `stealth_video_${Date.now()}.webm`;
                 a.click();
             };
             mediaRecorderRef.current.start();
