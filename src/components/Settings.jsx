@@ -4,6 +4,7 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
   const [pin, setPin] = useState(localStorage.getItem('sovereign_pin') || '');
 
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
+  const [decoyPin, setDecoyPin] = useState(localStorage.getItem('sovereign_decoy_pin') || '');
   const [wipeLimit, setWipeLimit] = useState(localStorage.getItem('sovereign_wipe_limit') || 'None');
   const [saveStatus, setSaveStatus] = useState('');
 
@@ -33,6 +34,21 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
       localStorage.removeItem('sovereign_duress_pin');
       setDuressPin('');
       alert("Duress PIN has been successfully disabled.");
+  };
+
+  const handleUpdateDecoy = () => {
+      if (decoyPin.length >= 4) {
+          localStorage.setItem('sovereign_decoy_pin', decoyPin);
+          alert("DECOY PIN ARMED: Entering this PIN will open the Phantom Vault (Decoy Mode).");
+      } else {
+          alert("PIN must be at least 4 digits.");
+      }
+  };
+
+  const handleDisableDecoy = () => {
+      localStorage.removeItem('sovereign_decoy_pin');
+      setDecoyPin('');
+      alert("Decoy PIN disabled.");
   };
 
   const handleUpdateWipeLimit = (limit) => {
@@ -125,6 +141,33 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
                     <button 
                         onClick={handleDisableDuress}
                         className="bg-zinc-950 border border-zinc-800 text-zinc-500 px-4 py-3 rounded-xl text-[10px] font-bold tracking-wider hover:bg-zinc-800 hover:text-zinc-300 transition-all">
+                        DISABLE
+                    </button>
+                </div>
+            </div>
+
+            
+            {/* PHANTOM VAULT: DECOY PIN */}
+            <div className="bg-[#050510] border border-blue-900/60 rounded-2xl p-5 mb-6 shadow-lg">
+                <h3 className="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-2"><span>👻</span> PHANTOM VAULT (DECOY PIN)</span>
+                    {localStorage.getItem('sovereign_decoy_pin') ? <span className="text-[9px] bg-blue-900/50 text-blue-200 px-2 py-1 rounded border border-blue-700">ARMED</span> : <span className="text-[9px] bg-zinc-900 text-zinc-500 px-2 py-1 rounded border border-zinc-700">DISABLED</span>}
+                </h3>
+                <p className="text-[10px] text-blue-200/60 mb-4 font-sans leading-relaxed">
+                    Entering this PIN silently boots the app into Decoy Mode. Sensitive modules will be hidden or populated with fake, benign data to establish plausible deniability.
+                </p>
+                <div className="flex gap-2">
+                    <input 
+                        type="password" 
+                        value={decoyPin}
+                        onChange={(e) => setDecoyPin(e.target.value)}
+                        placeholder="Enter 4+ digit PIN"
+                        className="flex-1 bg-black border border-blue-900/50 rounded-xl px-4 py-3 text-blue-400 tracking-[0.3em] font-mono focus:outline-none focus:border-blue-500 transition-colors placeholder:tracking-normal placeholder:text-blue-900/50 placeholder:text-xs"
+                    />
+                    <button onClick={handleUpdateDecoy} className="bg-blue-900/30 border border-blue-800 text-blue-400 px-4 py-3 rounded-xl text-[10px] font-bold tracking-wider hover:bg-blue-900 hover:text-white transition-all">
+                        UPDATE
+                    </button>
+                    <button onClick={handleDisableDecoy} className="bg-zinc-950 border border-zinc-800 text-zinc-500 px-4 py-3 rounded-xl text-[10px] font-bold tracking-wider hover:bg-zinc-800 transition-all">
                         DISABLE
                     </button>
                 </div>

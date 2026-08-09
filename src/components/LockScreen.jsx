@@ -28,9 +28,19 @@ const handleKeyPress = (num) => {
                 executeProtocolZero();
                 return;
             }
+            
+            const decoyPin = localStorage.getItem('sovereign_decoy_pin');
+            if (decoyPin && newPin === decoyPin) {
+                // DECOY SUCCESS: Silently flag session as DECOY
+                localStorage.setItem('sovereign_session_mode', 'DECOY');
+                localStorage.setItem('sovereign_failed_attempts', '0');
+                onUnlock();
+                return;
+            }
 
             if (newPin === savedPin) {
-                // SUCCESS: Reset the brute-force counter and unlock
+                // ADMIN SUCCESS: Flag session as ADMIN
+                localStorage.setItem('sovereign_session_mode', 'ADMIN');
                 localStorage.setItem('sovereign_failed_attempts', '0');
                 onUnlock();
             } else {
