@@ -1,13 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { registerPlugin } from "@capacitor/core";
 
-// Restore the native Capacitor bridge!
 const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function Home({ onNavigate, navigateTo }) {
     const [shizukuStatus, setShizukuStatus] = useState("CHECKING");
     const [meshActive, setMeshActive] = useState(localStorage.getItem("sovereign_mesh_node") === "true");
     const [currentMode, setCurrentMode] = useState("EXPERT");
+
+    // DEFINED BEFORE USE-EFFECT TO PREVENT FATAL REACT CRASH
+    const checkEngineStatus = async () => {
+        try {
+            const res = await ShizukuRunner.checkStatus();
+            setShizukuStatus(res.granted ? "CONNECTED" : "OFFLINE");
+        } catch (e) {
+            setShizukuStatus("OFFLINE");
+        }
+    };
 
     useEffect(() => {
         const syncMode = () => {
@@ -17,19 +26,9 @@ export function Home({ onNavigate, navigateTo }) {
         syncMode();
         checkEngineStatus();
 
-        // Listen for top-bar toggle clicks 4x a second
         const interval = setInterval(syncMode, 250);
         return () => clearInterval(interval);
     }, []);
-
-    const checkEngineStatus = async () => {
-        try {
-            const res = await ShizukuRunner.checkStatus();
-            setShizukuStatus(res.granted ? "CONNECTED" : "OFFLINE");
-        } catch (e) {
-            setShizukuStatus("OFFLINE");
-        }
-    };
 
     const forceConnect = async () => {
         try {
@@ -40,29 +39,30 @@ export function Home({ onNavigate, navigateTo }) {
         }
     };
 
+    // YOUR EXACT ORIGINAL ROUTING IDs PRESERVED
     const allTools = [
-        { id: "chronos", icon: "⏱️", label: "Chronos Hub", desc: "Stopwatch, Timer, Alarms", isExpert: false },
-        { id: "comm", icon: "🐝", label: "Swarm Comms", desc: "Encrypted Gossip Relay", isExpert: false },
+        { id: "worldclock", icon: "⏱️", label: "Chronos Hub", desc: "Stopwatch, Timer, Alarms", isExpert: false },
+        { id: "swarm_comms", icon: "🐝", label: "Swarm Comms", desc: "Encrypted Gossip Relay", isExpert: false },
         { id: "calendar", icon: "📅", label: "Calendar Grid", desc: "Offline Scheduling", isExpert: false },
         { id: "recorder", icon: "🎙️", label: "Stealth Recorder", desc: "Voice Capture Archive", isExpert: false },
         { id: "netsec", icon: "⚡", label: "NetSec & SysOps [WIP]", desc: "Network scanners & diagnostics", isExpert: true },
-        { id: "eradication", icon: "☣️", label: "Target Eradication", desc: "Remove bloatware & hidden apps", isExpert: true },
-        { id: "shredder", icon: "☢️", label: "Data Shredder", desc: "Permanently erase sensitive files", isExpert: true },
-        { id: "explorer", icon: "📁", label: "Universal Explorer", desc: "Raw Filesystem Navigator", isExpert: true },
-        { id: "gallery", icon: "🖼️", label: "Secure Gallery", desc: "Encrypted Media Viewer", isExpert: false },
+        { id: "debloat", icon: "☣️", label: "Target Eradication", desc: "Remove bloatware & hidden apps", isExpert: true },
+        { id: "shred", icon: "☢️", label: "Data Shredder", desc: "Permanently erase sensitive files", isExpert: true },
+        { id: "explorer", icon: "📁", label: "Universal Explorer", desc: "Raw filesystem Navigator", isExpert: true },
         { id: "audio", icon: "🎵", label: "Sovereign Audio", desc: "Local Background Player", isExpert: false },
-        { id: "vault", icon: "🔐", label: "Secure Vault", desc: "Encrypted Notes Storage", isExpert: false },
+        { id: "gallery", icon: "🖼️", label: "Secure Gallery", desc: "Encrypted Media Viewer", isExpert: false },
+        { id: "comms", icon: "🛡️", label: "Goon Link", desc: "Secure offline chat", isExpert: false },
         { id: "cipher", icon: "🔏", label: "SYS Cipher", desc: "Military-Grade Text Crypto", isExpert: false },
         { id: "docs", icon: "📖", label: "Sovereign Docs", desc: "Stealth Codex Engine", isExpert: false },
-        { id: "exec", icon: "🧮", label: "Sovereign Exec", desc: "Local Lockdown Vault", isExpert: false },
+        { id: "vault", icon: "🔐", label: "Secure Vault", desc: "Zero-Knowledge Storage", isExpert: false },
         { id: "ai", icon: "🤖", label: "Sovereign AI", desc: "Local Intelligence Engine", isExpert: false },
-        { id: "info", icon: "👁️", label: "Stealth Safe", desc: "Dummy Interface Masking", isExpert: false },
+        { id: "info", icon: "👁️", label: "Stealth Safe", desc: "Dummy Interface Masking", isExpert: false }
     ];
 
     return (
         <div className="p-6 pb-24 space-y-6 max-w-xl mx-auto select-none animate-fade-in">
             
-            {/* Sovereign Mesh Permanent Opt-in */}
+            {/* Mesh Opt-In Banner */}
             {!meshActive && (
                 <div className="mb-6 border-l-4 border-orange-500 bg-orange-950/40 p-4 rounded-r-xl shadow-lg shrink-0">
                     <h3 className="text-[11px] font-black text-orange-400 uppercase tracking-widest mb-2 flex items-center gap-2">
@@ -96,7 +96,7 @@ export function Home({ onNavigate, navigateTo }) {
                 </div>
             )}
 
-            {/* Shizuku Core Engine Banner */}
+            {/* Shizuku Core Engine Banner - HIDDEN ON BASIC */}
             {currentMode === "EXPERT" && (
                 <div className={`w-full p-4 rounded-2xl flex justify-between items-center shadow-xl mb-6 border ${shizukuStatus === 'CONNECTED' ? 'bg-emerald-950/30 border-emerald-900/50' : 'bg-red-950/30 border-red-900/50'}`}>
                     <div>
@@ -116,7 +116,7 @@ export function Home({ onNavigate, navigateTo }) {
             {/* Application Grid */}
             <div className="grid grid-cols-2 sm:grid-cols-2 gap-4">
                 {allTools.map(tool => {
-                    // This is the correct logic that hides the expert tools in Basic mode!
+                    // ABORT RENDERING EXPERT TOOLS IN BASIC MODE
                     if (currentMode === "BASIC" && tool.isExpert) return null;
                     
                     return (
