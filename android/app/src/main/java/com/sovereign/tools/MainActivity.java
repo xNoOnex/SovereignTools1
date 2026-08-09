@@ -11,11 +11,10 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // DYNAMICALLY RESTORED NATIVE BRIDGES
+        // SMART DYNAMIC NATIVE BRIDGES
         registerPlugin(AlarmIntentBridge.class);
         registerPlugin(GlobalPermissionsBridge.class);
         registerPlugin(MeshNodePlugin.class);
-        registerPlugin(MeshRelayService.class);
         registerPlugin(ShizukuRunner.class);
         registerPlugin(SovereignGattPlugin.class);
         registerPlugin(StorageIntentBridge.class);
@@ -23,7 +22,6 @@ public class MainActivity extends BridgeActivity {
 
         super.onCreate(savedInstanceState);
 
-        // Restore Universal Explorer All Files Access (MANAGE_EXTERNAL_STORAGE)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             if (!Environment.isExternalStorageManager()) {
                 try {
