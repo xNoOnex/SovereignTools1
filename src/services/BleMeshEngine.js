@@ -55,6 +55,7 @@ class BleMeshService {
             
             // Request max MTU bandwidth (up to 512 bytes on modern Android)
             try { await BleClient.requestMtu(deviceId, 512); } catch (e) {}
+            await new Promise(r => setTimeout(r, 600)); // Kernel breathing room
 
             // Package the local Swarm Ledgers
             const ledgers = {};
@@ -92,18 +93,53 @@ class BleMeshService {
             const payload = JSON.parse(payloadString);
             if (payload.type === 'SWARM_SYNC') {
                 let updated = 0;
+                const myNodeId = localStorage.getItem('sovereign_node_id');
+                
                 Object.keys(payload.data).forEach(key => {
                     const localData = localStorage.getItem(key);
                     const incomingData = payload.data[key];
-                    if (!localData || incomingData.length > localData.length) {
-                        localStorage.setItem(key, incomingData);
-                        updated++;
+                    
+                    try {
+                        const localArr = localData ? JSON.parse(localData) : [];
+                        const incArr = JSON.parse(incomingData);
+                        
+                        // SMART ARRAY MERGE (For Chats)
+                        if (Array.isArray(localArr) && Array.isArray(incArr)) {
+                            const normalizedInc = incArr.map(m => {
+                                if (m.device && m.device !== myNodeId) return { ...m, sender: 'peer' };
+                                return m;
+                            });
+                            
+                            const map = new Map();
+                            localArr.forEach(m => { if(m.id) map.set(m.id, m); });
+                            let added = 0;
+                            normalizedInc.forEach(m => {
+                                if (m.id && !map.has(m.id)) { map.set(m.id, m); added++; }
+                            });
+                            
+                            if (added > 0) {
+                                const merged = Array.from(map.values()).sort((a,b) => a.id - b.id);
+                                localStorage.setItem(key, JSON.stringify(merged));
+                                updated++;
+                            }
+                        } else {
+                            // FALLBACK (For text ledgers)
+                            if (!localData || incomingData.length > localData.length) {
+                                localStorage.setItem(key, incomingData);
+                                updated++;
+                            }
+                        }
+                    } catch(e) {
+                        if (!localData || incomingData.length > localData.length) {
+                            localStorage.setItem(key, incomingData);
+                            updated++;
+                        }
                     }
                 });
+                
                 if (updated > 0) {
                     logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
-                    // Force the UI to refresh if you are currently looking at the chat
-                    window.dispatchEvent(new Event('storage'));
+                    window.dispatchEvent(new Event('storage')); // Trigger UI refresh
                 } else {
                     logCallback("INCOMING PAYLOAD IDENTICAL. NO UPDATES.");
                 }

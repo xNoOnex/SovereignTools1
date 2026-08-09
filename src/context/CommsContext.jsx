@@ -38,7 +38,32 @@ export function CommsProvider({ children }) {
   const [localSDP, setLocalSDP] = useState('');
   const [remoteSDP, setRemoteSDP] = useState('');
   const [status, setStatus] = useState('DISCONNECTED');
-  const [messages, setMessages] = useState([]);
+  const myNodeId = React.useMemo(() => {
+        let id = localStorage.getItem('sovereign_node_id');
+        if (!id) { id = Math.random().toString(36).substring(2,10); localStorage.setItem('sovereign_node_id', id); }
+        return id;
+    }, []);
+
+    const [messages, setMessages] = React.useState(() => {
+        const saved = localStorage.getItem('swarm_ledger_mesh');
+        return saved ? JSON.parse(saved) : [];
+    });
+
+    React.useEffect(() => {
+        if (messages.length > 0) {
+            localStorage.setItem('swarm_ledger_mesh', JSON.stringify(messages));
+        }
+    }, [messages]);
+
+    // Instantly refresh UI when BLE Scout updates the ledger in the background
+    React.useEffect(() => {
+        const handleStorage = () => {
+            const saved = localStorage.getItem('swarm_ledger_mesh');
+            if (saved) setMessages(JSON.parse(saved));
+        };
+        window.addEventListener('storage', handleStorage);
+        return () => window.removeEventListener('storage', handleStorage);
+    }, []);
   
   const peerConnection = useRef(null);
   const dataChannel = useRef(null);
@@ -152,10 +177,14 @@ export function CommsProvider({ children }) {
   };
 
   const sendMessage = (msg) => {
-    if (!msg.trim() || status !== 'CONNECTED' || !dataChannel.current) return;
-    dataChannel.current.send(msg);
-    setMessages(prev => [...prev, { sender: 'user', text: msg }]);
-  };
+        if (!msg.trim()) return;
+        const newMsg = { sender: 'me', text: msg, device: myNodeId, id: Date.now() };
+        setMessages(prev => [...prev, newMsg]);
+        
+        if (status === "CONNECTED" && dataChannel.current) {
+            try { dataChannel.current.send(msg); } catch(e) {}
+        }
+    };
 
   const disconnect = () => {
     if (peerConnection.current) {
