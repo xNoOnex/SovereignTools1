@@ -118,7 +118,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
             <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20">
                 <button onClick={() => { const nav = onNavigate || navigateTo; if(nav) nav('home'); }} className="bg-zinc-900/80 border border-zinc-700 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95">✕ Exit</button>
                 <div className="flex gap-2">
-                    <button onClick={toggleTorch} className={\`border text-xs font-bold px-3 py-2 rounded-full backdrop-blur-md \${torch ? 'bg-amber-500 text-black border-amber-400' : 'bg-zinc-900/80 text-zinc-300 border-zinc-700'}\`}>{torch ? '⚡ Flash ON' : '⚡ Flash OFF'}</button>
+                    <button onClick={toggleTorch} className={`border text-xs font-bold px-3 py-2 rounded-full backdrop-blur-md ${torch ? 'bg-amber-500 text-black border-amber-400' : 'bg-zinc-900/80 text-zinc-300 border-zinc-700'}`}>{torch ? '⚡ Flash ON' : '⚡ Flash OFF'}</button>
                     <button onClick={() => setFacingMode(prev => prev === 'environment' ? 'user' : 'environment')} className="bg-zinc-900/80 border border-zinc-700 text-white text-xs font-bold px-3 py-2 rounded-full backdrop-blur-md active:scale-95">🔄 Flip</button>
                 </div>
             </div>
@@ -154,8 +154,8 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
 
             <div className="bg-black/90 border-t border-zinc-800 p-6 flex flex-col items-center gap-4 z-20 backdrop-blur-md">
                 {mode === 'Video' && (
-                    <button onClick={handleRecord} className={\`w-16 h-16 rounded-full border-4 flex items-center justify-center \${isRecording ? 'border-red-500 animate-pulse' : 'border-white'}\`}>
-                        <div className={\`rounded-full \${isRecording ? 'w-6 h-6 bg-red-500 rounded-sm' : 'w-12 h-12 bg-red-500'}\`} />
+                    <button onClick={handleRecord} className={`w-16 h-16 rounded-full border-4 flex items-center justify-center ${isRecording ? 'border-red-500 animate-pulse' : 'border-white'}`}>
+                        <div className={`rounded-full ${isRecording ? 'w-6 h-6 bg-red-500 rounded-sm' : 'w-12 h-12 bg-red-500'}`} />
                     </button>
                 )}
                 
@@ -166,11 +166,11 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 )}
 
                 <div className="flex gap-4 bg-zinc-900/80 px-4 py-1.5 rounded-full border border-zinc-800">
-                    {[1, 2, 3].map(z => <button key={z} onClick={() => applyZoom(z)} className={\`text-[11px] font-mono font-bold px-2 py-0.5 rounded \${zoom === z ? 'text-amber-400' : 'text-zinc-500'}\`}>{z}x</button>)}
+                    {[1, 2, 3].map(z => <button key={z} onClick={() => applyZoom(z)} className={`text-[11px] font-mono font-bold px-2 py-0.5 rounded ${zoom === z ? 'text-amber-400' : 'text-zinc-500'}`}>{z}x</button>)}
                 </div>
 
                 <div className="flex bg-zinc-900 p-1 rounded-full border border-zinc-800 w-64 justify-between">
-                    {['Photo', 'Video', 'QR'].map(m => <button key={m} onClick={() => { setMode(m); setScannedResult(null); setIsRecording(false); }} className={\`flex-1 text-[11px] font-bold py-1.5 rounded-full transition-all \${mode === m ? 'bg-zinc-700 text-white' : 'text-zinc-500'}\`}>{m}</button>)}
+                    {['Photo', 'Video', 'QR'].map(m => <button key={m} onClick={() => { setMode(m); setScannedResult(null); setIsRecording(false); }} className={`flex-1 text-[11px] font-bold py-1.5 rounded-full transition-all ${mode === m ? 'bg-zinc-700 text-white' : 'text-zinc-500'}`}>{m}</button>)}
                 </div>
             </div>
         </div>
