@@ -45,17 +45,19 @@ export function Home({ onNavigate, navigateTo }) {
         { id: "swarm_comms", icon: "🐝", label: "Swarm Comms", desc: "Encrypted Gossip Relay", isExpert: false },
         { id: "calendar", icon: "📅", label: "Calendar Grid", desc: "Offline Scheduling", isExpert: false },
         { id: "recorder", icon: "🎙️", label: "Stealth Recorder", desc: "Voice Capture Archive", isExpert: false },
-        { id: "netsec", icon: "⚡", label: "NetSec & SysOps [WIP]", desc: "Network scanners & diagnostics", isExpert: true },
+        { id: "netsec", icon: "⚡", label: "NetSec & SysOps", desc: "Network scanners & diagnostics", isExpert: true },
         { id: "debloat", icon: "☣️", label: "Target Eradication", desc: "Remove bloatware & hidden apps", isExpert: true },
         { id: "shred", icon: "☢️", label: "Data Shredder", desc: "Permanently erase sensitive files", isExpert: true },
         { id: "fileviewer", icon: "📁", label: "Universal Explorer", desc: "Raw Filesystem Navigator", isExpert: true },
-        { id: "audio", icon: "🎵", label: "Sovereign Audio", desc: "Local Background Player", isExpert: false },
+        { id: "audio", icon: "🎧", label: "Sovereign Audio", desc: "Local Background Player", isExpert: false },
         { id: "gallery", icon: "🖼️", label: "Secure Gallery", desc: "Encrypted Media Viewer", isExpert: false },
-        { id: "aes", icon: "🔏", label: "SYS Cipher", desc: "Military-Grade Text Crypto", isExpert: false },
-        { id: "docs", icon: "📖", label: "Sovereign Docs", desc: "Stealth Codex Engine", isExpert: false },
-        { id: "vault", icon: "🔐", label: "Secure Vault", desc: "Zero-Knowledge Storage", isExpert: false },
-        { id: "ai", icon: "🤖", label: "Sovereign AI", desc: "Local Intelligence Engine", isExpert: false },
-        { id: "safe", icon: "👁️", label: "Stealth Safe", desc: "Dummy Interface Masking", isExpert: false }
+        { id: "comms", icon: "📡", label: "Comm Link", desc: "Secure offline chat", isExpert: false },
+        { id: "aes", icon: "🔐", label: "AES Cipher", desc: "Military-Grade Text Crypto", isExpert: false },
+        { id: "camera", icon: "📸", label: "Sovereign Camera", desc: "Stealth Capture Engine", isExpert: false },
+        { id: "docs", icon: "📝", label: "Encrypted Docs", desc: "Local Markdown Vault", isExpert: false },
+        { id: "vault", icon: "🏦", label: "Secure Vault", desc: "Zero-Knowledge Storage", isExpert: false },
+        { id: "ai", icon: "🧠", label: "Smart AI", desc: "Local Intelligence Node", isExpert: false },
+        { id: "calc", icon: "🧮", label: "Stealth Calc", desc: "Decoy Interface Masking", isExpert: false }
     ];
 
     return (
