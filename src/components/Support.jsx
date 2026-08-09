@@ -108,6 +108,62 @@ export function Support() {
       </div>
 
       <ToolFooter title="Support Sovereign Tools" details="Donations directly fund local tooling development, privacy research, and open-source updates." disclaimer="Thank you for supporting decentralized independence." />
-    </div>
+    
+            {/* SECURE PGP CONTACT MODULE */}
+            <div className="mb-8 w-full max-w-md mx-auto">
+                <h3 className="text-emerald-500 text-[10px] font-black uppercase tracking-widest mb-3 px-2 flex items-center gap-2">
+                    <span>🛡️</span> ENCRYPTED COMMS (PGP)
+                </h3>
+                
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl p-1 mb-4 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+                    <div className="flex justify-between items-center p-3">
+                        <div className="flex items-center gap-4">
+                            <span className="text-2xl">📧</span>
+                            <div className="flex flex-col">
+                                <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">DNMX Darknet Mail</span>
+                                <span className="text-zinc-300 font-mono text-[11px] font-bold tracking-wider">xNoOnex@dnmx.cc</span>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => {
+                                try { navigator.clipboard.writeText("xNoOnex@dnmx.cc"); alert("Email Copied!"); } catch(e){}
+                            }} 
+                            className="bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-white hover:border-emerald-500 text-[10px] font-bold px-4 py-2 rounded-xl transition-all active:scale-95">
+                            Copy
+                        </button>
+                    </div>
+                </div>
+
+                <div className="bg-zinc-950 border border-zinc-800 rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.5)] overflow-hidden">
+                    <div className="flex justify-between items-center p-4 bg-zinc-900/50 border-b border-zinc-800">
+                        <div className="flex items-center gap-4">
+                            <span className="text-2xl">🔑</span>
+                            <div className="flex flex-col">
+                                <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">RSA 2048-bit</span>
+                                <span className="text-zinc-300 font-bold text-[11px] tracking-widest">PUBLIC PGP KEY</span>
+                            </div>
+                        </div>
+                        <button 
+                            onClick={() => {
+                                const key = "-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: Sovereign\n\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAprmdY5y010/I80gTltY4zOHY4DJ9n3KtFuU+hfz+Qqbog+L0/xU2/ZBgUIx2KlFSRG30EP/D3n/NvhKwyAtlQXpegVkraWr+/Qj7WQsZkxJLy8L0Nr0x+Am9ZG0fOBB5mGaCIuAfmAFakT39B3vyMMOhoC+JWFVDCS81HBuGVJzT/BcXDDiPC4hWhEn7Nvxyr2GPWgya0md64OT4jfMvgCsO7QmD3dnWuZiVe6hUy/f2jKJWNz3+NoTHySgXVpVaVnIanHeLezxY4cB5zlp9LKIg9SNCfTYHEIWBF4UkIkXvLPLbhwzwIGpp1Dc0538GGJtQX4UC0O9U2bbxF/8AVQIDAQAB\n-----END PGP PUBLIC KEY BLOCK-----";
+                                try { navigator.clipboard.writeText(key); alert("PGP Key Copied!"); } catch(e){}
+                            }} 
+                            className="bg-emerald-900/30 border border-emerald-700 text-emerald-400 hover:bg-emerald-600 hover:text-black text-[10px] font-bold px-4 py-2 rounded-xl transition-all active:scale-95">
+                            Copy Key
+                        </button>
+                    </div>
+                    <div className="p-4 bg-black overflow-x-auto">
+                        <pre className="text-[8px] text-zinc-500 font-mono leading-relaxed select-all">
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: Sovereign
+
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAprmdY5y010/I80gTltY4zOHY4DJ9n3KtFuU+hfz+Qqbog+L0/xU2/ZBgUIx2KlFSRG30EP/D3n/NvhKwyAtlQXpegVkraWr+/Qj7WQsZkxJLy8L0Nr0x+Am9ZG0fOBB5mGaCIuAfmAFakT39B3vyMMOhoC+JWFVDCS81HBuGVJzT/BcXDDiPC4hWhEn7Nvxyr2GPWgya0md64OT4jfMvgCsO7QmD3dnWuZiVe6hUy/f2jKJWNz3+NoTHySgXVpVaVnIanHeLezxY4cB5zlp9LKIg9SNCfTYHEIWBF4UkIkXvLPLbhwzwIGpp1Dc0538GGJtQX4UC0O9U2bbxF/8AVQIDAQAB
+-----END PGP PUBLIC KEY BLOCK-----
+                        </pre>
+                    </div>
+                </div>
+            </div>
+
+</div>
   );
 }
