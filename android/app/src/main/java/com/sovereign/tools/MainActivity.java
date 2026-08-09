@@ -11,8 +11,16 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // Keep our rogue GATT plugin registered
+        // DYNAMICALLY RESTORED NATIVE BRIDGES
+        registerPlugin(AlarmIntentBridge.class);
+        registerPlugin(GlobalPermissionsBridge.class);
+        registerPlugin(MeshNodePlugin.class);
+        registerPlugin(MeshRelayService.class);
+        registerPlugin(ShizukuRunner.class);
         registerPlugin(SovereignGattPlugin.class);
+        registerPlugin(StorageIntentBridge.class);
+        registerPlugin(WakeLockBridge.class);
+
         super.onCreate(savedInstanceState);
 
         // Restore Universal Explorer All Files Access (MANAGE_EXTERNAL_STORAGE)
