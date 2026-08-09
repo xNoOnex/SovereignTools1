@@ -111,20 +111,23 @@ export function Home({ onNavigate }) {
         </div>
       )}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-	{allTools.filter(tool => currentMode === 'EXPERT' || !tool.isExpert).map(tool => (
-          <button key={tool.id} onClick={() => onNavigate(tool.id)} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-3xl flex flex-col items-start gap-2 active:scale-95 transition-transform hover:border-[var(--accent-text)] shadow-lg text-left relative overflow-hidden">
-            <span className="text-3xl mb-1 relative z-10">{tool.icon}</span>
-            <div className="relative z-10">
-              <span className="text-[11px] font-bold text-white block">{tool.label}</span>
-              <span className="text-[9px] font-mono text-zinc-500 block leading-tight mt-0.5">{tool.desc}</span>
-            </div>
-            {tool.isExpert && (
-               <div className={`absolute top-0 right-0 w-8 h-8 rounded-bl-3xl flex items-start justify-end p-2 ${shizukuState === 'CONNECTED' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-red-500/20 text-red-500'}`}>
-                  <span className="text-[8px] font-black">R</span>
-               </div>
-            )}
-          </button>
-        ))}
+	{allTools.map(tool => {
+            if (currentMode === "BASIC" && tool.isExpert) return null;
+            return (
+                <button key={tool.id} onClick={() => { const nav = onNavigate || navigateTo; nav(tool.id); }} className="bg-zinc-900/80 border border-zinc-800 p-4 rounded-3xl flex flex-col items-start justify-start active:scale-95 transition-transform hover:border-[var(--accent-text)] shadow-lg text-left relative overflow-hidden group">
+                    {tool.isExpert && (
+                        <div className="absolute top-0 right-0 w-8 h-8 rounded-bl-3xl flex items-start justify-end p-2 bg-red-500/20 text-red-500">
+                            <span className="text-[9px] font-black">R</span>
+                        </div>
+                    )}
+                    <div className="relative z-10 flex flex-col h-full w-full pointer-events-none">
+                        <span className="text-3xl mb-3">{tool.icon}</span>
+                        <span className="text-[13px] font-bold text-white mb-1 leading-tight group-hover:text-[var(--accent-text)] transition-colors">{tool.label}</span>
+                        <span className="text-[10px] text-zinc-500 font-mono leading-tight">{tool.desc}</span>
+                    </div>
+                </button>
+            );
+        })}
       </div>
     </div>
   );
