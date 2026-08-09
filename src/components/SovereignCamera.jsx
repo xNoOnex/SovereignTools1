@@ -1,3 +1,4 @@
+import jsQR from 'jsqr';
 import React, { useState, useEffect, useRef } from 'react';
 
 export function SovereignCamera({ onNavigate, navigateTo }) {
@@ -88,13 +89,23 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
                     // Use Android Webview Native BarcodeDetector if available
+                    
+                    // Try Native BarcodeDetector first (Fastest)
                     if ('BarcodeDetector' in window) {
                         const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
                         detector.detect(canvas).then(barcodes => {
-                            if (barcodes.length > 0) {
-                                handleDecodedPayload(barcodes[0].rawValue);
-                            }
-                        }).catch(() => {});
+                            if (barcodes.length > 0) handleDecodedPayload(barcodes[0].rawValue);
+                        }).catch(() => {
+                            // Fallback to jsQR if native fails
+                            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                            const code = jsQR(imageData.data, imageData.width, imageData.height);
+                            if (code) handleDecodedPayload(code.data);
+                        });
+                    } else {
+                        // Fallback to jsQR entirely
+                        const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+                        const code = jsQR(imageData.data, imageData.width, imageData.height);
+                        if (code) handleDecodedPayload(code.data);
                     }
                 }
             }, 400);
