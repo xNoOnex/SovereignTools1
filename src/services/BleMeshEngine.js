@@ -14,7 +14,7 @@ class BleMeshService {
     async deployScout(logCallback) {
         this.logCallback = logCallback;
         if (this.isActive) {
-            this.if(this.logCallback) this.logCallback("SCOUT RE-ATTACHED. BACKGROUND MESH STILL ACTIVE.");
+            if(this.logCallback) this.logCallback("SCOUT RE-ATTACHED. BACKGROUND MESH STILL ACTIVE.");
             return;
         }
         try {
