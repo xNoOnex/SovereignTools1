@@ -12,21 +12,26 @@ class BleMeshService {
     }
 
     async deployScout(logCallback) {
+        this.logCallback = logCallback;
+        if (this.isActive) {
+            this.if(this.logCallback) this.logCallback("SCOUT RE-ATTACHED. BACKGROUND MESH STILL ACTIVE.");
+            return;
+        }
         try {
             await BleClient.initialize({ androidNeverForLocation: true });
             this.isActive = true;
-            logCallback("BLE SCOUT DEPLOYED. RADIO INITIALIZED.");
+            if(this.logCallback) this.logCallback("BLE SCOUT DEPLOYED. RADIO INITIALIZED.");
 
             try {
                 await SovereignGatt.startServer();
-                logCallback("GATT SERVER ONLINE. BROADCASTING BEACON.");
+                if(this.logCallback) this.logCallback("GATT SERVER ONLINE. BROADCASTING BEACON.");
                 
                 SovereignGatt.addListener('onSwarmPayload', (event) => {
-                    logCallback("INCOMING BLE PAYLOAD DETECTED!");
+                    if(this.logCallback) this.logCallback("INCOMING BLE PAYLOAD DETECTED!");
                     this.processIncomingGossip(event.data, logCallback);
                 });
             } catch (nativeErr) {
-                logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure."));
+                if(this.logCallback) this.logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure."));
             }
 
             await BleClient.requestLEScan(
@@ -36,9 +41,9 @@ class BleMeshService {
                 }
             );
             
-            logCallback("HYBRID SCOUT ACTIVE. WAITING FOR PEERS.");
+            if(this.logCallback) this.logCallback("HYBRID SCOUT ACTIVE. WAITING FOR PEERS.");
         } catch (error) {
-            logCallback("CRITICAL: BLE RADIO FAILURE. " + error.message);
+            if(this.logCallback) this.logCallback("CRITICAL: BLE RADIO FAILURE. " + error.message);
             this.isActive = false;
         }
     }
@@ -48,7 +53,7 @@ class BleMeshService {
         if (this.activeConnections.has(deviceId)) return; 
         this.activeConnections.add(deviceId);
         
-        logCallback(`TARGET LOCKED: [${deviceId}]. ESTABLISHING UPLINK...`);
+        if(this.logCallback) this.logCallback(`TARGET LOCKED: [${deviceId}]. ESTABLISHING UPLINK...`);
         
         try {
             await BleClient.connect(deviceId);
@@ -74,12 +79,12 @@ class BleMeshService {
             
             // Fire the payload directly into the peer's GATT Server
             await BleClient.write(deviceId, this.SERVICE_UUID, this.CHAR_UUID, dataView);
-            logCallback(`PAYLOAD DELIVERED TO [${deviceId}].`);
+            if(this.logCallback) this.logCallback(`PAYLOAD DELIVERED TO [${deviceId}].`);
             
             // Instantly sever connection to save power
             await BleClient.disconnect(deviceId);
         } catch (err) {
-            logCallback(`UPLINK FAILED WITH [${deviceId}]: ` + err.message);
+            if(this.logCallback) this.logCallback(`UPLINK FAILED WITH [${deviceId}]: ` + err.message);
         }
         
         // 15-second cooldown before we allow a reconnect to the exact same device
@@ -138,14 +143,14 @@ class BleMeshService {
                 });
                 
                 if (updated > 0) {
-                    logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
+                    if(this.logCallback) this.logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
                     window.dispatchEvent(new Event('storage')); // Trigger UI refresh
                 } else {
-                    logCallback("INCOMING PAYLOAD IDENTICAL. NO UPDATES.");
+                    if(this.logCallback) this.logCallback("INCOMING PAYLOAD IDENTICAL. NO UPDATES.");
                 }
             }
         } catch (e) {
-            logCallback("IGNORED MALFORMED BLUETOOTH PACKET.");
+            if(this.logCallback) this.logCallback("IGNORED MALFORMED BLUETOOTH PACKET.");
         }
     }
 
@@ -156,9 +161,9 @@ class BleMeshService {
             await SovereignGatt.stopServer().catch(()=>console.log("No GATT to stop"));
             SovereignGatt.removeAllListeners();
             this.isActive = false;
-            logCallback("BLE SCOUT TERMINATED. RADIO DARK.");
+            if(this.logCallback) this.logCallback("BLE SCOUT TERMINATED. RADIO DARK.");
         } catch (error) {
-            logCallback("ERROR KILLING SCOUT: " + error.message);
+            if(this.logCallback) this.logCallback("ERROR KILLING SCOUT: " + error.message);
         }
     }
 }

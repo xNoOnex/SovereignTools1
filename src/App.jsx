@@ -122,8 +122,42 @@ function AppContent() {
     return <LockScreen onUnlock={() => setIsLocked(false)} />;
   }
 
+  
+  // 👻 PHANTOM VAULT: GLOBAL HARD-ENFORCEMENT 👻
+  if (localStorage.getItem('sovereign_session_mode') === 'DECOY') {
+      const s = (currentScreen || '').toLowerCase();
+      let fakeError = null;
+
+      if (s.includes('netsec')) fakeError = 'ERR_SOCKET_DENIED: Kernel blocked raw socket binding. Permission denied.';
+      else if (s.includes('shred')) fakeError = 'ERR_HW_RNG_FAIL: Hardware random number generator unresponsive. Crypto subsystem locked.';
+      else if (s.includes('eradication') || s.includes('target')) fakeError = 'ERR_SYS_PARTITION_LOCKED: Mount -o remount,rw /system failed. Root access lost.';
+      else if (s.includes('file') || s.includes('explorer')) fakeError = 'ERR_STORAGE_RESTRICTED: Android Scoped Storage policy enforcement active. Access blocked.';
+      else if (s.includes('comm') || s.includes('mesh') || s.includes('swarm')) fakeError = 'ERR_RADIO_OFFLINE: P2P Mesh hardware is disabled or unavailable.';
+      else if (s.includes('aes') || s.includes('cipher') || s.includes('docs')) fakeError = 'ERR_KEYSTORE_UNINITIALIZED: TEE (Trusted Execution Environment) hardware failed to load keys.';
+      else if (s.includes('camera') || s.includes('stealth')) fakeError = 'ERR_CAMERA_DAEMON_DEAD: mm-qcamera-daemon is not responding.';
+
+      if (fakeError) {
+          return (
+              <div className="min-h-screen bg-[#050000] flex flex-col items-center justify-center p-8 text-center border-t-8 border-red-900">
+                  <span className="text-red-600 text-7xl mb-6 animate-pulse">☢️</span>
+                  <h2 className="text-red-500 font-mono text-2xl font-black mb-4 tracking-widest">KERNEL FAULT</h2>
+                  <div className="bg-red-950/30 border border-red-900/50 p-4 rounded-lg mb-12 shadow-[0_0_15px_rgba(220,38,38,0.2)]">
+                      <p className="text-red-400 font-mono text-[11px] leading-relaxed uppercase tracking-wide">
+                          {fakeError}
+                      </p>
+                  </div>
+                  <button 
+                      onClick={() => setCurrentScreen('home')} 
+                      className="bg-red-950/40 border border-red-900 text-red-500 font-bold px-8 py-3 rounded-xl tracking-widest hover:bg-red-900 hover:text-white transition-all">
+                      RESTART SUBSYSTEM
+                  </button>
+              </div>
+          );
+      }
+  }
+
   return (
-    <div className="min-h-screen text-white font-sans select-none pb-24 relative z-10">
+      <div className="min-h-screen text-white font-sans select-none pb-24 relative z-10">
       
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
