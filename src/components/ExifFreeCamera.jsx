@@ -180,6 +180,38 @@ export function ExifFreeCamera({ onClose }) {
     }
   };
 
+  
+            {/* SCAN TOAST NOTIFICATION */}
+            {scanToast && (
+                <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-emerald-500 text-black text-[11px] font-black px-4 py-2 rounded-full shadow-[0_0_20px_rgba(16,185,129,0.5)] z-50 tracking-widest animate-bounce">
+                    ✓ {scanToast}
+                </div>
+            )}
+
+            {/* DIRECT COMMS INJECTION POPUP */}
+            {scannedData && (
+                <div className="absolute bottom-24 left-4 right-4 bg-zinc-950/90 border border-emerald-500/60 p-4 rounded-2xl backdrop-blur-md z-50 flex flex-col gap-3 shadow-[0_0_25px_rgba(0,0,0,0.8)]">
+                    <div className="flex justify-between items-center">
+                        <span className="text-[10px] text-emerald-400 font-mono font-bold tracking-widest uppercase flex items-center gap-2">
+                            <span>📡</span> SDP HANDSHAKE DETECTED
+                        </span>
+                        <button onClick={() => setScannedData(null)} className="text-zinc-500 hover:text-white text-xs font-bold">✕</button>
+                    </div>
+                    <p className="text-[10px] text-zinc-400 font-mono truncate bg-black/60 p-2 rounded-lg border border-zinc-800">
+                        {scannedData}
+                    </p>
+                    <button 
+                        onClick={() => {
+                            if (typeof onNavigate === 'function') onNavigate('comm');
+                            else if (typeof navigateTo === 'function') navigateTo('comm');
+                            else alert("Payload stored! Navigate to Encrypted Comms to auto-fill.");
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-black font-black text-[11px] py-3 rounded-xl tracking-widest uppercase transition-all shadow-[0_0_15px_rgba(16,185,129,0.4)] active:scale-95">
+                        🔗 INJECT INTO ENCRYPTED COMMS
+                    </button>
+                </div>
+            )}
+
   return (
     <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between select-none overflow-hidden">
       
