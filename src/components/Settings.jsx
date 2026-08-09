@@ -19,14 +19,20 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
   };
 
   
+  
   const handleUpdateDuress = () => {
       if (duressPin.length >= 4) {
           localStorage.setItem('sovereign_duress_pin', duressPin);
-          alert("Duress PIN updated. Entering this PIN will incinerate all data.");
+          alert("DURESS PIN ARMED: Entering this exact PIN on the lock screen will irrevocably wipe all data.");
       } else {
-          localStorage.removeItem('sovereign_duress_pin');
-          alert("Duress PIN disabled.");
+          alert("PIN must be at least 4 digits.");
       }
+  };
+
+  const handleDisableDuress = () => {
+      localStorage.removeItem('sovereign_duress_pin');
+      setDuressPin('');
+      alert("Duress PIN has been successfully disabled.");
   };
 
   const handleUpdateWipeLimit = (limit) => {
@@ -91,25 +97,35 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
         </div>
 
             {/* PROTOCOL ZERO: DURESS PIN */}
-            <div className="bg-[#111111] border border-red-900/30 rounded-2xl p-5 mb-6 shadow-lg">
-                <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                    <span>☢️</span> DURESS / WIPE PIN
+            <div className="bg-[#0a0000] border border-red-900/60 rounded-2xl p-5 mb-6 shadow-[0_0_15px_rgba(220,38,38,0.1)]">
+                <h3 className="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3 flex items-center justify-between">
+                    <span className="flex items-center gap-2"><span className="animate-pulse">☢️</span> PROTOCOL ZERO (DURESS WIPE)</span>
+                    {localStorage.getItem('sovereign_duress_pin') ? <span className="text-[9px] bg-red-900/50 text-red-200 px-2 py-1 rounded border border-red-700">ARMED</span> : <span className="text-[9px] bg-zinc-900 text-zinc-500 px-2 py-1 rounded border border-zinc-700">DISABLED</span>}
                 </h3>
-                <p className="text-[11px] text-zinc-400 mb-4 font-sans leading-relaxed">
-                    Entering this code on the lock screen will silently incinerate all local data, drop encryption keys, and reset the app.
-                </p>
-                <div className="flex gap-3">
+                
+                <div className="bg-red-950/40 border border-red-900/50 rounded-lg p-3 mb-4">
+                    <p className="text-[9px] text-red-400 font-mono leading-relaxed uppercase tracking-wide">
+                        <strong>⚠️ LEGAL & OPERATIONAL DISCLAIMER:</strong> Entering the armed Duress PIN on the lock screen acts as a Dead Man's Switch. It triggers a catastrophic, unrecoverable data wipe. All encryption keys, vaults, and Swarm ledgers will be permanently incinerated. The app will instantly reset to a factory state. Use at your own risk.
+                    </p>
+                </div>
+
+                <div className="flex gap-2">
                     <input 
                         type="password" 
                         value={duressPin}
                         onChange={(e) => setDuressPin(e.target.value)}
-                        placeholder="Leave blank to disable"
-                        className="flex-1 bg-black border border-red-900/50 rounded-xl px-4 py-3 text-red-500 tracking-[0.3em] font-mono focus:outline-none focus:border-red-500 transition-colors placeholder:tracking-normal placeholder:text-zinc-700"
+                        placeholder="Enter 4+ digit PIN"
+                        className="flex-1 bg-black border border-red-900/50 rounded-xl px-4 py-3 text-red-500 tracking-[0.3em] font-mono focus:outline-none focus:border-red-500 transition-colors placeholder:tracking-normal placeholder:text-red-900/50 placeholder:text-xs"
                     />
                     <button 
                         onClick={handleUpdateDuress}
-                        className="bg-red-950/40 border border-red-900 text-red-500 px-6 py-3 rounded-xl text-xs font-bold tracking-wider hover:bg-red-900 hover:text-white transition-all">
-                        ARM
+                        className="bg-red-900/20 border border-red-900 text-red-500 px-4 py-3 rounded-xl text-[10px] font-bold tracking-wider hover:bg-red-900 hover:text-white transition-all">
+                        UPDATE
+                    </button>
+                    <button 
+                        onClick={handleDisableDuress}
+                        className="bg-zinc-950 border border-zinc-800 text-zinc-500 px-4 py-3 rounded-xl text-[10px] font-bold tracking-wider hover:bg-zinc-800 hover:text-zinc-300 transition-all">
+                        DISABLE
                     </button>
                 </div>
             </div>
