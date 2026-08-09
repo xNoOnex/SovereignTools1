@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-export default function SovereignCamera({ onNavigate, navigateTo }) {
+export function SovereignCamera({ onNavigate, navigateTo }) {
     const videoRef = useRef(null);
     const canvasRef = useRef(null);
     
