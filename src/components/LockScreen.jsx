@@ -7,23 +7,52 @@ export function LockScreen({ onUnlock }) {
 
   const savedPin = localStorage.getItem('sovereign_pin') || '0000';
 
-  const handleKeyPress = (num) => {
-    if (pinEntry.length < 4) {
-      const newPin = pinEntry + num;
-      setPinEntry(newPin);
-      
-      if (newPin.length === 4) {
-        if (newPin === savedPin) {
-          onUnlock();
-        } else {
-          setErrorShake(true);
-          setTimeout(() => { setPinEntry(''); setErrorShake(false); }, 400);
-        }
-      }
-    }
-  };
+  const executeProtocolZero = () => {
+    // ☢️ THE PAYLOAD ☢️
+    // 1. Vaporize the entire local database (Keys, Ledgers, Settings, PINs)
+    localStorage.clear();
+    // 2. Force an instant hard-reload to factory-fresh state
+    window.location.reload();
+};
 
-  return (
+const handleKeyPress = (num) => {
+    if (pinEntry.length < 4) {
+        const newPin = pinEntry + num;
+        setPinEntry(newPin);
+
+        if (newPin.length === 4) {
+            const duressPin = localStorage.getItem('sovereign_duress_pin');
+            
+            // TRIPWIRE 1: DURESS PIN
+            if (duressPin && newPin === duressPin) {
+                executeProtocolZero();
+                return;
+            }
+
+            if (newPin === savedPin) {
+                // SUCCESS: Reset the brute-force counter and unlock
+                localStorage.setItem('sovereign_failed_attempts', '0');
+                onUnlock();
+            } else {
+                // TRIPWIRE 2: BRUTE-FORCE AUTO-WIPE
+                let attempts = parseInt(localStorage.getItem('sovereign_failed_attempts') || '0') + 1;
+                localStorage.setItem('sovereign_failed_attempts', attempts.toString());
+                
+                const limit = localStorage.getItem('sovereign_wipe_limit');
+                if (limit && limit !== 'None' && attempts >= parseInt(limit)) {
+                    executeProtocolZero();
+                    return;
+                }
+
+                // STANDARD FAILURE
+                setErrorShake(true);
+                setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
+            }
+        }
+    }
+};
+
+return (
     <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden">
       
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "var(--bg-image)", backgroundSize: "var(--bg-size)", backgroundPosition: 'center', filter: 'contrast(1.5)' }}></div>
