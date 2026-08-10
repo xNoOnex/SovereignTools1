@@ -85,10 +85,10 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
         <div className="bg-zinc-900/80 backdrop-blur border border-zinc-800 p-5 rounded-3xl space-y-4 shadow-xl">
           <h3 className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Interface Mode</h3>
           <div className="flex gap-3">
-            <button onClick={() => setAppMode('BASIC')} className={`flex-1 py-4 rounded-xl font-bold text-xs tracking-widest border transition-all flex justify-center items-center gap-2 ${appMode === 'BASIC' ? 'theme-accent-bg text-black shadow-lg border-transparent' : 'bg-black text-zinc-400 border-zinc-800 hover:border-zinc-600'}`}>
+            <button onClick={() => { setAppMode('BASIC'); localStorage.setItem('sovereign_mode', 'BASIC'); }} className={`flex-1 py-4 rounded-xl font-bold text-xs tracking-widest border transition-all flex justify-center items-center gap-2 ${appMode === 'BASIC' ? 'theme-accent-bg text-black shadow-lg border-transparent' : 'bg-black text-zinc-400 border-zinc-800 hover:border-zinc-600'}`}>
               BASIC
             </button>
-            <button onClick={() => setAppMode('EXPERT')} className={`flex-1 py-4 rounded-xl font-bold text-xs tracking-widest border transition-all flex justify-center items-center gap-2 ${appMode === 'EXPERT' ? 'theme-accent-bg text-black shadow-lg border-transparent' : 'bg-black text-zinc-400 border-zinc-800 hover:border-zinc-600'}`}>
+            <button onClick={() => { setAppMode('EXPERT'); localStorage.setItem('sovereign_mode', 'EXPERT'); }} className={`flex-1 py-4 rounded-xl font-bold text-xs tracking-widest border transition-all flex justify-center items-center gap-2 ${appMode === 'EXPERT' ? 'theme-accent-bg text-black shadow-lg border-transparent' : 'bg-black text-zinc-400 border-zinc-800 hover:border-zinc-600'}`}>
               EXPERT
             </button>
           </div>
