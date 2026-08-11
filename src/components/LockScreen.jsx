@@ -63,7 +63,7 @@ const handleKeyPress = (num) => {
 };
 
 return (
-    <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden">
+        <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("/app_icon.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
       
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "var(--bg-image)", backgroundSize: "var(--bg-size)", backgroundPosition: 'center', filter: 'contrast(1.5)' }}></div>
 
