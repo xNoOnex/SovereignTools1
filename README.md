@@ -49,7 +49,7 @@ This project is open-source and looking for contributors who value privacy, secu
 
 If you have vulnerabilities to report, want to collaborate on the desktop node, or wish to support the creator:
 * **Email:** `xNoOnex@dnmx.cc`
-* **PGP Key:** The 2048-bit RSA Public Key is available directly inside the app on the **Settings -> Support** tab. 
+* **PGP Key:** The Curve25519 ECC Public Key is available directly inside the app on the **Settings -> Support** tab. 
 
 ---
 *Stay sovereign.*
