@@ -15,12 +15,14 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
     const [nativeZoom, setNativeZoom] = useState(false);
     const [blackout, setBlackout] = useState(false);
     
+    // Video Recording Payload State
+    const [recordedBlob, setRecordedBlob] = useState(null);
+    
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const touchDistRef = useRef(null);
     const barcodeDetectorRef = useRef(null);
 
-    // Initialize Hardware BarcodeDetector if available on Android
     useEffect(() => {
         if ("BarcodeDetector" in window) {
             try {
@@ -31,7 +33,6 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }
     }, []);
 
-    // Initialize Camera with Audio Fallback
     useEffect(() => {
         let activeStream = null;
         const initCamera = async () => {
@@ -61,7 +62,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         return () => activeStream && activeStream.getTracks().forEach(t => t.stop());
     }, [facingMode, mode]);
 
-    // Dual-Engine QR Scanner Loop
+    // QR Scanner Loop
     useEffect(() => {
         let scanFrame;
         let isScanning = false;
@@ -165,14 +166,12 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 setIsRecording(false);
             } else {
                 chunksRef.current = [];
+                setRecordedBlob(null);
                 mediaRecorderRef.current = new MediaRecorder(videoRef.current.srcObject, { mimeType: 'video/webm' });
                 mediaRecorderRef.current.ondataavailable = e => { if (e.data.size > 0) chunksRef.current.push(e.data); };
                 mediaRecorderRef.current.onstop = () => {
                     const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-                    const a = document.createElement('a');
-                    a.href = URL.createObjectURL(blob);
-                    a.download = `stealth_vid_${Date.now()}.webm`;
-                    a.click();
+                    setRecordedBlob(blob); // Safely trigger the Save Modal instead of navigating!
                 };
                 mediaRecorderRef.current.start();
                 setIsRecording(true);
@@ -191,15 +190,47 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }
     };
 
+    // Safe File Saving Handler (Triggers Native Android Share/Save Sheet)
+    const handleSaveVideo = async () => {
+        if (!recordedBlob) return;
+        const file = new File([recordedBlob], `stealth_vid_${Date.now()}.webm`, { type: 'video/webm' });
+        
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    files: [file],
+                    title: 'Stealth Recording',
+                    text: 'Secured video payload'
+                });
+            } catch (e) {}
+        } else {
+            // Safe Base64 download fallback that never crashes WebView navigation
+            const reader = new FileReader();
+            reader.readAsDataURL(recordedBlob);
+            reader.onloadend = () => {
+                const a = document.createElement('a');
+                a.href = reader.result;
+                a.download = `stealth_vid_${Date.now()}.webm`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+            };
+        }
+    };
+
     return (
         <div className="fixed inset-0 bg-black flex flex-col justify-between z-50 select-none">
             
-            {/* STEALTH DIM OVERLAY: Keeps video mounted & recording underneath! */}
+            {/* STEALTH DIM OVERLAY: 95% dark viewfinder that hides screen glow but stays interactive */}
             {blackout && (
                 <div 
                     onClick={() => setBlackout(false)}
-                    className="fixed inset-0 w-screen h-screen bg-black z-[9999] cursor-pointer select-none"
-                />
+                    className="fixed inset-0 w-screen h-screen bg-black/95 z-[99999] flex items-center justify-center cursor-pointer select-none backdrop-blur-sm"
+                >
+                    <span className="text-[10px] text-zinc-700 font-mono tracking-widest uppercase animate-pulse">
+                        [Stealth Viewfinder — Tap to Wake]
+                    </span>
+                </div>
             )}
 
             {/* Top Tactical Bar */}
@@ -244,7 +275,34 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                     </div>
                 )}
 
-                {/* PAYLOAD DISPLAY MODAL */}
+                {/* VIDEO RECORDING SECURED MODAL: Prevents black screen navigation crashes! */}
+                {recordedBlob && (
+                    <div className="absolute inset-x-6 bottom-32 bg-zinc-950/95 border-2 border-red-500/80 rounded-2xl p-5 z-30 shadow-[0_0_35px_rgba(239,68,68,0.3)] backdrop-blur-xl animate-fadeIn">
+                        <div className="flex justify-between items-center mb-3">
+                            <span className="text-[10px] font-black text-red-500 tracking-widest uppercase flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                                Video Payload Secured
+                            </span>
+                            <span className="text-[10px] font-mono text-zinc-400">{(recordedBlob.size / (1024 * 1024)).toFixed(2)} MB</span>
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={handleSaveVideo}
+                                className="flex-1 bg-red-600 hover:bg-red-500 text-white font-black text-xs py-3 rounded-xl uppercase tracking-wider active:scale-95 transition-all shadow-lg"
+                            >
+                                Save / Share to Device
+                            </button>
+                            <button 
+                                onClick={() => setRecordedBlob(null)}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs px-5 py-3 rounded-xl uppercase tracking-wider active:scale-95 transition-all"
+                            >
+                                Discard
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* QR PAYLOAD DISPLAY MODAL */}
                 {scannedResult && (
                     <div className="absolute inset-x-6 bottom-32 bg-zinc-950/95 border-2 border-emerald-500/80 rounded-2xl p-5 z-30 shadow-[0_0_35px_rgba(16,185,129,0.3)] backdrop-blur-xl animate-fadeIn">
                         <div className="flex justify-between items-center mb-2">
@@ -299,7 +357,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
 
                 <div className="flex gap-6 bg-zinc-900/80 px-6 py-2.5 rounded-full backdrop-blur-md border border-zinc-800 shadow-xl">
                     {["Photo", "Video", "QR"].map(m => (
-                        <button key={m} onClick={() => { setMode(m); setIsRecording(false); setScannedResult(null); }} className={`text-xs font-bold tracking-widest uppercase transition-all ${mode === m ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-zinc-500'}`}>{m}</button>
+                        <button key={m} onClick={() => { setMode(m); setIsRecording(false); setScannedResult(null); setRecordedBlob(null); }} className={`text-xs font-bold tracking-widest uppercase transition-all ${mode === m ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-zinc-500'}`}>{m}</button>
                     ))}
                 </div>
             </div>
