@@ -61,7 +61,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         return () => activeStream && activeStream.getTracks().forEach(t => t.stop());
     }, [facingMode, mode]);
 
-    // Dual-Engine QR Scanner Loop (Native Hardware -> jsQR Fallback)
+    // Dual-Engine QR Scanner Loop
     useEffect(() => {
         let scanFrame;
         let isScanning = false;
@@ -76,7 +76,6 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
             const video = videoRef.current;
             let detectedData = null;
 
-            // 1. Try Native Android Hardware BarcodeDetector (Best for dense LCD screens)
             if (barcodeDetectorRef.current) {
                 try {
                     const barcodes = await barcodeDetectorRef.current.detect(video);
@@ -86,14 +85,11 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 } catch (e) {}
             }
 
-            // 2. Fallback to clean jsQR if hardware detector didn't catch it
             if (!detectedData) {
                 const canvas = document.createElement("canvas");
                 canvas.width = video.videoWidth;
                 canvas.height = video.videoHeight;
                 const ctx = canvas.getContext("2d", { willReadFrequently: true });
-                
-                // Draw RAW image without harsh contrast filters that crush tiny dots
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
@@ -102,7 +98,6 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 }
             }
             
-            // If we caught a payload, display it and copy!
             if (detectedData && detectedData !== scannedResult) {
                 setScannedResult(detectedData);
                 try {
@@ -196,20 +191,17 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }
     };
 
-    if (blackout) {
-        return (
-            <div 
-                onClick={() => setBlackout(false)}
-                className="fixed inset-0 bg-black z-[9999] flex items-center justify-center cursor-pointer select-none"
-            >
-                <div className="w-1 h-1 rounded-full bg-zinc-900"></div>
-            </div>
-        );
-    }
-
     return (
         <div className="fixed inset-0 bg-black flex flex-col justify-between z-50 select-none">
             
+            {/* STEALTH DIM OVERLAY: Keeps video mounted & recording underneath! */}
+            {blackout && (
+                <div 
+                    onClick={() => setBlackout(false)}
+                    className="fixed inset-0 w-screen h-screen bg-black z-[9999] cursor-pointer select-none"
+                />
+            )}
+
             {/* Top Tactical Bar */}
             <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 z-20">
                 <button onClick={() => navHandler('home')} className="bg-zinc-900/80 border border-zinc-700 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95 shadow-lg">X Exit</button>
@@ -252,7 +244,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                     </div>
                 )}
 
-                {/* PAYLOAD DISPLAY MODAL: Pops up immediately when a QR code is captured */}
+                {/* PAYLOAD DISPLAY MODAL */}
                 {scannedResult && (
                     <div className="absolute inset-x-6 bottom-32 bg-zinc-950/95 border-2 border-emerald-500/80 rounded-2xl p-5 z-30 shadow-[0_0_35px_rgba(16,185,129,0.3)] backdrop-blur-xl animate-fadeIn">
                         <div className="flex justify-between items-center mb-2">
