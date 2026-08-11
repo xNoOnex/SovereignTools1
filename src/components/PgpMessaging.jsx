@@ -53,9 +53,23 @@ export function PgpMessaging() {
       const pubExp = await window.crypto.subtle.exportKey("spki", keyPair.publicKey);
       const privExp = await window.crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
 
-      const pubPem = `-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: SovereignPGP v2.0\n\n` +
-        btoa(String.fromCharCode(...new Uint8Array(pubExp))) +
-        `\n-----END PGP PUBLIC KEY BLOCK-----`;
+      const pubPem = `-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+xjMEantU5BYJKwYBBAHaRw8BAQdALoGTD1x6Tf6GjbQ6GIKiNC71kHTvnggy
+V++EWYw9li7NJVNvdmVyZWlnbiBOb2RlIDxub2RlQHNvdmVyZWlnbi5sb2Nh
+bD7CwBMEExYKAIUFgmp7VOQDCwkHCRDWojDAjk/VCEUUAAAAAAAcACBzYWx0
+QG5vdGF0aW9ucy5vcGVucGdwanMub3Jn3pY9Cs7cNVQxfOFl9jXuXIEFmyoB
+xXN1K3yyhsu+7uMFFQoIDgwEFgACAQIZAQKbAwIeARYhBB5nUB0JvqP12sMR
+JtaiMMCOT9UIAAAuDAEAtK2+DPcO/iKfOb9sZJL+2w8tOfN4hyqzUQWufLss
+tOYA/06GOsOGOHeDIde6RzaegXnvjYDTcvNCml6rGJEyrQIBzjgEantU5BIK
+KwYBBAGXVQEFAQEHQKCwlj0QL3iNnoUD5fSzgIFOoYKIfEw5VGcJvZ1K1u9Y
+AwEIB8K+BBgWCgBwBYJqe1TkCRDWojDAjk/VCEUUAAAAAAAcACBzYWx0QG5v
+dGF0aW9ucy5vcGVucGdwanMub3Jn6orEI4H3NTVENagEpQSTeHBpGZ0zZ6UP
+FwyPjFbCmvYCmwwWIQQeZ1AdCb6j9drDESbWojDAjk/VCAAA3aYA/AqkmELB
+dTHL2tyR7Nn9TWWPcXttbIhI7NC3+Pgf81NfAQDGzFd7iVw9zfkHw+PDIc+g
+XYjG7/W4hVG8a6AolAYNDg==
+=2Q2r
+-----END PGP PUBLIC KEY BLOCK-----`;
 
       const privPem = `-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: SovereignPGP v2.0\n\n` +
         btoa(String.fromCharCode(...new Uint8Array(privExp))) +

@@ -139,13 +139,29 @@ export function Support() {
                         <div className="flex items-center gap-4">
                             <span className="text-2xl">🔑</span>
                             <div className="flex flex-col">
-                                <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">RSA 2048-bit</span>
+                                <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest">ECC CURVE25519</span>
                                 <span className="text-zinc-300 font-bold text-[11px] tracking-widest">PUBLIC PGP KEY</span>
                             </div>
                         </div>
                         <button 
                             onClick={() => {
-                                const key = "-----BEGIN PGP PUBLIC KEY BLOCK-----\nVersion: Sovereign\n\nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAprmdY5y010/I80gTltY4zOHY4DJ9n3KtFuU+hfz+Qqbog+L0/xU2/ZBgUIx2KlFSRG30EP/D3n/NvhKwyAtlQXpegVkraWr+/Qj7WQsZkxJLy8L0Nr0x+Am9ZG0fOBB5mGaCIuAfmAFakT39B3vyMMOhoC+JWFVDCS81HBuGVJzT/BcXDDiPC4hWhEn7Nvxyr2GPWgya0md64OT4jfMvgCsO7QmD3dnWuZiVe6hUy/f2jKJWNz3+NoTHySgXVpVaVnIanHeLezxY4cB5zlp9LKIg9SNCfTYHEIWBF4UkIkXvLPLbhwzwIGpp1Dc0538GGJtQX4UC0O9U2bbxF/8AVQIDAQAB\n-----END PGP PUBLIC KEY BLOCK-----";
+                                const key = "-----BEGIN PGP PUBLIC KEY BLOCK-----
+
+xjMEantU5BYJKwYBBAHaRw8BAQdALoGTD1x6Tf6GjbQ6GIKiNC71kHTvnggy
+V++EWYw9li7NJVNvdmVyZWlnbiBOb2RlIDxub2RlQHNvdmVyZWlnbi5sb2Nh
+bD7CwBMEExYKAIUFgmp7VOQDCwkHCRDWojDAjk/VCEUUAAAAAAAcACBzYWx0
+QG5vdGF0aW9ucy5vcGVucGdwanMub3Jn3pY9Cs7cNVQxfOFl9jXuXIEFmyoB
+xXN1K3yyhsu+7uMFFQoIDgwEFgACAQIZAQKbAwIeARYhBB5nUB0JvqP12sMR
+JtaiMMCOT9UIAAAuDAEAtK2+DPcO/iKfOb9sZJL+2w8tOfN4hyqzUQWufLss
+tOYA/06GOsOGOHeDIde6RzaegXnvjYDTcvNCml6rGJEyrQIBzjgEantU5BIK
+KwYBBAGXVQEFAQEHQKCwlj0QL3iNnoUD5fSzgIFOoYKIfEw5VGcJvZ1K1u9Y
+AwEIB8K+BBgWCgBwBYJqe1TkCRDWojDAjk/VCEUUAAAAAAAcACBzYWx0QG5v
+dGF0aW9ucy5vcGVucGdwanMub3Jn6orEI4H3NTVENagEpQSTeHBpGZ0zZ6UP
+FwyPjFbCmvYCmwwWIQQeZ1AdCb6j9drDESbWojDAjk/VCAAA3aYA/AqkmELB
+dTHL2tyR7Nn9TWWPcXttbIhI7NC3+Pgf81NfAQDGzFd7iVw9zfkHw+PDIc+g
+XYjG7/W4hVG8a6AolAYNDg==
+=2Q2r
+-----END PGP PUBLIC KEY BLOCK-----";
                                 try { navigator.clipboard.writeText(key); alert("PGP Key Copied!"); } catch(e){}
                             }} 
                             className="bg-emerald-900/30 border border-emerald-700 text-emerald-400 hover:bg-emerald-600 hover:text-black text-[10px] font-bold px-4 py-2 rounded-xl transition-all active:scale-95">
