@@ -26,7 +26,6 @@ export function AESCipher({ onNavigate, navigateTo }) {
     const [aesKey, setAesKey] = useState("");
     const [aesOutput, setAesOutput] = useState("");
 
-    // Automatically sync saved Private Key into the Decrypt tab
     useEffect(() => {
         setDecryptPrivKey(privKey);
     }, [privKey]);
@@ -98,8 +97,8 @@ export function AESCipher({ onNavigate, navigateTo }) {
             return;
         }
         try {
-            let privateKeyObj = await openpgp.readPrivate({ armoredKey: decryptPrivKey });
-            if (!privateKeyObj.isDecrypted() && passphrase) {
+            let privateKeyObj = await openpgp.readPrivateKey({ armoredKey: decryptPrivKey });
+            if (passphrase) {
                 privateKeyObj = await openpgp.decryptKey({
                     privateKey: privateKeyObj,
                     passphrase
