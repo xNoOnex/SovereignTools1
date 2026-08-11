@@ -1,159 +1,221 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { useStorage } from '../context/StorageContext';
+import { Capacitor } from '@capacitor/core';
 
-export function FileShredder({ onNavigate }) {
-  const { indexedFiles, isScanning, runGlobalScan, removeFileFromState } = useStorage();
-  const [filterQuery, setFilterQuery] = useState('');
-  const [shreddingPath, setShreddingPath] = useState(null);
-  const [statusMsg, setStatusMsg] = useState('');
+export default function UniversalExplorer({ onBack }) {
+  const ROOT_PATH = '/storage/emulated/0';
+  const [currentPath, setCurrentPath] = useState(ROOT_PATH);
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [fileContent, setFileContent] = useState('');
 
-  // Sector Zero-Fill & Unlinking Engine
-  const executeZeroFillAndNuke = async (file) => {
-    setShreddingPath(file.path);
+  useEffect(() => {
+    loadDirectory(currentPath);
+  }, [currentPath]);
+
+  const loadDirectory = async (targetPath) => {
+    setLoading(true);
+    setSelectedFile(null);
+    setFileContent('');
     try {
-      // 1. Generate zero-bytes fill payload (64KB buffer chunk)
-      const zeroChunk = '0'.repeat(64 * 1024);
-
-      // 2. Perform Sector Overwrite
-      try {
-        await Filesystem.writeFile({
-          path: file.path,
-          data: zeroChunk,
-          directory: Directory.ExternalStorage,
-          encoding: Encoding.UTF8
-        });
-      } catch (e) {
-        // Fallback overwrite attempt
-      }
-
-      // 3. Unlink & Delete File physically
-      await Filesystem.deleteFile({
-        path: file.path,
-        directory: Directory.ExternalStorage
+      const res = await Filesystem.readdir({
+        path: targetPath,
       });
 
-      removeFileFromState(file.path);
-      setStatusMsg(`☣️ Sector Zero-Filled & Nuked: ${file.name}`);
-      setTimeout(() => setStatusMsg(''), 3000);
+      // Sort: Folders first, then files alphabetically
+      const sorted = (res.files || []).sort((a, b) => {
+        if (a.type === 'directory' && b.type !== 'directory') return -1;
+        if (a.type !== 'directory' && b.type === 'directory') return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      setItems(sorted);
     } catch (err) {
-      setStatusMsg('❌ Physical shredding failed. File permissions locked.');
-      setTimeout(() => setStatusMsg(''), 3000);
+      console.error("Error reading directory:", err);
+      // Fallback if readdir fails on restricted system folders
+      setItems([]);
     } finally {
-      setShreddingPath(null);
+      setLoading(false);
     }
   };
 
-  const filteredFiles = indexedFiles.filter(f =>
-    f.name.toLowerCase().includes(filterQuery.toLowerCase()) ||
-    f.path.toLowerCase().includes(filterQuery.toLowerCase())
+  const handleItemClick = async (item) => {
+    const fullPath = `${currentPath}/${item.name}`;
+    
+    if (item.type === 'directory') {
+      setCurrentPath(fullPath);
+    } else {
+      // It's a file
+      const ext = item.name.split('.').pop().toLowerCase();
+      const webUrl = Capacitor.convertFileSrc(fullPath);
+      
+      let previewType = 'binary';
+      if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) {
+        previewType = 'image';
+      } else if (['mp3', 'wav', 'ogg', 'm4a', 'flac'].includes(ext)) {
+        previewType = 'audio';
+      } else if (['txt', 'md', 'json', 'js', 'html', 'css', 'py', 'sh', 'log'].includes(ext)) {
+        previewType = 'text';
+        try {
+          const contents = await Filesystem.readFile({
+            path: fullPath,
+            encoding: Encoding.UTF8
+          });
+          setFileContent(contents.data);
+        } catch (e) {
+          setFileContent("Error reading text file content.");
+        }
+      }
+
+      setSelectedFile({
+        name: item.name,
+        path: fullPath,
+        ext,
+        webUrl,
+        previewType,
+        size: item.size
+      });
+    }
+  };
+
+  const navigateUp = () => {
+    if (currentPath === ROOT_PATH || currentPath === '') return;
+    const parentPath = currentPath.substring(0, currentPath.lastIndexOf('/'));
+    setCurrentPath(parentPath || ROOT_PATH);
+  };
+
+  const filteredItems = items.filter(i => 
+    i.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="p-4 space-y-4 max-w-2xl mx-auto pb-28 select-none font-sans text-white bg-black min-h-screen">
-      
-      {/* HEADER (Matches Screenshot 4899.jpg) */}
-      <div className="flex justify-between items-start border-b border-zinc-900 pb-3 pt-2">
-        <div>
-          <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            ☣️ File Shredder
-          </h2>
-          <p className="text-xs text-zinc-400 mt-0.5">
-            Physical sector zero-fill and file unlinking.
-          </p>
+    <div className="p-4 space-y-4 max-w-4xl mx-auto text-gray-100 pb-24">
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-gray-800 pb-3">
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">📁</span>
+          <div>
+            <h2 className="text-xl font-bold tracking-wide">Universal Explorer</h2>
+            <p className="text-xs text-gray-400 font-mono overflow-x-auto max-w-xs sm:max-w-md">
+              {currentPath}
+            </p>
+          </div>
         </div>
-        <button
-          onClick={runGlobalScan}
-          disabled={isScanning}
-          className="bg-zinc-900 hover:bg-zinc-800 border border-zinc-700 text-cyan-400 text-xs px-3 py-2 rounded-xl font-bold shadow transition-all active:scale-95 shrink-0"
+        <button 
+          onClick={onBack}
+          className="px-3 py-1.5 text-xs bg-gray-800 hover:bg-gray-700 rounded border border-gray-700 font-mono"
         >
-          {isScanning ? 'Scanning...' : 'Rescan Storage'}
+          CLOSE
         </button>
       </div>
 
-      {/* TOAST NOTIFICATION */}
-      {statusMsg && (
-        <div className="bg-red-950/90 border border-red-500/50 text-red-300 text-xs font-bold py-2 px-3 rounded-xl text-center shadow-lg animate-fadeIn">
-          {statusMsg}
+      {/* Navigation Controls */}
+      <div className="flex gap-2 items-center">
+        <button
+          onClick={navigateUp}
+          disabled={currentPath === ROOT_PATH}
+          className="px-3 py-2 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:hover:bg-gray-800 text-xs font-mono rounded border border-gray-700 flex items-center gap-1"
+        >
+          ⬆️ UP
+        </button>
+        <input
+          type="text"
+          placeholder="Search folder..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="flex-1 bg-black/60 border border-gray-800 rounded px-3 py-2 text-xs font-mono focus:outline-none focus:border-emerald-500"
+        />
+        <button
+          onClick={() => loadDirectory(currentPath)}
+          className="px-3 py-2 bg-emerald-950/60 hover:bg-emerald-900/60 text-emerald-400 border border-emerald-800/80 rounded text-xs font-mono"
+        >
+          RESCAN
+        </button>
+      </div>
+
+      {/* File Preview Modal / Section */}
+      {selectedFile && (
+        <div className="bg-gray-900/90 border border-emerald-500/40 rounded-lg p-4 space-y-3 relative">
+          <div className="flex justify-between items-start border-b border-gray-800 pb-2">
+            <div>
+              <h3 className="text-sm font-bold text-emerald-400 font-mono">{selectedFile.name}</h3>
+              <p className="text-[10px] text-gray-500 font-mono">{selectedFile.path}</p>
+            </div>
+            <button 
+              onClick={() => setSelectedFile(null)}
+              className="text-xs font-mono px-2 py-1 bg-gray-800 hover:bg-gray-700 rounded"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Render by Type */}
+          {selectedFile.previewType === 'image' && (
+            <div className="flex justify-center bg-black/80 rounded p-2 border border-gray-800">
+              <img src={selectedFile.webUrl} alt={selectedFile.name} className="max-h-64 object-contain rounded" />
+            </div>
+          )}
+
+          {selectedFile.previewType === 'audio' && (
+            <div className="bg-black/80 p-3 rounded border border-gray-800">
+              <audio controls src={selectedFile.webUrl} className="w-full" />
+            </div>
+          )}
+
+          {selectedFile.previewType === 'text' && (
+            <div className="bg-black/90 p-3 rounded border border-gray-800 max-h-60 overflow-y-auto font-mono text-xs text-emerald-300 whitespace-pre-wrap">
+              {fileContent}
+            </div>
+          )}
+
+          {selectedFile.previewType === 'binary' && (
+            <div className="text-center py-6 bg-black/60 border border-gray-800 rounded space-y-2">
+              <span className="text-3xl">📦</span>
+              <p className="text-xs text-gray-400 font-mono">
+                Binary format <span className="text-amber-400">.{selectedFile.ext}</span> cannot be previewed inline.
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {/* FILTER SEARCH BAR (Matches Screenshot 4899.jpg) */}
-      <div className="bg-black border border-zinc-800 rounded-2xl px-3 py-2.5 flex items-center gap-2">
-        <input
-          type="text"
-          value={filterQuery}
-          onChange={(e) => setFilterQuery(e.target.value)}
-          placeholder="Filter by name or path..."
-          className="w-full bg-transparent text-xs text-white font-mono focus:outline-none placeholder-zinc-600"
-        />
-        {filterQuery && (
-          <button onClick={() => setFilterQuery('')} className="text-xs text-zinc-500 font-bold">✕</button>
-        )}
-      </div>
-
-      {/* INDEXED FILES COUNT HEADER */}
-      <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider px-1 font-mono">
-        INDEXED FILES ({filteredFiles.length})
-      </div>
-
-      {/* INDEXED FILE LIST CARDS (Matches Screenshot 4899.jpg 1:1) */}
-      <div className="space-y-3">
-        {isScanning ? (
-          <div className="bg-zinc-900/60 p-12 text-center text-xs text-cyan-400 font-mono rounded-3xl border border-zinc-800 animate-pulse">
-            ☣️ Scanning sectors across storage...
-          </div>
-        ) : filteredFiles.length === 0 ? (
-          <div className="bg-zinc-900/60 p-12 text-center text-xs text-zinc-500 font-mono rounded-3xl border border-zinc-800">
-            No files indexed or matching query.
-          </div>
-        ) : (
-          <div className="space-y-2.5 max-h-[440px] overflow-y-auto pr-1">
-            {filteredFiles.map((file, idx) => (
+      {/* Directory Contents List */}
+      {loading ? (
+        <div className="text-center py-12 text-xs font-mono text-gray-500">
+          Reading directory nodes...
+        </div>
+      ) : filteredItems.length === 0 ? (
+        <div className="text-center py-12 text-xs font-mono text-gray-500 border border-dashed border-gray-800 rounded">
+          Folder is empty or unreadable.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-1.5 font-mono">
+          {filteredItems.map((item, idx) => {
+            const isDir = item.type === 'directory';
+            return (
               <div
                 key={idx}
-                className="bg-zinc-900/90 p-4 rounded-3xl border border-zinc-800 flex items-center justify-between gap-3 shadow-xl"
+                onClick={() => handleItemClick(item)}
+                className={`flex items-center justify-between p-2.5 rounded border text-xs cursor-pointer transition-colors ${
+                  isDir 
+                    ? 'bg-gray-900/60 border-gray-800 hover:border-emerald-500/50 hover:bg-emerald-950/20 text-gray-200' 
+                    : 'bg-black/40 border-gray-900 hover:border-gray-700 text-gray-400'
+                }`}
               >
-                <div className="overflow-hidden flex-1">
-                  <h3 className="text-xs font-bold text-white truncate font-mono">{file.name}</h3>
-                  <p className="text-[10px] font-mono text-zinc-500 truncate mt-0.5">
-                    /storage/emulated/0/{file.path}
-                  </p>
-                  <span className="text-[9px] font-mono text-zinc-400 block mt-1">
-                    {file.ext.toUpperCase()} File
-                  </span>
+                <div className="flex items-center gap-2.5 overflow-hidden">
+                  <span className="text-base">{isDir ? '📁' : '📄'}</span>
+                  <span className="truncate">{item.name}</span>
                 </div>
-
-                <button
-                  onClick={() => executeZeroFillAndNuke(file)}
-                  disabled={shreddingPath === file.path}
-                  className="bg-red-600 hover:bg-red-500 text-white font-black text-xs px-4 py-2.5 rounded-2xl border border-red-400 shadow-lg active:scale-90 transition-transform shrink-0 disabled:opacity-40"
-                >
-                  {shreddingPath === file.path ? 'NUKING...' : 'NUKE'}
-                </button>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-black/60 border border-gray-800 text-gray-500 uppercase">
+                  {isDir ? 'DIR' : item.name.split('.').pop() || 'FILE'}
+                </span>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* FOOTER & DISCLAIMER */}
-      <div className="space-y-2 pt-2">
-        <p className="text-[10px] text-zinc-400 flex items-start gap-1.5 px-1 leading-relaxed">
-          <span className="text-cyan-400">ℹ️</span>
-          <span>
-            <strong>About File Shredder:</strong> Overwrites physical flash storage sectors with zero-byte patterns before executing unlinking calls to ensure files cannot be recovered by forensic tools.
-          </span>
-        </p>
-
-        <div className="bg-red-950/40 border border-red-600/30 p-3 rounded-2xl text-[10px] text-red-300 space-y-1">
-          <p className="font-bold flex items-center gap-1 text-red-400">
-            <span>⚠️</span> Warning:
-          </p>
-          <p>Nuked files are permanently zero-filled and 100% unrecoverable.</p>
+            );
+          })}
         </div>
-      </div>
-
+      )}
     </div>
   );
 }
