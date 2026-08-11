@@ -13,11 +13,23 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
     const [isRecording, setIsRecording] = useState(false);
     const [nvgMode, setNvgMode] = useState(false);
     const [nativeZoom, setNativeZoom] = useState(false);
-    const [blackout, setBlackout] = useState(false); // Stealth screen dim
+    const [blackout, setBlackout] = useState(false);
     
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const touchDistRef = useRef(null);
+    const barcodeDetectorRef = useRef(null);
+
+    // Initialize Hardware BarcodeDetector if available on Android
+    useEffect(() => {
+        if ("BarcodeDetector" in window) {
+            try {
+                barcodeDetectorRef.current = new window.BarcodeDetector({ formats: ["qr_code"] });
+            } catch (e) {
+                console.log("BarcodeDetector init failed, falling back to jsQR");
+            }
+        }
+    }, []);
 
     // Initialize Camera with Audio Fallback
     useEffect(() => {
@@ -25,15 +37,12 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         const initCamera = async () => {
             const videoConstraints = { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } };
             try {
-                // Try requesting audio + video first
                 activeStream = await navigator.mediaDevices.getUserMedia({
                     video: videoConstraints,
                     audio: mode === "Video"
                 });
             } catch (err) {
-                console.log("Audio+Video stream failed, falling back to Video-only: " + err.message);
                 try {
-                    // Fallback: request video only so the screen never goes black
                     activeStream = await navigator.mediaDevices.getUserMedia({
                         video: videoConstraints,
                         audio: false
@@ -52,35 +61,58 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         return () => activeStream && activeStream.getTracks().forEach(t => t.stop());
     }, [facingMode, mode]);
 
-    // QR Scanner Loop
+    // Dual-Engine QR Scanner Loop (Native Hardware -> jsQR Fallback)
     useEffect(() => {
         let scanFrame;
-        const scan = () => {
-            if (mode !== "QR" || !videoRef.current || videoRef.current.readyState < 2) {
+        let isScanning = false;
+
+        const scan = async () => {
+            if (mode !== "QR" || !videoRef.current || videoRef.current.readyState < 2 || isScanning) {
                 if (mode === "QR") scanFrame = requestAnimationFrame(scan);
                 return;
             }
             
+            isScanning = true;
             const video = videoRef.current;
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const ctx = canvas.getContext("2d", { willReadFrequently: true });
-            
-            ctx.filter = "contrast(150%) brightness(120%)";
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
-            
-            if (code && code.data) {
-                setScannedResult(code.data);
+            let detectedData = null;
+
+            // 1. Try Native Android Hardware BarcodeDetector (Best for dense LCD screens)
+            if (barcodeDetectorRef.current) {
                 try {
-                    navigator.clipboard.writeText(code.data);
+                    const barcodes = await barcodeDetectorRef.current.detect(video);
+                    if (barcodes && barcodes.length > 0) {
+                        detectedData = barcodes[0].rawValue;
+                    }
+                } catch (e) {}
+            }
+
+            // 2. Fallback to clean jsQR if hardware detector didn't catch it
+            if (!detectedData) {
+                const canvas = document.createElement("canvas");
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext("2d", { willReadFrequently: true });
+                
+                // Draw RAW image without harsh contrast filters that crush tiny dots
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
+                if (code && code.data) {
+                    detectedData = code.data;
+                }
+            }
+            
+            // If we caught a payload, display it and copy!
+            if (detectedData && detectedData !== scannedResult) {
+                setScannedResult(detectedData);
+                try {
+                    navigator.clipboard.writeText(detectedData);
                     setCopyToast(true);
                     setTimeout(() => setCopyToast(false), 3000);
                 } catch (e) {}
             }
+
+            isScanning = false;
             scanFrame = requestAnimationFrame(scan);
         };
         
@@ -88,7 +120,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         else setScannedResult(null);
         
         return () => cancelAnimationFrame(scanFrame);
-    }, [mode]);
+    }, [mode, scannedResult]);
 
     const toggleTorch = async () => {
         try {
@@ -164,14 +196,12 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }
     };
 
-    // If Blackout mode is active, display a pure black overlay that wakes on tap
     if (blackout) {
         return (
             <div 
                 onClick={() => setBlackout(false)}
                 className="fixed inset-0 bg-black z-[9999] flex items-center justify-center cursor-pointer select-none"
             >
-                {/* Silent indicator only visible if you know where to look */}
                 <div className="w-1 h-1 rounded-full bg-zinc-900"></div>
             </div>
         );
@@ -219,7 +249,40 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                             <span className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-emerald-400 rounded-bl-xl"></span>
                             <span className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-emerald-400 rounded-br-xl"></span>
                         </div>
-                        {copyToast && <div className="absolute top-20 bg-emerald-500 text-black font-black text-xs px-4 py-2 rounded-full uppercase tracking-widest shadow-lg animate-bounce">PAYLOAD SECURED</div>}
+                    </div>
+                )}
+
+                {/* PAYLOAD DISPLAY MODAL: Pops up immediately when a QR code is captured */}
+                {scannedResult && (
+                    <div className="absolute inset-x-6 bottom-32 bg-zinc-950/95 border-2 border-emerald-500/80 rounded-2xl p-5 z-30 shadow-[0_0_35px_rgba(16,185,129,0.3)] backdrop-blur-xl animate-fadeIn">
+                        <div className="flex justify-between items-center mb-2">
+                            <span className="text-[10px] font-black text-emerald-400 tracking-widest uppercase flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                                QR Payload Secured
+                            </span>
+                            {copyToast && <span className="text-[9px] bg-emerald-500/20 text-emerald-300 font-bold px-2 py-0.5 rounded border border-emerald-500/40">COPIED!</span>}
+                        </div>
+                        <div className="max-h-36 overflow-y-auto bg-black/80 border border-zinc-800 rounded-xl p-3 mb-3 font-mono text-xs text-zinc-200 select-all break-all">
+                            {scannedResult}
+                        </div>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => {
+                                    navigator.clipboard.writeText(scannedResult);
+                                    setCopyToast(true);
+                                    setTimeout(() => setCopyToast(false), 2000);
+                                }}
+                                className="flex-1 bg-emerald-500 hover:bg-emerald-400 text-black font-black text-xs py-2.5 rounded-xl uppercase tracking-wider active:scale-95 transition-all"
+                            >
+                                Copy Again
+                            </button>
+                            <button 
+                                onClick={() => setScannedResult(null)}
+                                className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold text-xs px-5 py-2.5 rounded-xl uppercase tracking-wider active:scale-95 transition-all"
+                            >
+                                Clear
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -244,7 +307,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
 
                 <div className="flex gap-6 bg-zinc-900/80 px-6 py-2.5 rounded-full backdrop-blur-md border border-zinc-800 shadow-xl">
                     {["Photo", "Video", "QR"].map(m => (
-                        <button key={m} onClick={() => { setMode(m); setIsRecording(false); }} className={`text-xs font-bold tracking-widest uppercase transition-all ${mode === m ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-zinc-500'}`}>{m}</button>
+                        <button key={m} onClick={() => { setMode(m); setIsRecording(false); setScannedResult(null); }} className={`text-xs font-bold tracking-widest uppercase transition-all ${mode === m ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-zinc-500'}`}>{m}</button>
                     ))}
                 </div>
             </div>
