@@ -1,0 +1,5 @@
+Sovereign Tools is an all-in-one, privacy-hardened Android toolkit designed to operate completely off-grid.
+
+It features a localized WebRTC mesh network, Curve25519 ECC / AES-256 GCM cryptographic engines, Shizuku-powered debloating and file shredding, and a mathematical offline QR stealth camera.
+
+Built entirely on a smartphone, it has zero telemetry, zero trackers, and requires no cloud sync.
