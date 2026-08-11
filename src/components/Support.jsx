@@ -145,7 +145,7 @@ export function Support() {
                         </div>
                         <button 
                             onClick={() => {
-                                const key = "-----BEGIN PGP PUBLIC KEY BLOCK-----
+                                const key = `-----BEGIN PGP PUBLIC KEY BLOCK-----
 
 xjMEantU5BYJKwYBBAHaRw8BAQdALoGTD1x6Tf6GjbQ6GIKiNC71kHTvnggy
 V++EWYw9li7NJVNvdmVyZWlnbiBOb2RlIDxub2RlQHNvdmVyZWlnbi5sb2Nh
@@ -161,7 +161,7 @@ FwyPjFbCmvYCmwwWIQQeZ1AdCb6j9drDESbWojDAjk/VCAAA3aYA/AqkmELB
 dTHL2tyR7Nn9TWWPcXttbIhI7NC3+Pgf81NfAQDGzFd7iVw9zfkHw+PDIc+g
 XYjG7/W4hVG8a6AolAYNDg==
 =2Q2r
------END PGP PUBLIC KEY BLOCK-----";
+-----END PGP PUBLIC KEY BLOCK-----`;
                                 try { navigator.clipboard.writeText(key); alert("PGP Key Copied!"); } catch(e){}
                             }} 
                             className="bg-emerald-900/30 border border-emerald-700 text-emerald-400 hover:bg-emerald-600 hover:text-black text-[10px] font-bold px-4 py-2 rounded-xl transition-all active:scale-95">
