@@ -11,34 +11,48 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
     const [copyToast, setCopyToast] = useState(false);
     const [facingMode, setFacingMode] = useState("environment");
     const [isRecording, setIsRecording] = useState(false);
-    const [nvgMode, setNvgMode] = useState(false); // Night Vision / Clarity Filter
+    const [nvgMode, setNvgMode] = useState(false);
     const [nativeZoom, setNativeZoom] = useState(false);
+    const [blackout, setBlackout] = useState(false); // Stealth screen dim
     
     const mediaRecorderRef = useRef(null);
     const chunksRef = useRef([]);
     const touchDistRef = useRef(null);
 
-    // Initialize Camera
+    // Initialize Camera with Audio Fallback
     useEffect(() => {
         let activeStream = null;
         const initCamera = async () => {
+            const videoConstraints = { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } };
             try {
+                // Try requesting audio + video first
                 activeStream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+                    video: videoConstraints,
                     audio: mode === "Video"
                 });
-                if (videoRef.current) {
-                    videoRef.current.srcObject = activeStream;
-                }
             } catch (err) {
-                console.log("Camera error: " + err.message);
+                console.log("Audio+Video stream failed, falling back to Video-only: " + err.message);
+                try {
+                    // Fallback: request video only so the screen never goes black
+                    activeStream = await navigator.mediaDevices.getUserMedia({
+                        video: videoConstraints,
+                        audio: false
+                    });
+                } catch (fallbackErr) {
+                    console.log("Camera access error: " + fallbackErr.message);
+                }
+            }
+
+            if (videoRef.current && activeStream) {
+                videoRef.current.srcObject = activeStream;
+                videoRef.current.play().catch(e => console.log("Play error:", e));
             }
         };
         initCamera();
         return () => activeStream && activeStream.getTracks().forEach(t => t.stop());
     }, [facingMode, mode]);
 
-    // High-Performance QR Scanner Loop
+    // QR Scanner Loop
     useEffect(() => {
         let scanFrame;
         const scan = () => {
@@ -53,12 +67,10 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
             canvas.height = video.videoHeight;
             const ctx = canvas.getContext("2d", { willReadFrequently: true });
             
-            // Internally boost contrast so the scanner can read in low light
             ctx.filter = "contrast(150%) brightness(120%)";
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            // attemptBoth allows reading inverted/dark background QR codes
             const code = jsQR(imageData.data, imageData.width, imageData.height, { inversionAttempts: "attemptBoth" });
             
             if (code && code.data) {
@@ -89,18 +101,17 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
     };
 
     const applyZoom = async (level) => {
-        let newZoom = Math.min(Math.max(1, level), 5); // Clamp 1x to 5x
+        let newZoom = Math.min(Math.max(1, level), 5);
         setZoom(newZoom);
         try {
             const track = videoRef.current.srcObject.getVideoTracks()[0];
             await track.applyConstraints({ advanced: [{ zoom: newZoom }] });
-            setNativeZoom(true); // Hardware zoom worked
+            setNativeZoom(true);
         } catch (e) {
-            setNativeZoom(false); // Fallback to CSS zoom
+            setNativeZoom(false);
         }
     };
 
-    // Pinch-to-Zoom Touch Math
     const handleTouchStart = (e) => {
         if (e.touches.length === 2) {
             const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -153,6 +164,19 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }
     };
 
+    // If Blackout mode is active, display a pure black overlay that wakes on tap
+    if (blackout) {
+        return (
+            <div 
+                onClick={() => setBlackout(false)}
+                className="fixed inset-0 bg-black z-[9999] flex items-center justify-center cursor-pointer select-none"
+            >
+                {/* Silent indicator only visible if you know where to look */}
+                <div className="w-1 h-1 rounded-full bg-zinc-900"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="fixed inset-0 bg-black flex flex-col justify-between z-50 select-none">
             
@@ -160,6 +184,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
             <div className="absolute top-0 left-0 right-0 flex justify-between items-center p-4 z-20">
                 <button onClick={() => navHandler('home')} className="bg-zinc-900/80 border border-zinc-700 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95 shadow-lg">X Exit</button>
                 <div className="flex gap-2">
+                    <button onClick={() => setBlackout(true)} className="bg-zinc-900/80 border border-zinc-700 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95 shadow-lg">🕶️ Dim</button>
                     <button onClick={() => setNvgMode(!nvgMode)} className={`border text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95 shadow-lg ${nvgMode ? 'bg-emerald-500/80 border-emerald-400 text-black' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>🌙 NVG</button>
                     <button onClick={toggleTorch} className={`border text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95 shadow-lg ${torch ? 'bg-yellow-500/80 border-yellow-400 text-black' : 'bg-zinc-900/80 border-zinc-700 text-white'}`}>⚡ Flash</button>
                     <button onClick={() => setFacingMode(prev => prev === "environment" ? "user" : "environment")} className="bg-zinc-900/80 border border-zinc-700 text-white text-xs font-bold px-4 py-2 rounded-full backdrop-blur-md active:scale-95 shadow-lg">🔄 Flip</button>
@@ -186,7 +211,6 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                     className="absolute inset-0 w-full h-full object-cover pointer-events-none" 
                 />
 
-                {/* QR Targeting Overlay */}
                 {mode === "QR" && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none z-10">
                         <div className="w-64 h-64 border-2 border-emerald-500/50 rounded-2xl relative shadow-[0_0_25px_rgba(16,185,129,0.2)] animate-pulse">
@@ -202,15 +226,12 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
 
             {/* Bottom Controls */}
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-12 pb-8 flex flex-col items-center gap-6 z-20">
-                
-                {/* Zoom Bar */}
                 <div className="flex gap-4 bg-zinc-900/60 px-6 py-2 rounded-full backdrop-blur-md border border-zinc-800">
                     {[1, 2, 3].map(level => (
                         <button key={level} onClick={() => applyZoom(level)} className={`text-xs font-bold transition-all ${Math.round(zoom) === level ? 'text-emerald-400 scale-110' : 'text-zinc-500 hover:text-white'}`}>{level}x</button>
                     ))}
                 </div>
 
-                {/* Shutter Button */}
                 {mode !== "QR" ? (
                     <button onClick={handleAction} className={`w-16 h-16 rounded-full border-4 border-white flex items-center justify-center active:scale-90 transition-transform shadow-[0_0_20px_rgba(0,0,0,0.5)]`}>
                         <div className={`w-12 h-12 rounded-full ${mode === "Video" ? (isRecording ? 'bg-red-600 animate-pulse' : 'bg-red-500') : 'bg-white'}`}></div>
@@ -221,7 +242,6 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                     </div>
                 )}
 
-                {/* Mode Selector */}
                 <div className="flex gap-6 bg-zinc-900/80 px-6 py-2.5 rounded-full backdrop-blur-md border border-zinc-800 shadow-xl">
                     {["Photo", "Video", "QR"].map(m => (
                         <button key={m} onClick={() => { setMode(m); setIsRecording(false); }} className={`text-xs font-bold tracking-widest uppercase transition-all ${mode === m ? 'text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]' : 'text-zinc-500'}`}>{m}</button>
