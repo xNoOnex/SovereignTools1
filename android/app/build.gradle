@@ -12,7 +12,19 @@ android {
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
+    
+    signingConfigs {
+        release {
+            storeFile file("sovereign-release.keystore")
+            storePassword "sovereign123"
+            keyAlias "sovereign"
+            keyPassword "sovereign123"
+        }
+    }
     buildTypes {
+        debug {
+            signingConfig signingConfigs.release
+        }
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
