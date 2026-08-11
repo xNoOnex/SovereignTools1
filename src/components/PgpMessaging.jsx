@@ -71,7 +71,7 @@ XYjG7/W4hVG8a6AolAYNDg==
 =2Q2r
 -----END PGP PUBLIC KEY BLOCK-----`;
 
-      const privPem = `-----BEGIN PGP PRIVATE KEY BLOCK-----\nVersion: SovereignPGP v2.0\n\n` +
+      const privPem = `-----BEGIN PGP PRIVATE KEY BLOCK-----\n +
         btoa(String.fromCharCode(...new Uint8Array(privExp))) +
         `\n-----END PGP PRIVATE KEY BLOCK-----`;
 
@@ -102,7 +102,7 @@ XYjG7/W4hVG8a6AolAYNDg==
     try {
       // Create Base64 ASCII Armor text block compatible with SMS payloads
       const payload = btoa(encodeURIComponent(plainMsg));
-      const armor = `-----BEGIN PGP MESSAGE-----\nVersion: SovereignPGP v2.0\nMode: ${encMode.toUpperCase()}\n\n` +
+      const armor = `-----BEGIN PGP MESSAGE-----\n +
         payload +
         `\n-----END PGP MESSAGE-----`;
 
