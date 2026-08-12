@@ -21,7 +21,7 @@ import { SecureGallery } from './components/SecureGallery';
 import { Vault } from './components/Vault';
 import { SovereignAudio } from './components/SovereignAudio';
 import { EncryptedDocs } from './components/EncryptedDocs';
-import { FileViewer } from './components/FileViewer';
+import UniversalExplorer from './components/UniversalExplorer';
 import { Settings } from './components/Settings';
 import { StorageProvider } from './context/StorageContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
