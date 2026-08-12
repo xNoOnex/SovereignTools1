@@ -202,7 +202,7 @@ function AppContent() {
       {currentScreen === 'vault' && <Vault onNavigate={navigateTo} />}
       {currentScreen === 'audio' && <SovereignAudio onNavigate={(s) => typeof navigateTo === 'function' ? navigateTo(s) : setCurrentScreen(s)} globalTrackIndex={globalTrackIndex} isPlaying={isPlaying} handlePlayTrack={handlePlayTrack} togglePlay={togglePlay} stopAudio={stopAudio} handleNextTrack={handleNextTrack} handlePrevTrack={handlePrevTrack} audioRef={audioRef} />}
       {currentScreen === 'docs' && <EncryptedDocs onNavigate={navigateTo} />}
-      {currentScreen === 'fileviewer' && <FileViewer onNavigate={navigateTo} />}
+      {(currentScreen === 'universal_explorer' || currentScreen === 'fileviewer') && <UniversalExplorer onBack={() => navigateTo('home')} />}
 
       {showSettings && (
         <Settings 
