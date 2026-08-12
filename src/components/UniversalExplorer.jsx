@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Filesystem, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
-import { FileOpener } from '@capacitor-community/file-opener';
+import { FileOpener } from '@capawesome-team/capacitor-file-opener';
 
 export default function UniversalExplorer({ onBack }) {
   const ROOT_PATH = '/storage/emulated/0';
@@ -83,7 +83,7 @@ export default function UniversalExplorer({ onBack }) {
   const openNativeExternal = async (filePath) => {
     try {
       setStatusMsg("Launching external application...");
-      await FileOpener.open({ filePath: filePath });
+      await FileOpener.openFile({ path: filePath });
       setStatusMsg("");
     } catch (err) {
       console.error("FileOpener Error:", err);
