@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Filesystem, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
+import { FileOpener } from '@capacitor-community/file-opener';
 
 export default function UniversalExplorer({ onBack }) {
   const ROOT_PATH = '/storage/emulated/0';
@@ -10,6 +11,7 @@ export default function UniversalExplorer({ onBack }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState('');
+  const [statusMsg, setStatusMsg] = useState('');
 
   useEffect(() => {
     loadDirectory(currentPath);
@@ -19,12 +21,12 @@ export default function UniversalExplorer({ onBack }) {
     setLoading(true);
     setSelectedFile(null);
     setFileContent('');
+    setStatusMsg('');
     try {
       const res = await Filesystem.readdir({
         path: targetPath,
       });
 
-      // Sort: Folders first, then files alphabetically
       const sorted = (res.files || []).sort((a, b) => {
         if (a.type === 'directory' && b.type !== 'directory') return -1;
         if (a.type !== 'directory' && b.type === 'directory') return 1;
@@ -34,7 +36,6 @@ export default function UniversalExplorer({ onBack }) {
       setItems(sorted);
     } catch (err) {
       console.error("Error reading directory:", err);
-      // Fallback if readdir fails on restricted system folders
       setItems([]);
     } finally {
       setLoading(false);
@@ -47,7 +48,6 @@ export default function UniversalExplorer({ onBack }) {
     if (item.type === 'directory') {
       setCurrentPath(fullPath);
     } else {
-      // It's a file
       const ext = item.name.split('.').pop().toLowerCase();
       const webUrl = Capacitor.convertFileSrc(fullPath);
       
@@ -77,6 +77,19 @@ export default function UniversalExplorer({ onBack }) {
         previewType,
         size: item.size
       });
+    }
+  };
+
+  const openNativeExternal = async (filePath) => {
+    try {
+      setStatusMsg("Launching external application...");
+      await FileOpener.open({
+        filePath: filePath,
+      });
+      setStatusMsg("");
+    } catch (err) {
+      console.error("FileOpener Error:", err);
+      setStatusMsg("Failed to open externally: " + (err.message || "No app handle"));
     }
   };
 
@@ -135,9 +148,15 @@ export default function UniversalExplorer({ onBack }) {
         </button>
       </div>
 
+      {statusMsg && (
+        <div className="text-xs font-mono text-amber-400 bg-amber-950/40 p-2 rounded border border-amber-800">
+          {statusMsg}
+        </div>
+      )}
+
       {/* File Preview Modal / Section */}
       {selectedFile && (
-        <div className="bg-gray-900/90 border border-emerald-500/40 rounded-lg p-4 space-y-3 relative">
+        <div className="bg-gray-900/95 border border-emerald-500/40 rounded-lg p-4 space-y-3 relative">
           <div className="flex justify-between items-start border-b border-gray-800 pb-2">
             <div>
               <h3 className="text-sm font-bold text-emerald-400 font-mono">{selectedFile.name}</h3>
@@ -151,7 +170,6 @@ export default function UniversalExplorer({ onBack }) {
             </button>
           </div>
 
-          {/* Render by Type */}
           {selectedFile.previewType === 'image' && (
             <div className="flex justify-center bg-black/80 rounded p-2 border border-gray-800">
               <img src={selectedFile.webUrl} alt={selectedFile.name} className="max-h-64 object-contain rounded" />
@@ -171,11 +189,17 @@ export default function UniversalExplorer({ onBack }) {
           )}
 
           {selectedFile.previewType === 'binary' && (
-            <div className="text-center py-6 bg-black/60 border border-gray-800 rounded space-y-2">
+            <div className="text-center py-6 bg-black/60 border border-gray-800 rounded space-y-3">
               <span className="text-3xl">📦</span>
               <p className="text-xs text-gray-400 font-mono">
-                Binary format <span className="text-amber-400">.{selectedFile.ext}</span> cannot be previewed inline.
+                Binary format <span className="text-amber-400">.{selectedFile.ext}</span>
               </p>
+              <button
+                onClick={() => openNativeExternal(selectedFile.path)}
+                className="px-4 py-2 bg-emerald-900/80 hover:bg-emerald-800 text-emerald-200 border border-emerald-600 rounded text-xs font-mono font-bold"
+              >
+                🔓 OPEN IN SYSTEM APP
+              </button>
             </div>
           )}
         </div>

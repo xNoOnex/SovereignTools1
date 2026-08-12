@@ -121,7 +121,7 @@ export function NetSecOps({ onNavigate }) {
          <div className="flex items-center gap-3">
              <span className="text-3xl">{activeTool ? activeTool.icon : '⚡'}</span>
              <div>
-                 <h2 className="text-lg font-black tracking-widest text-orange-500 uppercase">{activeTool ? activeTool.name : 'NetSec & SysOps'}</h2>
+                 <h2 className="text-lg font-black tracking-widest text-orange-500 uppercase">{activeTool ? activeTool.name : 'NetSec & SysOps [WIP]'}</h2>
                  <span className="text-[10px] text-orange-500 font-bold bg-orange-950/40 px-2 py-0.5 rounded border border-orange-900/50 uppercase">Shizuku Shell Bridge</span>
              </div>
          </div>

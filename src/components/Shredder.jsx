@@ -93,7 +93,7 @@ export function Shredder({ onNavigate }) {
     <div className="p-4 space-y-6 max-w-2xl mx-auto pb-28 select-none font-sans text-white min-h-screen relative z-10 animate-fadeIn">
       
       <div className="border-b border-zinc-900 pb-3 pt-2 shrink-0">
-        <h2 className="text-2xl font-black text-white flex items-center gap-3"><span className="text-3xl text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">☣️</span> Data Shredder</h2>
+        <h2 className="text-2xl font-black text-white flex items-center gap-3"><span className="text-3xl text-red-500 drop-shadow-[0_0_10px_rgba(239,68,68,0.8)]">☣️</span> Data Shredder [WIP]</h2>
         <p className="text-xs text-zinc-400 mt-2">Logical sector overwrite and metadata obfuscation.</p>
       </div>
 
