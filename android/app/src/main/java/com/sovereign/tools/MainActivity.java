@@ -1,48 +1,17 @@
 package com.sovereign.tools;
 
 import android.os.Bundle;
-import android.content.Intent;
-import android.net.Uri;
-import android.os.Build;
-import android.os.Environment;
-import android.provider.Settings;
-import com.getcapacitor.BridgeActivity;
-import android.os.Bundle;
 import android.view.WindowManager;
+import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
-  @Override
-  public void onCreate(Bundle savedInstanceState) {
-    super.onCreate(savedInstanceState);
-    getWindow().setFlags(
-      WindowManager.LayoutParams.FLAG_SECURE,
-      WindowManager.LayoutParams.FLAG_SECURE
-    );
-  }
     @Override
     public void onCreate(Bundle savedInstanceState) {
-        // SMART DYNAMIC NATIVE BRIDGES
-        registerPlugin(AlarmIntentBridge.class);
-        registerPlugin(GlobalPermissionsBridge.class);
-        registerPlugin(MeshNodePlugin.class);
-        registerPlugin(ShizukuRunner.class);
-        registerPlugin(SovereignGattPlugin.class);
-        registerPlugin(StorageIntentBridge.class);
-        registerPlugin(WakeLockBridge.class);
-
         super.onCreate(savedInstanceState);
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            if (!Environment.isExternalStorageManager()) {
-                try {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                    intent.setData(Uri.parse("package:" + getPackageName()));
-                    startActivity(intent);
-                } catch (Exception e) {
-                    Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                    startActivity(intent);
-                }
-            }
-        }
+        // Anti-Screen Recording & Anti-Screenshot security flag
+        getWindow().setFlags(
+            WindowManager.LayoutParams.FLAG_SECURE,
+            WindowManager.LayoutParams.FLAG_SECURE
+        );
     }
 }
