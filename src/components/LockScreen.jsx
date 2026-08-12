@@ -10,6 +10,13 @@ export function LockScreen({ onUnlock }) {
   const executeProtocolZero = () => {
     // ☢️ THE PAYLOAD ☢️
     // 1. Vaporize the entire local database (Keys, Ledgers, Settings, PINs)
+    // Cryptographic Shredder: Overwrite AES encrypted entries with raw entropy
+    for(let i=0; i<localStorage.length; i++) {
+      let k = localStorage.key(i);
+      if(k && k.startsWith('sec_')) {
+        localStorage.setItem(k, window.crypto.getRandomValues(new Uint32Array(1))[0].toString(16));
+      }
+    }
     localStorage.clear();
     // 2. Force an instant hard-reload to factory-fresh state
     window.location.reload();
