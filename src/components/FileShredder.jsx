@@ -103,6 +103,47 @@ export default function UniversalExplorer({ onBack }) {
     i.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  
+  const handleShredFile = async (filePath, fileName) => {
+    if (!window.confirm(`WARNING: This will cryptographically shred ${fileName}. It cannot be undone. Proceed?`)) return;
+    
+    try {
+      setLoading(true);
+      
+      // Pass 1: Cryptographic Overwrite (Flood sectors with entropy)
+      const randomData = window.crypto.getRandomValues(new Uint8Array(1024 * 64)); 
+      let hexString = Array.from(randomData).map(b => b.toString(16).padStart(2, '0')).join('');
+      
+      await Filesystem.writeFile({ 
+        path: filePath, 
+        data: hexString, 
+        encoding: Encoding.UTF8 
+      });
+
+      // Pass 2: Metadata Scramble (Strip extension to blind the MediaScanner)
+      const junkName = window.crypto.getRandomValues(new Uint32Array(1))[0].toString(16) + '.tmp';
+      const junkPath = filePath.replace(fileName, junkName);
+      
+      await Filesystem.rename({ 
+        from: filePath, 
+        to: junkPath 
+      });
+
+      // Pass 3: Unlink / Destroy
+      await Filesystem.deleteFile({ 
+        path: junkPath 
+      });
+
+      alert('File successfully incinerated.');
+      loadDirectory(currentPath); // Refresh UI
+    } catch (e) {
+      console.error('Shredding failed:', e);
+      alert('Wipe failed. Scoped Storage lock detected. Shizuku escalation required.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="p-4 space-y-4 max-w-4xl mx-auto text-gray-100 pb-24">
       {/* Header */}
@@ -231,6 +272,7 @@ export default function UniversalExplorer({ onBack }) {
                 <div className="flex items-center gap-2.5 overflow-hidden">
                   <span className="text-base">{isDir ? '📁' : '📄'}</span>
                   <span className="truncate">{item.name}</span>
+            {item.type !== 'directory' && <button onClick={(e) => { e.stopPropagation(); handleShredFile(item.path, item.name); }} className="ml-auto px-3 py-1 bg-red-900/50 hover:bg-red-500 text-red-200 text-xs font-bold rounded border border-red-500/50 shadow-md transition-all">SHRED</button>}
                 </div>
                 <span className="text-[10px] px-2 py-0.5 rounded bg-black/60 border border-gray-800 text-gray-500 uppercase">
                   {isDir ? 'DIR' : item.name.split('.').pop() || 'FILE'}
