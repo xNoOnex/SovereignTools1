@@ -30,6 +30,8 @@ import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
+  const [sessionMode] = useSecureStorage("sovereign_session_mode", "");
+
   
   // -- SOVEREIGN AUDIO BACKGROUND STATE --
   const audioRef = useRef(null);
