@@ -1,34 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
+import { useSecureStorage } from '../hooks/useSecureStorage';
 const StealthBrowser = registerPlugin('StealthBrowser');
 
 export function SovereignBrowser({ onNavigate }) {
   const [address, setAddress] = useState('https://');
   const [showSettings, setShowSettings] = useState(false);
-  
-  // Browser Engine Settings
   const [autoNuke, setAutoNuke] = useState(true);
   const [proxyEnabled, setProxyEnabled] = useState(false);
   const [proxyHost, setProxyHost] = useState('127.0.0.1');
-  const [proxyPort, setProxyPort] = useState('9050'); // Default Tor/Orbot port
+  const [proxyPort, setProxyPort] = useState('9050');
   
-  // Bookmarks State
-  const [bookmarks, setBookmarks] = useState([]);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('sovereign_bookmarks');
-    if (saved) setBookmarks(JSON.parse(saved));
-  }, []);
+  // Directly tied to your global AES-256 Vault
+  const [bookmarks, setBookmarks] = useSecureStorage('sovereign_bookmarks', []);
 
   const toggleBookmark = () => {
-    let updated;
     if (bookmarks.includes(address)) {
-      updated = bookmarks.filter(b => b !== address);
+      setBookmarks(bookmarks.filter(b => b !== address));
     } else {
-      updated = [...bookmarks, address];
+      setBookmarks([...bookmarks, address]);
     }
-    setBookmarks(updated);
-    localStorage.setItem('sovereign_bookmarks', JSON.stringify(updated));
   };
 
   const handleNavigate = async (targetUrl = address) => {
@@ -53,8 +44,6 @@ export function SovereignBrowser({ onNavigate }) {
 
   return (
     <div className="flex flex-col h-full bg-black text-zinc-300 animate-fadeIn relative">
-      
-      {/* Header Panel */}
       <div className="bg-zinc-950 border-b border-zinc-800 shrink-0 p-3 flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div>
@@ -66,7 +55,6 @@ export function SovereignBrowser({ onNavigate }) {
           <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-rose-400 font-bold text-xs">EXIT</button>
         </div>
 
-        {/* Address Bar Row */}
         <div className="flex gap-2 relative">
           <button 
             onClick={() => setShowSettings(!showSettings)}
@@ -93,23 +81,18 @@ export function SovereignBrowser({ onNavigate }) {
         </div>
       </div>
 
-      {/* Engine Settings Dropdown */}
       {showSettings && (
         <div className="absolute top-[120px] left-3 right-3 bg-zinc-900 border border-zinc-700 rounded-xl p-4 shadow-2xl z-50 flex flex-col gap-4">
-          
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🔥 Auto-Nuke Cache on Exit</span>
             <input type="checkbox" checked={autoNuke} onChange={() => setAutoNuke(!autoNuke)} className="w-5 h-5 accent-rose-600" />
           </div>
-
           <div className="h-px bg-zinc-800 w-full" />
-
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🕵️ Route via SOCKS5 Proxy (Tor)</span>
               <input type="checkbox" checked={proxyEnabled} onChange={() => setProxyEnabled(!proxyEnabled)} className="w-5 h-5 accent-cyan-500" />
             </div>
-            
             {proxyEnabled && (
               <div className="flex gap-2 mt-2">
                 <input 
@@ -122,16 +105,14 @@ export function SovereignBrowser({ onNavigate }) {
                 />
               </div>
             )}
-            <p className="text-[9px] font-mono text-zinc-500">Enable and point to 127.0.0.1:9050 if running Orbot locally.</p>
           </div>
         </div>
       )}
 
-      {/* Bookmarks Grid */}
       <div className="p-4 flex flex-col gap-3 flex-grow overflow-y-auto">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Saved Locations</h3>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Secured Locations</h3>
         {bookmarks.length === 0 ? (
-          <div className="text-center text-xs font-mono text-zinc-600 py-10">No bookmarks saved.</div>
+          <div className="text-center text-xs font-mono text-zinc-600 py-10">No bookmarks saved in vault.</div>
         ) : (
           bookmarks.map((bm, idx) => (
             <div 
@@ -144,7 +125,6 @@ export function SovereignBrowser({ onNavigate }) {
           ))
         )}
       </div>
-
     </div>
   );
 }
