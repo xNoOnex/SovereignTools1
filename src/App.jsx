@@ -30,6 +30,18 @@ import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
+
+  const [unlockTaps, setUnlockTaps] = useState(0);
+  const triggerDevUnlock = () => {
+    if (unlockTaps + 1 >= 4) {
+      localStorage.setItem("sovereign_dev_mode", "true");
+      alert("🔓 Developer Mode Unlocked! Screenshot controls active in Settings.");
+      setUnlockTaps(0);
+    } else {
+      setUnlockTaps(prev => prev + 1);
+    }
+  };
+
   const [sessionMode] = useSecureStorage("sovereign_session_mode", "");
 
   
@@ -164,7 +176,7 @@ function AppContent() {
       
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <h1 onClick={handleDevTap} className="font-bold text-white uppercase tracking-widest cursor-pointer select-none">SOVEREIGN TOOLS</h1>
+          <h1 onClick={triggerDevUnlock} className="font-bold text-white uppercase tracking-widest cursor-pointer select-none">SOVEREIGN TOOLS</h1>
           <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full uppercase">{mode}</span>
         </div>
         <div className="flex gap-2">
