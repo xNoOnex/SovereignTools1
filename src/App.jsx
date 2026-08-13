@@ -1,3 +1,4 @@
+import { useSecureStorage } from './hooks/useSecureStorage';
 import { SwarmComms } from './components/SwarmComms';
 import { Capacitor } from '@capacitor/core';
 import { MeshProtocol } from './components/MeshProtocol';
