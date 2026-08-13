@@ -161,7 +161,7 @@ function AppContent() {
       
       <div className="flex justify-between items-center p-4 border-b border-zinc-900 bg-black/90 backdrop-blur sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <h1 className="text-sm font-black tracking-widest text-white uppercase" onClick={handleDevTap} className="cursor-pointer select-none">SOVEREIGN TOOLS</h1>
+          <h1 onClick={handleDevTap} className="font-bold text-white uppercase tracking-widest cursor-pointer select-none">SOVEREIGN TOOLS</h1>
           <span className="text-[9px] font-bold theme-accent-badge px-2 py-0.5 rounded-full uppercase">{mode}</span>
         </div>
         <div className="flex gap-2">

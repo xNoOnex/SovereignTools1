@@ -226,7 +226,37 @@ export function Settings({ closeSettings, appMode, setAppMode, accentColor, setA
           </div>
         </div>
 
-        {/* SUPPORT BUTTON */}
+        
+      {/* DEVELOPER SCREENSHOT TOGGLE */}
+      {localStorage.getItem("sovereign_dev_mode") === "true" && (
+        <div className="bg-black/60 backdrop-blur border border-emerald-500/50 p-5 rounded-xl space-y-3 shadow-lg mb-4">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-xs text-emerald-400 uppercase tracking-widest flex items-center gap-2">
+              🔓 Screenshot Shield
+            </span>
+            <button
+              onClick={async () => {
+                const isCurrentlyOff = localStorage.getItem("sovereign_allow_screenshots") === "true";
+                if (isCurrentlyOff) {
+                  await SecurityToggle.enableSecureFlag();
+                  localStorage.setItem("sovereign_allow_screenshots", "false");
+                  alert("Shields UP: Screenshots & screen recording blocked.");
+                } else {
+                  await SecurityToggle.disableSecureFlag();
+                  localStorage.setItem("sovereign_allow_screenshots", "true");
+                  alert("Shields DOWN: Screenshots allowed for debugging.");
+                }
+                window.location.reload();
+              }}
+              className="px-4 py-2 bg-emerald-900/50 border border-emerald-500 text-emerald-300 text-xs font-bold rounded-lg hover:bg-emerald-500 hover:text-black transition-all"
+            >
+              {localStorage.getItem("sovereign_allow_screenshots") === "true" ? "DISABLE" : "ENABLE"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* SUPPORT BUTTON */}
         <button onClick={() => { closeSettings(); onNavigate('support'); }} className="w-full py-5 bg-black border border-zinc-800 hover:border-zinc-600 rounded-3xl flex items-center justify-center gap-3 text-xs font-bold text-white uppercase tracking-widest active:scale-95 transition-all shadow-lg mt-8">
           <span className="text-xl">☕</span> Support The Creator
         </button>
