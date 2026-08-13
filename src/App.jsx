@@ -208,8 +208,8 @@ function AppContent() {
         </div>
       </div>
 
-      {currentScreen === 'crypto' && <CryptoTools onNavigate={navigate} />}
-        {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigate} />}
+      {currentScreen === 'crypto' && <CryptoTools onNavigate={navigateTo} />}
+        {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
         {currentScreen === 'home' && <Home onNavigate={navigateTo} currentMode={mode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}
