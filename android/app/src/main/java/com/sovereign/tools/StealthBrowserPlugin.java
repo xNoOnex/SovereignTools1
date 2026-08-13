@@ -16,9 +16,12 @@ public class StealthBrowserPlugin extends Plugin {
             return;
         }
         
-        // Launch the isolated Java engine
         Intent intent = new Intent(getContext(), BrowserActivity.class);
         intent.putExtra("url", url);
+        intent.putExtra("autoNuke", call.getBoolean("autoNuke", true));
+        intent.putExtra("proxyHost", call.getString("proxyHost", ""));
+        intent.putExtra("proxyPort", call.getInt("proxyPort", 0));
+        
         getContext().startActivity(intent);
         call.resolve();
     }
