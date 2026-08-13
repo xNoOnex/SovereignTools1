@@ -1,13 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { VoiceRecorder } from 'capacitor-voice-recorder';
-import { Capacitor } from '@capacitor/core';
 
 export function SovereignRecorder({ onNavigate }) {
-  const [view, setView] = useState('record'); // 'record' or 'archive'
+  const [view, setView] = useState('record');
+  const [vaultKey, setVaultKey] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const [records, setRecords] = useState([]);
+  const [activePlayback, setActivePlayback] = useState({ name: null, url: null });
+  const [isDecrypting, setIsDecrypting] = useState(false);
+  
   const timerRef = useRef(null);
   const FOLDER_PATH = "Sovereign_Records";
 
@@ -18,7 +21,7 @@ export function SovereignRecorder({ onNavigate }) {
   const initStorage = async () => {
     try {
       await Filesystem.mkdir({ path: FOLDER_PATH, directory: Directory.Documents, recursive: true });
-    } catch (e) { /* Folder already exists */ }
+    } catch (e) { /* Folder exists */ }
     loadRecords();
   };
 
@@ -26,29 +29,37 @@ export function SovereignRecorder({ onNavigate }) {
     try {
       const res = await Filesystem.readdir({ path: FOLDER_PATH, directory: Directory.Documents });
       const parsed = res.files
-        .filter(f => f.name.match(/\.(webm|mp4|m4a|aac)$/i))
-        .map(f => ({ 
-          name: f.name, 
-          path: f.uri || f.path,
-          webPath: Capacitor.convertFileSrc(f.uri || f.path) // Crucial for audio scrubbing
-        }));
+        .filter(f => f.name.endsWith('.enc'))
+        .map(f => ({ name: f.name, path: f.uri || f.path }));
       setRecords(parsed.reverse());
     } catch (e) { console.error("Archive load error", e); }
   };
 
+  // --- AES-256-GCM WEB CRYPTO ENGINE ---
+  const getCryptoKey = async (password) => {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]
+    );
+    return await crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: enc.encode("sovereign_salt_99"), iterations: 100000, hash: "SHA-256" },
+      keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+    );
+  };
+
   const startRecording = async () => {
+    if (!vaultKey) {
+      alert("❌ YOU MUST SET A VAULT KEY FIRST to encrypt the payload.");
+      return;
+    }
     try {
       const hasPerm = await VoiceRecorder.requestAudioRecordingPermission();
-      if (!hasPerm.value) {
-        alert("Microphone access denied by native system.");
-        return;
-      }
+      if (!hasPerm.value) { alert("Microphone blocked."); return; }
+      
       await VoiceRecorder.startRecording();
       setIsRecording(true);
       timerRef.current = setInterval(() => setRecordTime(prev => prev + 1), 1000);
-    } catch (error) {
-      alert("Native hardware engine initialization failed.");
-    }
+    } catch (error) { alert("Hardware failure."); }
   };
 
   const stopRecording = async () => {
@@ -59,17 +70,87 @@ export function SovereignRecorder({ onNavigate }) {
         clearInterval(timerRef.current);
         setRecordTime(0);
         
-        const fileName = `Record_${Date.now()}.aac`;
+        // 1. Grab raw Base64 audio
+        const rawBase64 = result.value.recordDataBase64;
+        
+        // 2. Encrypt it in RAM
+        const key = await getCryptoKey(vaultKey);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const enc = new TextEncoder();
+        const encryptedBuffer = await crypto.subtle.encrypt(
+          { name: "AES-GCM", iv: iv }, key, enc.encode(rawBase64)
+        );
+        
+        // 3. Pack IV and Ciphertext together for storage
+        const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+        combined.set(iv, 0);
+        combined.set(new Uint8Array(encryptedBuffer), iv.length);
+        
+        // Convert to Base64 to save safely to filesystem
+        let binaryStr = '';
+        for (let i = 0; i < combined.byteLength; i++) {
+            binaryStr += String.fromCharCode(combined[i]);
+        }
+        const finalPayload = btoa(binaryStr);
+
+        // 4. Write encrypted payload to cold storage
+        const fileName = `Record_${Date.now()}.enc`;
         await Filesystem.writeFile({
           path: `${FOLDER_PATH}/${fileName}`,
-          data: result.value.recordDataBase64,
+          data: finalPayload,
           directory: Directory.Documents
         });
+        
         loadRecords();
-      } catch(e) {
-         console.error("Recording save error", e);
-      }
+      } catch(e) { console.error("Encryption/Save Error", e); }
     }
+  };
+
+  const unlockAndPlay = async (record) => {
+    if (!vaultKey) {
+      alert("❌ Enter your Vault Key to decrypt this file.");
+      return;
+    }
+    
+    setIsDecrypting(true);
+    try {
+      // 1. Read encrypted cold storage file
+      const file = await Filesystem.readFile({ path: `${FOLDER_PATH}/${record.name}`, directory: Directory.Documents });
+      
+      // 2. Unpack Base64 to binary
+      const binaryString = atob(file.data);
+      const combined = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+          combined[i] = binaryString.charCodeAt(i);
+      }
+      
+      // 3. Extract IV and Ciphertext
+      const iv = combined.slice(0, 12);
+      const ciphertext = combined.slice(12);
+      
+      // 4. Decrypt in RAM
+      const key = await getCryptoKey(vaultKey);
+      const decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
+      
+      // 5. Decode back to Base64 Audio String
+      const base64Audio = new TextDecoder().decode(decryptedBuffer);
+      
+      // 6. Convert to volatile Blob for HTML5 Player
+      const byteCharacters = atob(base64Audio);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'audio/aac' });
+      const blobUrl = URL.createObjectURL(blob);
+      
+      setActivePlayback({ name: record.name, url: blobUrl });
+    } catch (e) {
+      alert("❌ Decryption Failed. Incorrect Vault Key or corrupted file.");
+      console.error(e);
+    }
+    setIsDecrypting(false);
   };
 
   const formatTime = (seconds) => {
@@ -81,36 +162,37 @@ export function SovereignRecorder({ onNavigate }) {
   return (
     <div className="flex flex-col h-full space-y-4 p-4 text-zinc-300 animate-fadeIn bg-black relative">
       
-      {/* Header */}
-      <div className="border-b border-rose-900/50 pb-4 shrink-0 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-black flex items-center gap-2 uppercase tracking-widest text-rose-500">
-            <span className="text-2xl">🎙️</span> Stealth Recorder
-          </h2>
-          <p className="text-[10px] font-mono text-zinc-500">Native Capacitor capture engine.</p>
+      <div className="border-b border-rose-900/50 pb-4 shrink-0 flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-black flex items-center gap-2 uppercase tracking-widest text-rose-500">
+              <span className="text-2xl">🎙️</span> Stealth Recorder
+            </h2>
+            <p className="text-[10px] font-mono text-zinc-500">AES-256 GCM Encrypted Storage</p>
+          </div>
+          <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-rose-400 font-bold text-xs bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
+            EXIT
+          </button>
         </div>
-        <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-rose-400 font-bold text-xs bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">
-          EXIT
-        </button>
+        
+        {/* The Vault Key UI */}
+        <div className="flex items-center gap-2 bg-zinc-950 p-2 rounded-lg border border-rose-900/30 shadow-inner">
+          <span className="text-lg pl-1">🔑</span>
+          <input 
+            type="password" 
+            value={vaultKey}
+            onChange={(e) => setVaultKey(e.target.value)}
+            placeholder="Set Session Vault Key..." 
+            className="w-full bg-transparent text-sm font-mono text-rose-400 focus:outline-none placeholder:text-zinc-600"
+          />
+        </div>
       </div>
 
-      {/* Custom Tabs */}
       <div className="flex bg-zinc-950 rounded-xl border border-zinc-800 p-1 shrink-0 shadow-inner">
-        <button 
-          onClick={() => setView('record')} 
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold tracking-widest transition-all ${view === 'record' ? 'bg-rose-900/20 text-rose-500 shadow-md' : 'text-zinc-600 hover:text-zinc-400'}`}
-        >
-          RECORD
-        </button>
-        <button 
-          onClick={() => setView('archive')} 
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold tracking-widest transition-all ${view === 'archive' ? 'bg-rose-900/20 text-rose-500 shadow-md' : 'text-zinc-600 hover:text-zinc-400'}`}
-        >
-          ARCHIVE
-        </button>
+        <button onClick={() => setView('record')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold tracking-widest transition-all ${view === 'record' ? 'bg-rose-900/20 text-rose-500 shadow-md' : 'text-zinc-600 hover:text-zinc-400'}`}>RECORD</button>
+        <button onClick={() => setView('archive')} className={`flex-1 py-2.5 rounded-lg text-xs font-bold tracking-widest transition-all ${view === 'archive' ? 'bg-rose-900/20 text-rose-500 shadow-md' : 'text-zinc-600 hover:text-zinc-400'}`}>ARCHIVES</button>
       </div>
 
-      {/* Record View */}
       {view === 'record' && (
         <div className="flex flex-col items-center justify-center flex-grow gap-10">
           <button
@@ -125,22 +207,31 @@ export function SovereignRecorder({ onNavigate }) {
         </div>
       )}
 
-      {/* Archive View with Scrubber */}
       {view === 'archive' && (
         <div className="flex flex-col gap-3 flex-grow overflow-y-auto pb-10">
            {records.length === 0 ? (
-              <div className="text-center text-xs font-mono text-zinc-600 py-10">No archives found.</div>
+              <div className="text-center text-xs font-mono text-zinc-600 py-10">No encrypted archives found.</div>
            ) : (
              records.map((rec, idx) => (
                 <div key={idx} className="p-4 border border-zinc-800 rounded-xl bg-zinc-950 flex flex-col gap-3 shadow-md">
-                  <span className="text-xs font-mono text-rose-400 truncate">{rec.name}</span>
-                  <audio controls src={rec.webPath} className="w-full h-10 custom-audio" />
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono text-zinc-400 truncate pr-4">🔒 {rec.name}</span>
+                    <button 
+                      onClick={() => unlockAndPlay(rec)}
+                      className="shrink-0 bg-rose-900/30 text-rose-400 border border-rose-900/50 px-3 py-1.5 rounded-lg text-[10px] font-bold tracking-widest uppercase active:scale-95"
+                    >
+                      {isDecrypting && activePlayback.name === rec.name ? 'DECRYPTING...' : 'UNLOCK'}
+                    </button>
+                  </div>
+                  
+                  {activePlayback.name === rec.name && activePlayback.url && (
+                    <audio controls src={activePlayback.url} className="w-full h-10 custom-audio animate-fadeIn mt-2" autoPlay />
+                  )}
                 </div>
              ))
            )}
         </div>
       )}
-
     </div>
   );
 }
