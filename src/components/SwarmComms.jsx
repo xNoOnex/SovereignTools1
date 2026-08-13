@@ -1,3 +1,4 @@
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import React, { useState, useEffect, useRef } from 'react';
 import CryptoJS from 'crypto-js';
 
