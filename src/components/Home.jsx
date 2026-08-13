@@ -53,6 +53,7 @@ export function Home({ onNavigate, navigateTo }) {
         { id: "gallery", icon: "🖼️", label: "Secure Gallery", desc: "Encrypted Media Viewer", isExpert: false },
         { id: "comms", icon: "📡", label: "Comm Link", desc: "Secure offline chat", isExpert: false },
         { id: "aes", icon: "🔐", label: "AES Cipher", desc: "Military-Grade Text Crypto", isExpert: false },
+      { id: "datautils", icon: "🧰", label: "Data Utils", desc: "Offline Hash & Encode Engine", isExpert: false },
         { id: "camera", icon: "📸", label: "Sovereign Camera", desc: "Stealth Capture Engine", isExpert: false },
         { id: "docs", icon: "📝", label: "Encrypted Docs", desc: "Local Markdown Vault", isExpert: false },
         { id: "vault", icon: "🏦", label: "Secure Vault", desc: "Zero-Knowledge Storage", isExpert: false },
