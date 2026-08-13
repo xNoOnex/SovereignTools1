@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { VoiceRecorder } from 'capacitor-voice-recorder';
 
 export function SovereignRecorder({ onNavigate }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const [records, setRecords] = useState([]);
-  const mediaRecorderRef = useRef(null);
   const timerRef = useRef(null);
   const FOLDER_PATH = "Sovereign_Records";
 
@@ -23,53 +23,46 @@ export function SovereignRecorder({ onNavigate }) {
   const loadRecords = async () => {
     try {
       const res = await Filesystem.readdir({ path: FOLDER_PATH, directory: Directory.Documents });
-      const parsed = res.files.filter(f => f.name.match(/\.(webm|mp4|m4a|aac)$/i)).map(f => ({ name: f.name, path: f.uri || f.path }));
+      const parsed = res.files
+        .filter(f => f.name.match(/\.(webm|mp4|m4a|aac)$/i))
+        .map(f => ({ name: f.name, path: f.uri || f.path }));
       setRecords(parsed.reverse());
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("Archive load error", e); }
   };
 
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = mediaRecorder;
-      const audioChunks = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) audioChunks.push(event.data);
-      };
-
-      mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.readAsDataURL(audioBlob);
-        reader.onloadend = async () => {
-          const base64Data = reader.result.split(',')[1];
-          const fileName = `Record_${Date.now()}.webm`;
-          await Filesystem.writeFile({
-            path: `${FOLDER_PATH}/${fileName}`,
-            data: base64Data,
-            directory: Directory.Documents
-          });
-          loadRecords();
-        };
-        stream.getTracks().forEach(track => track.stop());
-      };
-
-      mediaRecorder.start();
+      const hasPerm = await VoiceRecorder.requestAudioRecordingPermission();
+      if (!hasPerm.value) {
+        alert("Microphone access denied by native system.");
+        return;
+      }
+      await VoiceRecorder.startRecording();
       setIsRecording(true);
       timerRef.current = setInterval(() => setRecordTime(prev => prev + 1), 1000);
     } catch (error) {
-      alert("Microphone access denied or blocked by system.");
+      alert("Native hardware engine initialization failed.");
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      clearInterval(timerRef.current);
-      setRecordTime(0);
+  const stopRecording = async () => {
+    if (isRecording) {
+      try {
+        const result = await VoiceRecorder.stopRecording();
+        setIsRecording(false);
+        clearInterval(timerRef.current);
+        setRecordTime(0);
+        
+        const fileName = `Record_${Date.now()}.aac`;
+        await Filesystem.writeFile({
+          path: `${FOLDER_PATH}/${fileName}`,
+          data: result.value.recordDataBase64,
+          directory: Directory.Documents
+        });
+        loadRecords();
+      } catch(e) {
+         console.error("Recording save error", e);
+      }
     }
   };
 
@@ -86,7 +79,7 @@ export function SovereignRecorder({ onNavigate }) {
           <h2 className="text-xl font-black flex items-center gap-2 uppercase tracking-widest text-rose-500">
             <span className="text-2xl">🎙️</span> Stealth Recorder
           </h2>
-          <p className="text-xs font-mono text-zinc-500">Standard HTML5 audio capture engine.</p>
+          <p className="text-xs font-mono text-zinc-500">Native Capacitor capture engine.</p>
         </div>
         <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-rose-400">
           <span className="text-2xl">⏏️</span>
