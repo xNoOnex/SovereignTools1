@@ -1,3 +1,4 @@
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import React, { useState } from 'react';
 
 export function LockScreen({ onUnlock }) {
@@ -5,7 +6,14 @@ export function LockScreen({ onUnlock }) {
   const [errorShake, setErrorShake] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
-  const savedPin = localStorage.getItem('sovereign_pin') || '0000';
+  
+  const [savedPin] = useSecureStorage("sovereign_pin", "0000");
+  const [duressPin] = useSecureStorage("sovereign_duress_pin", null);
+  const [decoyPin] = useSecureStorage("sovereign_decoy_pin", null);
+  const [limit] = useSecureStorage("sovereign_wipe_limit", "None");
+  const [failedAttempts, setFailedAttempts] = useSecureStorage("sovereign_failed_attempts", "0");
+  const [, setSessionMode] = useSecureStorage("sovereign_session_mode", "");
+
 
   const executeProtocolZero = () => {
     // ☢️ THE PAYLOAD ☢️
@@ -28,7 +36,7 @@ const handleKeyPress = (num) => {
         setPinEntry(newPin);
 
         if (newPin.length === 4) {
-            const duressPin = localStorage.getItem('sovereign_duress_pin');
+            
             
             // TRIPWIRE 1: DURESS PIN
             if (duressPin && newPin === duressPin) {
@@ -36,11 +44,11 @@ const handleKeyPress = (num) => {
                 return;
             }
             
-            const decoyPin = localStorage.getItem('sovereign_decoy_pin');
+            
             if (decoyPin && newPin === decoyPin) {
                 // DECOY SUCCESS: Silently flag session as DECOY
-                localStorage.setItem('sovereign_session_mode', 'DECOY');
-                localStorage.setItem('sovereign_failed_attempts', '0');
+                setSessionMode("DECOY");
+                setFailedAttempts("0");
                 onUnlock();
                 return;
             }
@@ -48,14 +56,14 @@ const handleKeyPress = (num) => {
             if (newPin === savedPin) {
                 // ADMIN SUCCESS: Flag session as ADMIN
                 localStorage.setItem('sovereign_session_mode', 'ADMIN');
-                localStorage.setItem('sovereign_failed_attempts', '0');
+                setFailedAttempts("0");
                 onUnlock();
             } else {
                 // TRIPWIRE 2: BRUTE-FORCE AUTO-WIPE
-                let attempts = parseInt(localStorage.getItem('sovereign_failed_attempts') || '0') + 1;
-                localStorage.setItem('sovereign_failed_attempts', attempts.toString());
+                let attempts = parseInt(failedAttempts || "0") + 1;
+                setFailedAttempts(attempts.toString());
                 
-                const limit = localStorage.getItem('sovereign_wipe_limit');
+                
                 if (limit && limit !== 'None' && attempts >= parseInt(limit)) {
                     executeProtocolZero();
                     return;

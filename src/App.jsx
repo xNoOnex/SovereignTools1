@@ -125,7 +125,7 @@ function AppContent() {
 
   
   // 👻 PHANTOM VAULT: GLOBAL HARD-ENFORCEMENT 👻
-  if (localStorage.getItem('sovereign_session_mode') === 'DECOY') {
+  if (sessionMode === 'DECOY') {
       const s = (currentScreen || '').toLowerCase();
       let fakeError = null;
 
