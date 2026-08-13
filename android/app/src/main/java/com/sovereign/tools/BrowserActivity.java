@@ -17,6 +17,23 @@ import androidx.webkit.ProxyController;
 import java.util.concurrent.Executor;
 
 public class BrowserActivity extends Activity {
+
+    private final String[] AD_SERVERS = {
+        "doubleclick.net", "google-analytics.com", "googlesyndication.com",
+        "facebook.com/tr", "connect.facebook.net", "googleadservices.com",
+        "amazon-adsystem.com", "taboola.com", "outbrain.com", "criteo.com",
+        "scorecardresearch.com", "quantserve.com", "zedo.com", "moatads.com"
+    };
+
+    private boolean isAdOrTracker(String url) {
+        for (String server : AD_SERVERS) {
+            if (url.contains(server)) return true;
+        }
+        return false;
+    }
+
+    // Inside onCreate...
+
     private WebView webView;
     private boolean autoNuke = true;
 
@@ -72,10 +89,20 @@ public class BrowserActivity extends Activity {
         });
 
         webView.setWebViewClient(new WebViewClient() {
+            
             @Override
             public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                String url = request.getUrl().toString();
+                
+                // Stealth Network Block: Return a blank successful response
+                if (isAdOrTracker(url)) {
+                    java.io.InputStream emptyStream = new java.io.ByteArrayInputStream("".getBytes());
+                    return new WebResourceResponse("text/plain", "UTF-8", emptyStream);
+                }
+                
                 return super.shouldInterceptRequest(view, request);
             }
+
         });
 
         String url = getIntent().getStringExtra("url");
