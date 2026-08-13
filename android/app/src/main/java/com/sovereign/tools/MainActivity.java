@@ -7,8 +7,10 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(SecurityToggle.class);
         super.onCreate(savedInstanceState);
-        // Anti-Screen Recording & Anti-Screenshot security flag
+        
+        // Default to maximum security on app launch
         getWindow().setFlags(
             WindowManager.LayoutParams.FLAG_SECURE,
             WindowManager.LayoutParams.FLAG_SECURE
