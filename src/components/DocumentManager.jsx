@@ -1,3 +1,4 @@
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import React, { useState, useEffect } from 'react';
 import { ToolFooter } from './ToolFooter';
 
@@ -51,7 +52,7 @@ export function DocumentManager() {
     };
     const updated = [newDoc, ...myFiles];
     setMyFiles(updated);
-    localStorage.setItem('sovereign_office_docs', JSON.stringify(updated));
+    // Handled automatically by vault: sovereign_office_docs);
     setStatusMsg('💾 Document saved to internal Vault!');
     setTimeout(() => setStatusMsg(''), 2500);
   };
@@ -60,7 +61,7 @@ export function DocumentManager() {
     if (window.confirm('Delete this document permanently?')) {
       const updated = myFiles.filter(f => f.id !== id);
       setMyFiles(updated);
-      localStorage.setItem('sovereign_office_docs', JSON.stringify(updated));
+      // Handled automatically by vault: sovereign_office_docs);
     }
   };
 

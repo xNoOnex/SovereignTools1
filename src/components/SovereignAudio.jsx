@@ -1,3 +1,4 @@
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import React, { useState, useEffect } from 'react';
 import { useStorage } from '../context/StorageContext';
 
@@ -28,7 +29,7 @@ export function SovereignAudio({ globalTrackIndex, isPlaying, handlePlayTrack, t
     if (!newPlaylistName.trim()) return;
     const updated = [...playlists, { id: Date.now(), name: newPlaylistName, tracks: [] }];
     setPlaylists(updated);
-    localStorage.setItem('sovereign_playlists', JSON.stringify(updated));
+    // Handled automatically by vault: sovereign_playlists);
     setNewPlaylistName('');
   };
 
@@ -40,7 +41,7 @@ export function SovereignAudio({ globalTrackIndex, isPlaying, handlePlayTrack, t
       return p;
     });
     setPlaylists(updated);
-    localStorage.setItem('sovereign_playlists', JSON.stringify(updated));
+    // Handled automatically by vault: sovereign_playlists);
     setShowPlaylistMenu(null);
   };
 
@@ -140,7 +141,7 @@ export function SovereignAudio({ globalTrackIndex, isPlaying, handlePlayTrack, t
                                return p;
                             });
                             setPlaylists(updated);
-                            localStorage.setItem('sovereign_playlists', JSON.stringify(updated));
+                            // Handled automatically by vault: sovereign_playlists);
                         }} className="text-red-500 font-bold px-2 py-0.5 rounded bg-red-950/30 text-[8px] opacity-50 hover:opacity-100">✕</button>
                     </div>
                   ))}

@@ -1,3 +1,4 @@
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import React, { useState, useEffect } from 'react';
 import { registerPlugin } from '@capacitor/core';
 
@@ -39,7 +40,7 @@ export function Calendar({ onNavigate }) {
 
     const updatedAgenda = [...agenda, newAgendaItem];
     setAgenda(updatedAgenda);
-    localStorage.setItem('sovereign_agenda', JSON.stringify(updatedAgenda));
+    // Handled automatically by vault: sovereign_agenda);
 
     try {
       await AlarmIntentBridge.setNativeAlarm({
@@ -59,7 +60,7 @@ export function Calendar({ onNavigate }) {
   const deleteAgendaItem = (id) => {
     const updated = agenda.filter(item => item.id !== id);
     setAgenda(updated);
-    localStorage.setItem('sovereign_agenda', JSON.stringify(updated));
+    // Handled automatically by vault: sovereign_agenda);
   };
 
   const renderCalendarGrid = () => {

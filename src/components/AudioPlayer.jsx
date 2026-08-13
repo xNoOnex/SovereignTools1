@@ -1,3 +1,4 @@
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import React, { useState, useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { useDeviceStorage } from '../hooks/useDeviceStorage';
@@ -30,7 +31,7 @@ export function AudioPlayer() {
 
   const savePlaylists = (newPls) => {
     setPlaylists(newPls);
-    localStorage.setItem('sovereign_playlists', JSON.stringify(newPls));
+    // Handled automatically by vault: sovereign_playlists);
   };
 
   const currentQueue = activePlaylist 
