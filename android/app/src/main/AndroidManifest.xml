@@ -58,5 +58,6 @@
         </activity>
 
         <service android:name=".MeshRelayService" android:foregroundServiceType="dataSync" android:exported="false" />
+        <activity android:name=".BrowserActivity" android:theme="@style/AppTheme.NoActionBar" />
     </application>
 </manifest>

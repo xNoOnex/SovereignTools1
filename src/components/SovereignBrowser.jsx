@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { registerPlugin } from '@capacitor/core';
+const StealthBrowser = registerPlugin('StealthBrowser');
 
 export function SovereignBrowser({ onNavigate }) {
   const [tabs, setTabs] = useState([{ id: Date.now(), url: 'https://html5test.com', title: 'Start' }]);
