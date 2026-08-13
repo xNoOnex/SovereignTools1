@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 
-export default function SovereignRecorder({ onNavigate }) {
+export function SovereignRecorder({ onNavigate }) {
   const [isRecording, setIsRecording] = useState(false);
   const [recordTime, setRecordTime] = useState(0);
   const [records, setRecords] = useState([]);
@@ -119,3 +119,5 @@ export default function SovereignRecorder({ onNavigate }) {
     </div>
   );
 }
+
+export default SovereignRecorder;
