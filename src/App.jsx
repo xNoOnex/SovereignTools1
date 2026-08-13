@@ -31,6 +31,25 @@ import { CommsProvider } from './context/CommsContext';
 
 function AppContent() {
 
+  React.useEffect(() => {
+    const ensurePermissions = async () => {
+      try {
+        const status = await Filesystem.checkPermissions();
+        // If storage access isn't granted, automatically pop the Android intent
+        if (status.publicStorage !== 'granted') {
+          console.log("[Vault] Requesting public storage access...");
+          await Filesystem.requestPermissions();
+        }
+      } catch (error) {
+        console.error("[Vault] Permission gate error:", error);
+      }
+    };
+    
+    // Only fire this AFTER the lock screen is successfully bypassed
+    ensurePermissions();
+  }, []);
+
+
   const [unlockTaps, setUnlockTaps] = useState(0);
   const triggerDevUnlock = () => {
     if (unlockTaps + 1 >= 4) {
