@@ -5,6 +5,7 @@ import { MeshProtocol } from './components/MeshProtocol';
 import { Filesystem } from '@capacitor/filesystem';
 import { SovereignRecorder } from "./components/SovereignRecorder";
 import { DataUtils } from './components/DataUtils';
+import { SovereignBrowser } from './components/SovereignBrowser';
 import { WorldClock } from "./components/WorldClock";
 import React, { useState, useEffect, useRef } from "react";
 import { LockScreen } from './components/LockScreen';
@@ -210,6 +211,7 @@ function AppContent() {
       </div>
 
       {currentScreen === 'crypto' && <CryptoTools onNavigate={navigateTo} />}
+        {currentScreen === 'browser' && <SovereignBrowser onNavigate={navigateTo} />}
         {currentScreen === 'datautils' && <DataUtils onNavigate={navigateTo} />}
         {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
         {currentScreen === 'home' && <Home onNavigate={navigateTo} currentMode={mode} />}
