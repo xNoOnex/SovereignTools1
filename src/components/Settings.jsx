@@ -1,3 +1,4 @@
+import { SecurityToggle } from '../utils/securityToggle';
 import React, { useState } from 'react';
 
 export function Settings({ closeSettings, appMode, setAppMode, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
