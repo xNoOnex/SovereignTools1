@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
-import useSecureStorage from '../hooks/useSecureStorage';
+import { useSecureStorage } from '../hooks/useSecureStorage';
 const StealthBrowser = registerPlugin('StealthBrowser');
 
 export function SovereignBrowser({ onNavigate }) {
@@ -15,7 +15,7 @@ export function SovereignBrowser({ onNavigate }) {
   const [bookmarks, setBookmarks] = useSecureStorage('sovereign_bookmarks', []);
 
   const toggleBookmark = () => {
-    if (bookmarks.includes(address)) {
+    if ((bookmarks || []).includes(address)) {
       setBookmarks(bookmarks.filter(b => b !== address));
     } else {
       setBookmarks([...bookmarks, address]);
@@ -74,7 +74,7 @@ export function SovereignBrowser({ onNavigate }) {
           
           <button 
             onClick={toggleBookmark}
-            className={`px-3 rounded-md border transition-all flex items-center justify-center text-lg ${bookmarks.includes(address) ? 'bg-amber-900/30 border-amber-500 text-amber-400' : 'bg-zinc-900 border-zinc-700 text-zinc-600 hover:text-amber-500'}`}
+            className={`px-3 rounded-md border transition-all flex items-center justify-center text-lg ${(bookmarks || []).includes(address) ? 'bg-amber-900/30 border-amber-500 text-amber-400' : 'bg-zinc-900 border-zinc-700 text-zinc-600 hover:text-amber-500'}`}
           >
             ★
           </button>
@@ -111,10 +111,10 @@ export function SovereignBrowser({ onNavigate }) {
 
       <div className="p-4 flex flex-col gap-3 flex-grow overflow-y-auto">
         <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Secured Locations</h3>
-        {bookmarks.length === 0 ? (
+        {(bookmarks || []).length === 0 ? (
           <div className="text-center text-xs font-mono text-zinc-600 py-10">No bookmarks saved in vault.</div>
         ) : (
-          bookmarks.map((bm, idx) => (
+          (bookmarks || []).map((bm, idx) => (
             <div 
               key={idx} 
               onClick={() => { setAddress(bm); handleNavigate(bm); }}

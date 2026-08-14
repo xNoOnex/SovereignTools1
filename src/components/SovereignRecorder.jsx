@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { VoiceRecorder } from 'capacitor-voice-recorder';
-import useSecureStorage from '../hooks/useSecureStorage';
+import { useSecureStorage } from '../hooks/useSecureStorage';
 
 export function SovereignRecorder({ onNavigate }) {
   const [view, setView] = useState('record');
@@ -38,7 +38,7 @@ export function SovereignRecorder({ onNavigate }) {
           data: result.value.recordDataBase64
         };
         
-        setRecords([newRecord, ...records]);
+        setRecords([newRecord, ...(records || [])]);
       } catch(e) { console.error("Encryption/Save Error", e); }
     }
   };
@@ -103,10 +103,10 @@ export function SovereignRecorder({ onNavigate }) {
 
       {view === 'archive' && (
         <div className="flex flex-col gap-3 flex-grow overflow-y-auto pb-10">
-           {records.length === 0 ? (
+           {(records || []).length === 0 ? (
               <div className="text-center text-xs font-mono text-zinc-600 py-10">No encrypted archives found in global vault.</div>
            ) : (
-             records.map((rec) => (
+             (records || []).map((rec) => (
                 <div key={rec.id} className="p-4 border border-zinc-800 rounded-xl bg-zinc-950 flex flex-col gap-3 shadow-md">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-mono text-zinc-400 truncate pr-4">🔒 {rec.name}</span>
