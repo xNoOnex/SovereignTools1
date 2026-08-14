@@ -11,6 +11,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         registerPlugin(SecurityToggle.class);
+        registerPlugin(StealthBrowser.class);
         super.onCreate(savedInstanceState);
         
         // Restore Sovereign Screenshot Shield on Boot
