@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import SecurityToggle from '../utils/SecurityToggle';
+import { SecurityToggle } from "../utils/securityToggle";
 
 export function Settings({ closeSettings, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
