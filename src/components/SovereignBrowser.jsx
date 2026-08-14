@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
 const StealthBrowser = registerPlugin('StealthBrowser');
 
@@ -10,14 +10,75 @@ export function SovereignBrowser({ onNavigate }) {
   const [proxyHost, setProxyHost] = useState('127.0.0.1');
   const [proxyPort, setProxyPort] = useState('9050');
   
+  // AES-256 Vault State
+  const [vaultKey, setVaultKey] = useState('');
   const [bookmarks, setBookmarks] = useState([]);
+  const [isUnlocked, setIsUnlocked] = useState(false);
 
-  useEffect(() => {
-    const saved = localStorage.getItem('sovereign_bookmarks');
-    if (saved) setBookmarks(JSON.parse(saved));
-  }, []);
+  // Core Cryptographic Engine
+  const getCryptoKey = async (password) => {
+    const enc = new TextEncoder();
+    const keyMaterial = await crypto.subtle.importKey("raw", enc.encode(password), { name: "PBKDF2" }, false, ["deriveKey"]);
+    return await crypto.subtle.deriveKey(
+      { name: "PBKDF2", salt: enc.encode("sovereign_salt_99"), iterations: 100000, hash: "SHA-256" },
+      keyMaterial, { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]
+    );
+  };
 
-  const toggleBookmark = () => {
+  const unlockVault = async () => {
+    if (!vaultKey) { alert("❌ Enter a Vault Key."); return; }
+    
+    // Security Wipe: Destroy old plaintext artifacts if they exist
+    if (localStorage.getItem('sovereign_bookmarks')) {
+       localStorage.removeItem('sovereign_bookmarks');
+    }
+
+    try {
+      const savedEnc = localStorage.getItem('sovereign_bookmarks_enc');
+      if (!savedEnc) {
+        setIsUnlocked(true); // First time setup / empty vault
+        return;
+      }
+      
+      const binaryString = atob(savedEnc);
+      const combined = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) { combined[i] = binaryString.charCodeAt(i); }
+      
+      const iv = combined.slice(0, 12);
+      const ciphertext = combined.slice(12);
+      const key = await getCryptoKey(vaultKey);
+      
+      const decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
+      const decStr = new TextDecoder().decode(decryptedBuffer);
+      setBookmarks(JSON.parse(decStr));
+      setIsUnlocked(true);
+    } catch (e) {
+      alert("❌ Decryption Failed. Incorrect Vault Key.");
+    }
+  };
+
+  const saveEncryptedBookmarks = async (newBookmarks) => {
+    try {
+      const dataStr = JSON.stringify(newBookmarks);
+      const key = await getCryptoKey(vaultKey);
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder();
+      const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, enc.encode(dataStr));
+      
+      const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(encryptedBuffer), iv.length);
+      
+      let binaryStr = '';
+      for (let i = 0; i < combined.byteLength; i++) { binaryStr += String.fromCharCode(combined[i]); }
+      localStorage.setItem('sovereign_bookmarks_enc', btoa(binaryStr));
+    } catch(e) {
+      console.error("Encryption failed", e);
+    }
+  };
+
+  const toggleBookmark = async () => {
+    if (!isUnlocked) { alert("❌ You must unlock the vault to save locations."); return; }
     let updated;
     if (bookmarks.includes(address)) {
       updated = bookmarks.filter(b => b !== address);
@@ -25,7 +86,7 @@ export function SovereignBrowser({ onNavigate }) {
       updated = [...bookmarks, address];
     }
     setBookmarks(updated);
-    localStorage.setItem('sovereign_bookmarks', JSON.stringify(updated));
+    await saveEncryptedBookmarks(updated);
   };
 
   const handleNavigate = async (targetUrl = address) => {
@@ -54,19 +115,29 @@ export function SovereignBrowser({ onNavigate }) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black flex items-center gap-2 text-zinc-100"><span className="text-2xl">🌐</span> Stealth Browser</h2>
-            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Isolated Web Engine</p>
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">AES-256 GCM Encrypted Routing</p>
           </div>
-          <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-rose-400 font-bold text-xs">EXIT</button>
+          <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-cyan-400 font-bold text-xs bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">EXIT</button>
         </div>
-        <div className="flex gap-2 relative">
-          <button onClick={() => setShowSettings(!showSettings)} className={`px-3 rounded-md border transition-all flex items-center justify-center ${showSettings ? 'bg-cyan-900 border-cyan-500 text-cyan-400' : 'bg-zinc-900 border-zinc-700 text-zinc-400'}`}>⚙️</button>
-          <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleNavigate()} placeholder="Enter web address..." className="flex-grow bg-black border border-zinc-700 rounded-md px-3 py-3 text-sm font-mono text-zinc-300 focus:outline-none focus:border-cyan-500" />
-          <button onClick={toggleBookmark} className={`px-3 rounded-md border transition-all flex items-center justify-center text-lg ${bookmarks.includes(address) ? 'bg-amber-900/30 border-amber-500 text-amber-400' : 'bg-zinc-900 border-zinc-700 text-zinc-600 hover:text-amber-500'}`}>★</button>
-        </div>
+        
+        {/* Vault Unlock Header */}
+        {!isUnlocked ? (
+          <div className="flex items-center gap-2 bg-black p-2 rounded-lg border border-cyan-900/50 shadow-inner animate-fadeIn">
+            <span className="text-lg pl-1">🔑</span>
+            <input type="password" value={vaultKey} onChange={(e) => setVaultKey(e.target.value)} placeholder="Set Session Vault Key..." className="flex-grow bg-transparent text-sm font-mono text-cyan-400 focus:outline-none placeholder:text-zinc-600" />
+            <button onClick={unlockVault} className="bg-cyan-900/30 text-cyan-400 border border-cyan-900/50 px-4 py-1.5 rounded-lg text-xs font-bold tracking-widest uppercase active:scale-95">UNLOCK</button>
+          </div>
+        ) : (
+          <div className="flex gap-2 relative animate-fadeIn">
+            <button onClick={() => setShowSettings(!showSettings)} className={`px-3 rounded-md border transition-all flex items-center justify-center ${showSettings ? 'bg-cyan-900 border-cyan-500 text-cyan-400' : 'bg-zinc-900 border-zinc-700 text-zinc-400'}`}>⚙️</button>
+            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleNavigate()} placeholder="Enter web address..." className="flex-grow bg-black border border-zinc-700 rounded-md px-3 py-3 text-sm font-mono text-zinc-300 focus:outline-none focus:border-cyan-500" />
+            <button onClick={toggleBookmark} className={`px-3 rounded-md border transition-all flex items-center justify-center text-lg ${bookmarks.includes(address) ? 'bg-amber-900/30 border-amber-500 text-amber-400' : 'bg-zinc-900 border-zinc-700 text-zinc-600 hover:text-amber-500'}`}>★</button>
+          </div>
+        )}
       </div>
 
-      {showSettings && (
-        <div className="absolute top-[120px] left-3 right-3 bg-zinc-900 border border-zinc-700 rounded-xl p-4 shadow-2xl z-50 flex flex-col gap-4">
+      {showSettings && isUnlocked && (
+        <div className="absolute top-[160px] left-3 right-3 bg-zinc-900 border border-zinc-700 rounded-xl p-4 shadow-2xl z-50 flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🔥 Auto-Nuke Cache on Exit</span>
             <input type="checkbox" checked={autoNuke} onChange={() => setAutoNuke(!autoNuke)} className="w-5 h-5 accent-rose-600" />
@@ -88,9 +159,11 @@ export function SovereignBrowser({ onNavigate }) {
       )}
 
       <div className="p-4 flex flex-col gap-3 flex-grow overflow-y-auto">
-        <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Saved Locations</h3>
-        {bookmarks.length === 0 ? (
-          <div className="text-center text-xs font-mono text-zinc-600 py-10">No bookmarks saved.</div>
+        <h3 className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">Vaulted Locations</h3>
+        {!isUnlocked ? (
+          <div className="text-center text-xs font-mono text-zinc-600 py-10">Vault is locked.</div>
+        ) : bookmarks.length === 0 ? (
+          <div className="text-center text-xs font-mono text-zinc-600 py-10">No secure bookmarks saved.</div>
         ) : (
           bookmarks.map((bm, idx) => (
             <div key={idx} onClick={() => { setAddress(bm); handleNavigate(bm); }} className="p-3 bg-zinc-900 border border-zinc-800 rounded-lg text-sm font-mono text-cyan-400 truncate cursor-pointer hover:border-cyan-500 active:scale-95 transition-all shadow-md">{bm}</div>
