@@ -51,14 +51,12 @@ public class StealthBrowser extends Plugin {
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
                     
                     // Default to SOCKS protocol (Tor/Orbot standard) if user just typed an IP
-                    String proxyUrl = proxyHost;
-                    if (!proxyUrl.startsWith("http") && !proxyUrl.startsWith("socks")) {
-                        proxyUrl = "socks://" + proxyHost;
-                    }
+                    final String proxyUrl = proxyHost;
+                    
 
                     // Strict routing: NO fallback to direct IP if proxy fails
                     ProxyConfig strictProxy = new ProxyConfig.Builder()
-                            .addProxyRule(proxyUrl + ":" + proxyPort)
+                            .addProxyRule((proxyUrl.startsWith("http") || proxyUrl.startsWith("socks") ? proxyUrl : "socks://" + proxyUrl) + ":" + proxyPort)
                             .build();
 
                     ProxyController.getInstance().setProxyOverride(strictProxy, command -> command.run(), () -> {
