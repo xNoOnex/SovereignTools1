@@ -9,6 +9,23 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   const [saveStatus, setSaveStatus] = useState('');
   const [appMode, setAppMode] = useState(localStorage.getItem('sovereign_mode') || 'BASIC');
 
+  // Developer Mode 4-Tap Logic
+  const [devMode, setDevMode] = useState(localStorage.getItem('sovereign_dev_mode') === 'true');
+  const [devTaps, setDevTaps] = useState(0);
+
+  const handleDevTap = () => {
+    if (devMode) return;
+    const newTaps = devTaps + 1;
+    if (newTaps >= 4) {
+       localStorage.setItem('sovereign_dev_mode', 'true');
+       setDevMode(true);
+       setDevTaps(0);
+       alert("🛠️ Developer Mode Unlocked.");
+    } else {
+       setDevTaps(newTaps);
+    }
+  };
+
   const handleUpdateDuress = () => {
     if (duressPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
     localStorage.setItem('sovereign_duress_pin', duressPin);
@@ -72,8 +89,9 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] p-6 animate-fadeIn flex flex-col overflow-y-auto">
       
+      {/* Header with Hidden 4-Tap Dev Trigger */}
       <div className="flex items-center justify-between pb-6 border-b border-zinc-800 shrink-0">
-        <div>
+        <div onClick={handleDevTap} className="cursor-pointer">
           <h2 className="text-2xl font-black text-zinc-100 flex items-center gap-2"><span>⚙️</span> System Settings</h2>
           <p className="text-xs font-mono text-zinc-500">Security & Environment Configuration</p>
         </div>
@@ -143,13 +161,19 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
           <input type="range" min="0" max="2" step="1" value={textSize} onChange={(e) => { setTextSize(parseInt(e.target.value, 10)); localStorage.setItem('sovereign_text_scale', e.target.value); }} className="w-full h-2 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-cyan-500" />
           <div className="flex justify-between text-[10px] text-zinc-500 font-mono font-bold"><span>Small</span><span>Normal</span><span>Large</span></div>
         </div>
-        
-        <div className="p-4 bg-zinc-900/50 border border-emerald-900/30 rounded-2xl flex items-center justify-between">
-          <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2"><span>🔒</span> SCREENSHOT SHIELD</h4>
-          <button onClick={toggleShield} className={`px-4 py-2 rounded-xl text-xs font-bold font-mono tracking-widest transition-all ${localStorage.getItem('sovereign_allow_screenshots') === 'true' ? 'bg-amber-950 text-amber-400 border border-amber-800' : 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]'}`}>
-            {localStorage.getItem('sovereign_allow_screenshots') === 'true' ? 'ENABLE' : 'DISABLE'}
-          </button>
-        </div>
+
+        {/* DEVELOPER SCREENSHOT TOGGLE (RESTORED WITH UI & DEV LOGIC) */}
+        {devMode && (
+          <div className="p-4 bg-zinc-900/50 border border-emerald-900/30 rounded-2xl flex items-center justify-between shadow-md">
+            <div>
+              <h4 className="text-sm font-bold text-emerald-500 uppercase tracking-widest flex items-center gap-2"><span>🔒</span> SCREENSHOT SHIELD</h4>
+              <p className="text-[10px] font-mono text-zinc-500 pt-1">Block OS screen capture & recording</p>
+            </div>
+            <button onClick={toggleShield} className={`px-4 py-2 rounded-xl text-xs font-bold font-mono tracking-widest transition-all ${localStorage.getItem('sovereign_allow_screenshots') === 'true' ? 'bg-amber-950 text-amber-400 border border-amber-800' : 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.3)]'}`}>
+              {localStorage.getItem('sovereign_allow_screenshots') === 'true' ? 'ENABLE' : 'DISABLE'}
+            </button>
+          </div>
+        )}
 
         <button onClick={() => { closeSettings(); onNavigate('support'); }} className="w-full py-4 bg-black border border-zinc-800 rounded-2xl text-xs font-bold tracking-widest uppercase text-zinc-300 active:scale-95 transition-all flex items-center justify-center gap-2 mb-10">
           <span>☕</span> SUPPORT THE CREATOR
