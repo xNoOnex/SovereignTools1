@@ -5,7 +5,12 @@ const StealthBrowser = registerPlugin('StealthBrowser');
 export function SovereignBrowser({ onNavigate }) {
   const [address, setAddress] = useState('https://');
   const [showSettings, setShowSettings] = useState(false);
+  
+  // Security & Proxy State (RESTORED!)
   const [autoNuke, setAutoNuke] = useState(true);
+  const [proxyEnabled, setProxyEnabled] = useState(false);
+  const [proxyHost, setProxyHost] = useState('127.0.0.1');
+  const [proxyPort, setProxyPort] = useState('9050');
   
   // AES-256 Vault State
   const [vaultKey, setVaultKey] = useState('');
@@ -82,10 +87,15 @@ export function SovereignBrowser({ onNavigate }) {
     setShowSettings(false);
     
     try {
-      // Opens as a native, secure standalone browser overlay inside the app
-      await StealthBrowser.openNative({ url: finalUrl, autoNuke: autoNuke, proxyHost: proxyEnabled ? proxyHost : "", proxyPort: proxyEnabled ? parseInt(proxyPort) : 0 });
+      // Because proxy variables exist again, this will no longer crash!
+      await StealthBrowser.openNative({ 
+        url: finalUrl, 
+        autoNuke: autoNuke,
+        proxyHost: proxyEnabled ? proxyHost : "", 
+        proxyPort: proxyEnabled ? parseInt(proxyPort) : 0 
+      });
     } catch (error) {
-      console.error("[Standalone Browser] Failed to load URL", error);
+      alert("Native Engine Error: " + error.message);
     }
   };
 
@@ -95,7 +105,7 @@ export function SovereignBrowser({ onNavigate }) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-black flex items-center gap-2 text-zinc-100"><span className="text-2xl">🌐</span> Stealth Browser</h2>
-            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Standalone In-App Engine</p>
+            <p className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Standalone WebKit Engine</p>
           </div>
           <button onClick={() => onNavigate('home')} className="text-zinc-500 hover:text-cyan-400 font-bold text-xs bg-zinc-900 px-3 py-1.5 rounded-full border border-zinc-800">EXIT</button>
         </div>
@@ -121,6 +131,19 @@ export function SovereignBrowser({ onNavigate }) {
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🔥 Auto-Nuke Session on Close</span>
             <input type="checkbox" checked={autoNuke} onChange={() => setAutoNuke(!autoNuke)} className="w-5 h-5 accent-rose-600" />
+          </div>
+          <div className="h-px bg-zinc-800 w-full" />
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🕵️ Route via SOCKS5 Proxy</span>
+              <input type="checkbox" checked={proxyEnabled} onChange={() => setProxyEnabled(!proxyEnabled)} className="w-5 h-5 accent-cyan-500" />
+            </div>
+            {proxyEnabled && (
+              <div className="flex gap-2 mt-2">
+                <input type="text" value={proxyHost} onChange={(e) => setProxyHost(e.target.value)} className="w-2/3 bg-black border border-zinc-700 rounded-md px-3 py-2 text-xs font-mono text-zinc-300" placeholder="Host IP (e.g. 127.0.0.1)" />
+                <input type="text" value={proxyPort} onChange={(e) => setProxyPort(e.target.value)} className="w-1/3 bg-black border border-zinc-700 rounded-md px-3 py-2 text-xs font-mono text-zinc-300" placeholder="Port" />
+              </div>
+            )}
           </div>
         </div>
       )}
