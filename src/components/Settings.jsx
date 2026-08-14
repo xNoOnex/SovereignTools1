@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { registerPlugin } from '@capacitor/core';
-const ScreenshotShield = registerPlugin('ScreenshotShield');
+import SecurityToggle from '../utils/SecurityToggle';
 
 export function Settings({ closeSettings, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
@@ -60,14 +59,15 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
     localStorage.setItem('sovereign_failed_attempts', '0');
   };
 
-  const toggleShield = async () => {
+  // Wired to your ORIGINAL SecurityToggle utility
+  const toggleShield = () => {
     const isCurrentlyOff = localStorage.getItem('sovereign_allow_screenshots') === 'true';
     if (isCurrentlyOff) {
-      await ScreenshotShield.enable();
+      SecurityToggle.enableSecureFlag();
       localStorage.setItem('sovereign_allow_screenshots', 'false');
       alert("🛡️ Shields UP: Screenshots & screen recording blocked.");
     } else {
-      await ScreenshotShield.disable();
+      SecurityToggle.disableSecureFlag();
       localStorage.setItem('sovereign_allow_screenshots', 'true');
       alert("⚠️ Shields DOWN: Screenshots allowed for debugging.");
     }
@@ -162,7 +162,7 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
           <div className="flex justify-between text-[10px] text-zinc-500 font-mono font-bold"><span>Small</span><span>Normal</span><span>Large</span></div>
         </div>
 
-        {/* DEVELOPER SCREENSHOT TOGGLE (RESTORED WITH UI & DEV LOGIC) */}
+        {/* DEVELOPER SCREENSHOT TOGGLE */}
         {devMode && (
           <div className="p-4 bg-zinc-900/50 border border-emerald-900/30 rounded-2xl flex items-center justify-between shadow-md">
             <div>
