@@ -60,14 +60,14 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   };
 
   // Wired to your ORIGINAL SecurityToggle utility
-  const toggleShield = () => {
+  const toggleShield = async () => {
     const isCurrentlyOff = localStorage.getItem('sovereign_allow_screenshots') === 'true';
     if (isCurrentlyOff) {
-      SecurityToggle.enableSecureFlag();
+      await SecurityToggle.enableSecureFlag();
       localStorage.setItem('sovereign_allow_screenshots', 'false');
       alert("🛡️ Shields UP: Screenshots & screen recording blocked.");
     } else {
-      SecurityToggle.disableSecureFlag();
+      await SecurityToggle.disableSecureFlag();
       localStorage.setItem('sovereign_allow_screenshots', 'true');
       alert("⚠️ Shields DOWN: Screenshots allowed for debugging.");
     }
