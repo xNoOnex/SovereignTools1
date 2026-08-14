@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
-const ScreenshotShield = registerPlugin('ScreenshotShield');
+// Directly load the native Android plugin we just fixed!
+const SecurityToggle = registerPlugin('SecurityToggle');
 
 export function Settings({ closeSettings, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
@@ -63,25 +64,19 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   const toggleShield = async () => {
     try {
       const isCurrentlyOff = localStorage.getItem('sovereign_allow_screenshots') === 'true';
-      
       if (isCurrentlyOff) {
-        // If it's OFF, enable the shield
-        await ScreenshotShield.enable();
+        await SecurityToggle.enableSecureFlag();
         localStorage.setItem('sovereign_allow_screenshots', 'false');
         alert("🛡️ Shields UP: Screenshots & screen recording blocked.");
       } else {
-        // If it's ON, disable the shield
-        await ScreenshotShield.disable();
+        await SecurityToggle.disableSecureFlag();
         localStorage.setItem('sovereign_allow_screenshots', 'true');
         alert("⚠️ Shields DOWN: Screenshots allowed for debugging.");
       }
       window.location.reload();
     } catch (error) {
-      // BULLETPROOF FALLBACK: If native Android throws an error, force the UI state to update anyway.
-      const isCurrentlyOff = localStorage.getItem('sovereign_allow_screenshots') === 'true';
-      localStorage.setItem('sovereign_allow_screenshots', isCurrentlyOff ? 'false' : 'true');
-      console.error("Native bridge failed, forcing local state update.", error);
-      window.location.reload();
+      // If it fails now, it will explicitly tell you WHY instead of failing silently!
+      alert("Native OS Link Failed: " + error.message);
     }
   };
 
@@ -99,8 +94,6 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] p-6 animate-fadeIn flex flex-col overflow-y-auto">
-      
-      {/* Header with Hidden 4-Tap Dev Trigger */}
       <div className="flex items-center justify-between pb-6 border-b border-zinc-800 shrink-0">
         <div onClick={handleDevTap} className="cursor-pointer">
           <h2 className="text-2xl font-black text-zinc-100 flex items-center gap-2"><span>⚙️</span> System Settings</h2>
@@ -110,7 +103,6 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
       </div>
 
       <div className="flex flex-col gap-6 py-6 pb-20">
-
         <button onClick={() => { closeSettings(); onNavigate('mesh_protocol'); }} className="w-full py-4 bg-emerald-900/20 border border-emerald-900/50 rounded-2xl text-xs font-black tracking-widest uppercase text-emerald-400 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-lg">
           <span>📡</span> INITIALIZE MESH PROTOCOL
         </button>
@@ -173,7 +165,6 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
           <div className="flex justify-between text-[10px] text-zinc-500 font-mono font-bold"><span>Small</span><span>Normal</span><span>Large</span></div>
         </div>
 
-        {/* DEVELOPER SCREENSHOT TOGGLE */}
         {devMode && (
           <div className="p-4 bg-zinc-900/50 border border-emerald-900/30 rounded-2xl flex items-center justify-between shadow-md">
             <div>
