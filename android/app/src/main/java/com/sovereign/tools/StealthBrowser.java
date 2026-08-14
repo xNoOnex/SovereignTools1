@@ -14,6 +14,10 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.webkit.ProxyConfig;
+import androidx.webkit.ProxyController;
+import androidx.webkit.WebViewFeature;
+
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -27,6 +31,10 @@ public class StealthBrowser extends Plugin {
     public void openNative(PluginCall call) {
         String url = call.getString("url");
         Boolean autoNuke = call.getBoolean("autoNuke", true);
+        
+        // Grab proxy settings from React
+        String proxyHost = call.getString("proxyHost", "");
+        Integer proxyPort = call.getInt("proxyPort", 0);
 
         if (url == null || url.isEmpty()) {
             call.reject("No URL provided");
@@ -38,7 +46,33 @@ public class StealthBrowser extends Plugin {
                 browserDialog.dismiss();
             }
 
-            // Create a fullscreen black-box dialog
+            // --- PROXY INTERCEPTOR LOGIC ---
+            if (proxyHost != null && !proxyHost.isEmpty() && proxyPort != null && proxyPort > 0) {
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                    
+                    // Default to SOCKS protocol (Tor/Orbot standard) if user just typed an IP
+                    String proxyUrl = proxyHost;
+                    if (!proxyUrl.startsWith("http") && !proxyUrl.startsWith("socks")) {
+                        proxyUrl = "socks://" + proxyHost;
+                    }
+
+                    // Strict routing: NO fallback to direct IP if proxy fails
+                    ProxyConfig strictProxy = new ProxyConfig.Builder()
+                            .addProxyRule(proxyUrl + ":" + proxyPort)
+                            .build();
+
+                    ProxyController.getInstance().setProxyOverride(strictProxy, command -> command.run(), () -> {
+                        System.out.println("🛡️ TOR/PROXY ENGAGED: " + proxyUrl + ":" + proxyPort);
+                    });
+                }
+            } else {
+                // Clear proxy if toggle is off
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                    ProxyController.getInstance().clearProxyOverride(command -> command.run(), () -> {});
+                }
+            }
+
+            // --- BUILD THE STEALTH UI ---
             browserDialog = new Dialog(getActivity(), android.R.style.Theme_NoTitleBar_Fullscreen);
             browserDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
 
@@ -46,7 +80,6 @@ public class StealthBrowser extends Plugin {
             mainLayout.setOrientation(LinearLayout.VERTICAL);
             mainLayout.setBackgroundColor(Color.BLACK);
 
-            // Create a stealthy top navigation bar
             LinearLayout topBar = new LinearLayout(getActivity());
             topBar.setOrientation(LinearLayout.HORIZONTAL);
             topBar.setBackgroundColor(Color.parseColor("#09090b"));
@@ -63,13 +96,12 @@ public class StealthBrowser extends Plugin {
             topBar.addView(closeBtn);
 
             TextView urlText = new TextView(getActivity());
-            urlText.setText(url);
-            urlText.setTextColor(Color.parseColor("#52525b"));
+            urlText.setText((proxyPort > 0 ? "🔒 [PROXY ON] " : "") + url);
+            urlText.setTextColor(Color.parseColor("#22d3ee"));
             urlText.setPadding(30, 0, 0, 0);
             urlText.setSingleLine(true);
             topBar.addView(urlText);
 
-            // Initialize the raw WebKit Engine
             WebView webView = new WebView(getActivity());
             webView.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT, 1.0f));
             
@@ -78,16 +110,14 @@ public class StealthBrowser extends Plugin {
             settings.setDomStorageEnabled(true);
             settings.setMediaPlaybackRequiresUserGesture(false);
 
-            // Force all links to stay INSIDE this WebKit box, never opening external apps
             webView.setWebViewClient(new WebViewClient());
             webView.loadUrl(url);
 
             mainLayout.addView(topBar);
             mainLayout.addView(webView);
-
             browserDialog.setContentView(mainLayout);
 
-            // The Nuke Sequence
+            // --- AUTO-NUKE SEQUENCE ---
             browserDialog.setOnDismissListener(d -> {
                 if (autoNuke != null && autoNuke) {
                     webView.clearCache(true);
@@ -97,6 +127,11 @@ public class StealthBrowser extends Plugin {
                     CookieManager.getInstance().flush();
                 }
                 webView.destroy();
+                
+                // Reset proxy system on close to prevent leaking to other components
+                if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
+                    ProxyController.getInstance().clearProxyOverride(command -> command.run(), () -> {});
+                }
             });
 
             browserDialog.show();
