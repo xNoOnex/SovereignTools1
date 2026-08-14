@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
-import { useSecureStorage } from '../hooks/useSecureStorage';
+import useSecureStorage from '../hooks/useSecureStorage';
 const StealthBrowser = registerPlugin('StealthBrowser');
 
 export function SovereignBrowser({ onNavigate }) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { VoiceRecorder } from 'capacitor-voice-recorder';
-import { useSecureStorage } from '../hooks/useSecureStorage';
+import useSecureStorage from '../hooks/useSecureStorage';
 
 export function SovereignRecorder({ onNavigate }) {
   const [view, setView] = useState('record');
