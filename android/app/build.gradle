@@ -68,3 +68,11 @@ try {
 dependencies {
     implementation "dev.rikka.shizuku:api:13.1.5"
 }
+
+
+// FORCE STABLE BROWSER LIBRARY TO PREVENT SDK 36 CRASH
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.browser:browser:1.8.0'
+    }
+}
