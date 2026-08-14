@@ -108,7 +108,18 @@ public class StealthBrowser extends Plugin {
             settings.setDomStorageEnabled(true);
             settings.setMediaPlaybackRequiresUserGesture(false);
 
-            webView.setWebViewClient(new WebViewClient());
+            
+            webView.setWebChromeClient(new android.webkit.WebChromeClient());
+            settings.setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            settings.setDatabaseEnabled(true);
+            
+            webView.setWebViewClient(new WebViewClient() {
+                @Override
+                public void onReceivedSslError(WebView view, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
+                    // Bypass strict SSL checks so Proxied/Tor traffic does not instantly abort
+                    handler.proceed();
+                }
+            });
             webView.loadUrl(url);
 
             mainLayout.addView(topBar);

@@ -83,7 +83,7 @@ export function SovereignBrowser({ onNavigate }) {
     
     try {
       // Opens as a native, secure standalone browser overlay inside the app
-      await StealthBrowser.openNative({ url: finalUrl, autoNuke: autoNuke });
+      await StealthBrowser.openNative({ url: finalUrl, autoNuke: autoNuke, proxyHost: proxyEnabled ? proxyHost : "", proxyPort: proxyEnabled ? parseInt(proxyPort) : 0 });
     } catch (error) {
       console.error("[Standalone Browser] Failed to load URL", error);
     }

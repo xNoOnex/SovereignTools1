@@ -4,6 +4,15 @@ import { registerPlugin } from '@capacitor/core';
 const SecurityToggle = registerPlugin('SecurityToggle');
 
 export function Settings({ closeSettings, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
+    const [masterPin, setMasterPin] = useState(localStorage.getItem('sovereign_pin') || '');
+
+  const handleUpdateMaster = () => {
+    if (masterPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
+    localStorage.setItem('sovereign_pin', masterPin);
+    setSaveStatus("Master PIN updated.");
+    setTimeout(() => setSaveStatus(""), 2000);
+  };
+
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
   const [decoyPin, setDecoyPin] = useState(localStorage.getItem('sovereign_decoy_pin') || '');
   const [wipeLimit, setWipeLimit] = useState(localStorage.getItem('sovereign_wipe_limit') || 'None');
@@ -112,6 +121,20 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
           <div className="flex gap-2">
              <button onClick={() => switchMode('BASIC')} className={`flex-1 py-3 rounded-xl text-xs font-bold tracking-widest transition-all ${appMode === 'BASIC' ? 'bg-zinc-100 text-black shadow-md' : 'bg-black text-zinc-500 border border-zinc-800'}`}>BASIC</button>
              <button onClick={() => switchMode('EXPERT')} className={`flex-1 py-3 rounded-xl text-xs font-bold tracking-widest transition-all ${appMode === 'EXPERT' ? 'bg-zinc-100 text-black shadow-md' : 'bg-black text-zinc-500 border border-zinc-800'}`}>EXPERT</button>
+          </div>
+        </div>
+
+        
+        {/* MASTER PIN */}
+        <div className="p-4 bg-zinc-900/50 border border-zinc-800 rounded-2xl flex flex-col gap-4 shadow-inner">
+          <div className="flex items-center justify-between">
+            <h4 className="text-sm font-bold text-zinc-200 uppercase tracking-widest flex items-center gap-2"><span>🔑</span> MASTER LOGIN PIN</h4>
+            <span className="text-[10px] font-bold uppercase tracking-widest bg-zinc-950 border border-zinc-800 text-cyan-500 px-2 py-1 rounded-md">ACTIVE</span>
+          </div>
+          <p className="text-[10px] font-mono text-zinc-400 leading-relaxed">This is your primary access code to unlock Sovereign Tools.</p>
+          <div className="flex gap-2">
+            <input type="password" value={masterPin} onChange={(e) => setMasterPin(e.target.value)} placeholder="Enter 4+ digit PIN" className="flex-grow bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-300 focus:outline-none focus:border-cyan-500" />
+            <button onClick={handleUpdateMaster} className="bg-cyan-900/30 border border-cyan-800 text-cyan-400 px-4 rounded-lg text-xs font-bold tracking-widest active:scale-95 transition-all">UPDATE</button>
           </div>
         </div>
 
