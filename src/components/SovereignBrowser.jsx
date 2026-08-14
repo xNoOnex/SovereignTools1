@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Browser } from '@capacitor/browser';
+import { registerPlugin } from '@capacitor/core';
+const StealthBrowser = registerPlugin('StealthBrowser');
 
 export function SovereignBrowser({ onNavigate }) {
   const [address, setAddress] = useState('https://');
@@ -82,11 +83,7 @@ export function SovereignBrowser({ onNavigate }) {
     
     try {
       // Opens as a native, secure standalone browser overlay inside the app
-      await Browser.open({ 
-        url: finalUrl,
-        windowName: '_blank',
-        presentationStyle: 'popover'
-      });
+      await StealthBrowser.openNative({ url: finalUrl, autoNuke: autoNuke });
     } catch (error) {
       console.error("[Standalone Browser] Failed to load URL", error);
     }
