@@ -35,31 +35,31 @@ const handleKeyPress = (num) => {
       const newStr = pinEntry + num;
       setPinEntry(newStr);
 
-      // 1. INSTANT SUCCESS CHECKS
-      if (newStr === savedPin) {
+      // 1. INSTANT SUCCESS CHECKS (Safely converted to Strings to prevent crashes)
+      if (String(newStr) === String(savedPin)) {
         setSessionMode("ARMED");
         setFailedAttempts("0");
         onUnlock();
         return;
       }
-      if (duressPin && newStr === duressPin) {
+      if (duressPin && String(newStr) === String(duressPin)) {
         executeProtocol(true);
         return;
       }
-      if (decoyPin && newStr === decoyPin) {
+      if (decoyPin && String(newStr) === String(decoyPin)) {
         setSessionMode("DECOY");
         setFailedAttempts("0");
         onUnlock();
         return;
       }
 
-      // 2. SMART PREFIX FAILURE
-      // Checks if what you've typed so far is the beginning of ANY valid PIN
-      const isValidPrefix = [savedPin, duressPin, decoyPin]
-        .filter(Boolean)
-        .some(pin => pin.startsWith(newStr));
+      // 2. DYNAMIC MAX-LENGTH FAILURE
+      const l1 = savedPin ? String(savedPin).length : 4;
+      const l2 = duressPin ? String(duressPin).length : 0;
+      const l3 = decoyPin ? String(decoyPin).length : 0;
+      const maxLen = Math.max(l1, l2, l3);
 
-      if (!isValidPrefix) {
+      if (newStr.length >= maxLen) {
         let attempts = parseInt(failedAttempts || "0") + 1;
         setFailedAttempts(attempts.toString());
 
@@ -68,7 +68,6 @@ const handleKeyPress = (num) => {
             return;
         }
 
-        // Instant failure shake
         setErrorShake(true);
         setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
       }
