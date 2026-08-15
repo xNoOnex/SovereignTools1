@@ -1,3 +1,4 @@
+import RippedMedia from './components/RippedMedia';
 import { useSecureStorage } from './hooks/useSecureStorage';
 import { SwarmComms } from './components/SwarmComms';
 import { Capacitor } from '@capacitor/core';
