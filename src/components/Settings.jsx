@@ -1,3 +1,4 @@
+import SecureStorage from '../utils/SecureStorage';
 import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
 // Directly load the native Android plugin we just fixed!
@@ -6,7 +7,7 @@ const SecurityToggle = registerPlugin('SecurityToggle');
 export function Settings({ closeSettings, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
     const [masterPin, setMasterPin] = useState(localStorage.getItem('sovereign_pin') || '');
 
-  const handleUpdateMaster = () => { if(masterPin.length < 4) return alert("PIN must be 4+ digits"); localStorage.setItem("sovereign_pin", masterPin); alert("Master PIN Saved. Rebooting..."); window.location.reload(); };
+  const handleUpdateMaster = async () => { if(masterPin.length < 4) return alert("PIN must be 4+ digits"); const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault"; await SecureStorage.setItem("sovereign_pin", masterPin, mk); alert("Master PIN Saved. Rebooting..."); window.location.reload(); };
 
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
   const [decoyPin, setDecoyPin] = useState(localStorage.getItem('sovereign_decoy_pin') || '');
