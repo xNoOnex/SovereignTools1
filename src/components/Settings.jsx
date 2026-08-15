@@ -40,12 +40,12 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
     setTimeout(() => setSaveStatus(""), 2000);
   };
 
-  const handleDisableDuress = () => {
-    localStorage.removeItem('sovereign_duress_pin');
-    setDuressPin('');
-    setSaveStatus("Duress PIN disabled.");
-    setTimeout(() => setSaveStatus(""), 2000);
-  };
+  const handleDisableDuress = async () => {
+      const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault";
+      await SecureStorage.setItem("sovereign_duress_pin", "", mk);
+      alert("Duress PIN Disabled. Rebooting...");
+      window.location.reload();
+    };
 
   const handleUpdateDecoy = () => {
     if (decoyPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
@@ -55,12 +55,12 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
     setTimeout(() => setSaveStatus(""), 2000);
   };
 
-  const handleDisableDecoy = () => {
-    localStorage.removeItem('sovereign_decoy_pin');
-    setDecoyPin('');
-    setSaveStatus("Decoy PIN disabled.");
-    setTimeout(() => setSaveStatus(""), 2000);
-  };
+  const handleDisableDecoy = async () => {
+      const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault";
+      await SecureStorage.setItem("sovereign_decoy_pin", "", mk);
+      alert("Decoy PIN Disabled. Rebooting...");
+      window.location.reload();
+    };
 
   const handleUpdateWipeLimit = (limit) => {
     setWipeLimit(limit);
