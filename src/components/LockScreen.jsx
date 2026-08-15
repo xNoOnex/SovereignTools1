@@ -31,53 +31,49 @@ export function LockScreen({ onUnlock }) {
 };
 
 const handleKeyPress = (num) => {
-    if (pinEntry.length < 4) {
-        const newPin = pinEntry + num;
-        setPinEntry(newPin);
+    if (pinEntry.length < 10) {
+      const newStr = pinEntry + num;
+      setPinEntry(newStr);
 
-        if (newStr === savedPin || newStr === duressPin || newStr === decoyPin) {
-            
-            
-            // TRIPWIRE 1: DURESS PIN
-            if (duressPin && newPin === duressPin) {
-                executeProtocolZero();
-                return;
-            }
-            
-            
-            if (decoyPin && newPin === decoyPin) {
-                // DECOY SUCCESS: Silently flag session as DECOY
-                setSessionMode("DECOY");
-                setFailedAttempts("0");
-                onUnlock();
-                return;
-            }
-
-            if (newPin === savedPin) {
-                // ADMIN SUCCESS: Flag session as ADMIN
-                localStorage.setItem('sovereign_session_mode', 'ADMIN');
-                setFailedAttempts("0");
-                onUnlock();
-            } else {
-                // TRIPWIRE 2: BRUTE-FORCE AUTO-WIPE
-                let attempts = parseInt(failedAttempts || "0") + 1;
-                setFailedAttempts(attempts.toString());
-                
-                
-                if (limit && limit !== 'None' && attempts >= parseInt(limit)) {
-                    executeProtocolZero();
-                    return;
-                }
-      if (newStr.length === 4) {
-                // STANDARD FAILURE
-                setErrorShake(true);
-                setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
-            }
+      // 1. SUCCESS CHECKS (Instantly opens if a match is hit)
+      if (newStr === savedPin || (duressPin && newStr === duressPin) || (decoyPin && newStr === decoyPin)) {
+        if (duressPin && newStr === duressPin) {
+          executeProtocol(true);
+          return;
         }
-    }
-};
+        if (decoyPin && newStr === decoyPin) {
+          setSessionMode("DECOY");
+          setFailedAttempts("0");
+          onUnlock();
+          return;
+        }
+        if (newStr === savedPin) {
+          setSessionMode("ARMED");
+          setFailedAttempts("0");
+          onUnlock();
+          return;
+        }
+      }
 
-return (
+      // 2. DYNAMIC FAILURE BOUNDARY (Fails when it hits the length of the Master PIN)
+      const targetLength = savedPin ? savedPin.length : 4;
+      if (newStr.length >= targetLength) {
+        let attempts = parseInt(failedAttempts || "0") + 1;
+        setFailedAttempts(attempts.toString());
+
+        if (limit && limit !== "None" && attempts >= parseInt(limit)) {
+            executeProtocol(true);
+            return;
+        }
+
+        // STANDARD FAILURE
+        setErrorShake(true);
+        setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
+      }
+    }
+  };
+
+  return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("/app_icon.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
       
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "var(--bg-image)", backgroundSize: "var(--bg-size)", backgroundPosition: 'center', filter: 'contrast(1.5)' }}></div>
