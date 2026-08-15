@@ -33,7 +33,7 @@ const sysTools = [
     details: "Audits open ports on your device (similar to netstat or ss), showing you which background services or apps are actively waiting for incoming network connections.",
     disclaimer: "Misinterpreting this data can cause unnecessary alarm; many local services listen on standard ports solely for internal device communication, not external internet exposure.",
     needsInput: false, inputPlaceholder: '',
-    getCmd: () => `ss -tunl 2>/dev/null || netstat -tunl 2>/dev/null; echo ""; echo "[SELinux Enforcing] Kernel netlink socket access denied for Shizuku (UID 2000)."; echo "Full Root (UID 0) is physically required to audit global port states on Samsung OneUI."`\\n> [STDERR]: Netlink socket blocked. Standard ports shown above. Full Root (UID 0) required for PID mapping."'
+    getCmd: () => `ss -tunl 2>/dev/null || netstat -tunl 2>/dev/null; echo ""; echo "[SELinux Enforcing] Kernel netlink socket access denied for Shizuku (UID 2000)."; echo "Full Root (UID 0) is physically required to audit global port states on Samsung OneUI."`
   },
   {
     id: 'appops', name: 'AppOps List', icon: '📦',
