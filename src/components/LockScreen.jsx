@@ -68,7 +68,7 @@ const handleKeyPress = (num) => {
                     executeProtocolZero();
                     return;
                 }
-
+      if (newStr.length === 4) {
                 // STANDARD FAILURE
                 setErrorShake(true);
                 setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
