@@ -1,4 +1,4 @@
-import SecureStorage from '../utils/SecureStorage';
+import { SecureStorage } from '../utils/secureStorage';
 import React, { useState } from 'react';
 import { registerPlugin } from '@capacitor/core';
 // Directly load the native Android plugin we just fixed!
