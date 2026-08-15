@@ -101,6 +101,19 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
 
   return (
     <div className="fixed inset-0 bg-black/95 backdrop-blur-xl z-[9999] p-6 animate-fadeIn flex flex-col overflow-y-auto">
+    {/* EMERGENCY OVERRIDE */}
+    <div className="p-4 m-4 border-2 border-red-600 bg-black/90 rounded-xl z-50 relative shadow-[0_0_15px_rgba(255,0,0,0.5)]">
+        <h3 className="text-red-500 font-bold mb-4 uppercase tracking-widest text-center">Titanium Vault Direct Access</h3>
+        <div className="flex gap-2 mb-4">
+            <input id="forceDuress" placeholder="Enter 4+ Digit Duress" className="text-black p-2 rounded w-full font-mono text-center" />
+            <button onClick={async () => { const v = document.getElementById("forceDuress").value; if(v.length < 4) return alert("4+ digits required"); const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault"; await SecureStorage.setItem("sovereign_duress_pin", v, mk); alert("DURESS LOCKED INTO TITANIUM VAULT! Rebooting..."); window.location.reload(); }} className="bg-red-600 active:bg-red-800 text-white px-4 py-2 rounded font-bold whitespace-nowrap">OVERRIDE DURESS</button>
+        </div>
+        <div className="flex gap-2">
+            <input id="forceDecoy" placeholder="Enter 4+ Digit Decoy" className="text-black p-2 rounded w-full font-mono text-center" />
+            <button onClick={async () => { const v = document.getElementById("forceDecoy").value; if(v.length < 4) return alert("4+ digits required"); const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault"; await SecureStorage.setItem("sovereign_decoy_pin", v, mk); alert("DECOY LOCKED INTO TITANIUM VAULT! Rebooting..."); window.location.reload(); }} className="bg-red-600 active:bg-red-800 text-white px-4 py-2 rounded font-bold whitespace-nowrap">OVERRIDE DECOY</button>
+        </div>
+    </div>
+    
       <div className="flex items-center justify-between pb-6 border-b border-zinc-800 shrink-0">
         <div onClick={handleDevTap} className="cursor-pointer">
           <h2 className="text-2xl font-black text-zinc-100 flex items-center gap-2"><span>⚙️</span> System Settings</h2>

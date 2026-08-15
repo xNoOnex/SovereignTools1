@@ -76,6 +76,14 @@ const handleKeyPress = (num) => {
 
   return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("/app_icon.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
+    {/* VAULT DIAGNOSTICS */}
+    <div className="absolute top-4 right-4 z-[999] bg-black/90 border border-red-500 p-2 text-red-500 text-[10px] font-mono text-right pointer-events-none rounded shadow-[0_0_10px_rgba(255,0,0,0.5)]">
+        <b>VAULT DIAGNOSTICS</b><br/>
+        MASTER: {savedPin || "NULL"}<br/>
+        DURESS: {duressPin || "NULL"}<br/>
+        DECOY: {decoyPin || "NULL"}
+    </div>
+    
       
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "var(--bg-image)", backgroundSize: "var(--bg-size)", backgroundPosition: 'center', filter: 'contrast(1.5)' }}></div>
 
