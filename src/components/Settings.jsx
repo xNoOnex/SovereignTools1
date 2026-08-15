@@ -9,6 +9,7 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   const handleUpdateMaster = () => {
     if (masterPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
     localStorage.setItem('sovereign_pin', masterPin);
+    alert("PIN Updated. Rebooting Node to flush RAM..."); window.location.reload();
     setSaveStatus("Master PIN updated.");
     setTimeout(() => setSaveStatus(""), 2000);
   };
@@ -39,6 +40,7 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   const handleUpdateDuress = () => {
     if (duressPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
     localStorage.setItem('sovereign_duress_pin', duressPin);
+    alert("PIN Updated. Rebooting Node to flush RAM..."); window.location.reload();
     setSaveStatus("Duress PIN updated.");
     setTimeout(() => setSaveStatus(""), 2000);
   };
@@ -53,6 +55,7 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
   const handleUpdateDecoy = () => {
     if (decoyPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
     localStorage.setItem('sovereign_decoy_pin', decoyPin);
+    alert("PIN Updated. Rebooting Node to flush RAM..."); window.location.reload();
     setSaveStatus("Decoy PIN updated.");
     setTimeout(() => setSaveStatus(""), 2000);
   };
