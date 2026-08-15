@@ -122,7 +122,7 @@ export function Home({ onNavigate, navigateTo }) {
                 {allTools.map(tool => {
                     // ABORT RENDERING EXPERT TOOLS IN BASIC MODE
                     if (currentMode === "BASIC" && tool.isExpert) return null;
-            if (localStorage.getItem("sovereign_session_mode") === "DECOY" && tool.isSecret) return null;
+            if (localStorage.getItem("RAW_SESSION_STATE") === "DECOY" && tool.isSecret) return null;
                     
                     return (
                         <button 

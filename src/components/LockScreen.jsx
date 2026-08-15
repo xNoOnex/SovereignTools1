@@ -35,39 +35,42 @@ const handleKeyPress = (num) => {
       const newStr = pinEntry + num;
       setPinEntry(newStr);
 
-      // 1. INSTANT SUCCESS CHECKS (Safely converted to Strings to prevent crashes)
-      if (String(newStr) === String(savedPin)) {
+      // Force-remove any accidental spaces saved by Android predictive text
+      const mPin = String(savedPin || "1234").trim();
+      const dPin = String(duressPin || "").trim();
+      const cPin = String(decoyPin || "").trim();
+
+      if (newStr === mPin) {
         setSessionMode("ARMED");
+        localStorage.setItem("RAW_SESSION_STATE", "ARMED");
         setFailedAttempts("0");
         onUnlock();
         return;
       }
-      if (duressPin && String(newStr) === String(duressPin)) {
+      if (dPin && newStr === dPin) {
         executeProtocol(true);
         return;
       }
-      if (decoyPin && String(newStr) === String(decoyPin)) {
+      if (cPin && newStr === cPin) {
         setSessionMode("DECOY");
+        localStorage.setItem("RAW_SESSION_STATE", "DECOY");
         setFailedAttempts("0");
         onUnlock();
         return;
       }
 
-      // 2. DYNAMIC MAX-LENGTH FAILURE
-      const l1 = savedPin ? String(savedPin).length : 4;
-      const l2 = duressPin ? String(duressPin).length : 0;
-      const l3 = decoyPin ? String(decoyPin).length : 0;
+      const l1 = mPin.length || 4;
+      const l2 = dPin.length || 0;
+      const l3 = cPin.length || 0;
       const maxLen = Math.max(l1, l2, l3);
 
       if (newStr.length >= maxLen) {
         let attempts = parseInt(failedAttempts || "0") + 1;
         setFailedAttempts(attempts.toString());
-
         if (limit && limit !== "None" && attempts >= parseInt(limit)) {
             executeProtocol(true);
             return;
         }
-
         setErrorShake(true);
         setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
       }
@@ -76,13 +79,7 @@ const handleKeyPress = (num) => {
 
   return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("/app_icon.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
-    {/* VAULT DIAGNOSTICS */}
-    <div className="absolute top-4 right-4 z-[999] bg-black/90 border border-red-500 p-2 text-red-500 text-[10px] font-mono text-right pointer-events-none rounded shadow-[0_0_10px_rgba(255,0,0,0.5)]">
-        <b>VAULT DIAGNOSTICS</b><br/>
-        MASTER: {savedPin || "NULL"}<br/>
-        DURESS: {duressPin || "NULL"}<br/>
-        DECOY: {decoyPin || "NULL"}
-    </div>
+    
     
       
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: "var(--bg-image)", backgroundSize: "var(--bg-size)", backgroundPosition: 'center', filter: 'contrast(1.5)' }}></div>
