@@ -60,7 +60,8 @@ export function Home({ onNavigate, navigateTo }) {
         { id: "vault", icon: "🏦", label: "Secure Vault", desc: "Zero-Knowledge Storage", isExpert: false },
         { id: "ai", icon: "🧠", label: "Smart AI", desc: "Local Intelligence Node", isExpert: false },
         { id: "calc", icon: "🧮", label: "Stealth Calc", desc: "Decoy Interface Masking", isExpert: false }
-    ];
+      , { id: "ripped_media", icon: "🗄️", label: "Ripped Media", desc: "Encrypted Vault", isExpert: false }
+];
 
     return (
         <div className="p-6 pb-24 space-y-6 max-w-xl mx-auto select-none animate-fade-in">
