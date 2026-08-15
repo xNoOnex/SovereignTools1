@@ -6,13 +6,7 @@ const SecurityToggle = registerPlugin('SecurityToggle');
 export function Settings({ closeSettings, accentColor, setAccentColor, textSize, setTextSize, onNavigate }) {
     const [masterPin, setMasterPin] = useState(localStorage.getItem('sovereign_pin') || '');
 
-  const handleUpdateMaster = () => {
-    if (masterPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
-    localStorage.setItem('sovereign_pin', masterPin);
-    alert("PIN Updated. Rebooting Node to flush RAM..."); window.location.reload();
-    setSaveStatus("Master PIN updated.");
-    setTimeout(() => setSaveStatus(""), 2000);
-  };
+  const handleUpdateMaster = () => { if(masterPin.length < 4) return alert("PIN must be 4+ digits"); localStorage.setItem("sovereign_pin", masterPin); alert("Master PIN Saved. Rebooting..."); window.location.reload(); };
 
   const [duressPin, setDuressPin] = useState(localStorage.getItem('sovereign_duress_pin') || '');
   const [decoyPin, setDecoyPin] = useState(localStorage.getItem('sovereign_decoy_pin') || '');

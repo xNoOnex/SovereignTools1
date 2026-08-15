@@ -35,7 +35,7 @@ const handleKeyPress = (num) => {
         const newPin = pinEntry + num;
         setPinEntry(newPin);
 
-        if (newPin.length === 4) {
+        if (newStr === savedPin || newStr === duressPin || newStr === decoyPin) {
             
             
             // TRIPWIRE 1: DURESS PIN
