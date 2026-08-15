@@ -19,6 +19,8 @@ import androidx.webkit.ProxyController;
 import androidx.webkit.WebViewFeature;
 
 import com.getcapacitor.Plugin;
+import com.getcapacitor.JSObject;
+import android.widget.Toast;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
@@ -92,6 +94,37 @@ public class StealthBrowser extends Plugin {
             closeBtn.setBackgroundColor(Color.TRANSPARENT);
             closeBtn.setOnClickListener(v -> browserDialog.dismiss());
             topBar.addView(closeBtn);
+
+            Button ripBtn = new Button(getActivity());
+            ripBtn.setText("📥 RIP");
+            ripBtn.setTextColor(Color.parseColor("#10b981"));
+            ripBtn.setBackgroundColor(Color.TRANSPARENT);
+            ripBtn.setOnClickListener(v -> {
+                // Inject JS to hunt for video/audio source tags
+                webView.evaluateJavascript(
+                    "(function() { " +
+                    "  var vids = document.querySelectorAll('video'); " +
+                    "  if(vids.length > 0) return vids[0].src || vids[0].currentSrc; " +
+                    "  return null; " +
+                    "})();",
+                    value -> {
+                        String cleanVal = value != null ? value.replace(""", "") : "";
+                        if (!cleanVal.isEmpty() && !cleanVal.equals("null")) {
+                            // Target acquired: Send URL across the bridge back to React
+                            JSObject ret = new JSObject();
+                            ret.put("url", cleanVal);
+                            notifyListeners("onMediaDetected", ret);
+                        } else {
+                            // Target missing
+                            getActivity().runOnUiThread(() -> {
+                                Toast.makeText(getActivity(), "No video stream detected here.", Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    }
+                );
+            });
+            topBar.addView(ripBtn);
+    
 
             TextView urlText = new TextView(getActivity());
             urlText.setText((proxyPort > 0 ? "🔒 [PROXY ON] " : "") + url);

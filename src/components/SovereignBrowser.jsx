@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { registerPlugin } from '@capacitor/core';
 const StealthBrowser = registerPlugin('StealthBrowser');
 
@@ -77,6 +77,18 @@ export function SovereignBrowser({ onNavigate }) {
     setBookmarks(updated);
     await saveEncryptedBookmarks(updated);
   };
+
+  
+  useEffect(() => {
+    const listener = StealthBrowser.addListener('onMediaDetected', async (info) => {
+        if (window.confirm(`🚨 TARGET STREAM ACQUIRED! 🚨\n\nURL: ${info.url.substring(0, 50)}...\n\nExecute ripping sequence to Encrypted Vault?`)) {
+            alert("Initiating secure download pipeline... (To be built next!)");
+        }
+    });
+    return () => {
+        if (listener && listener.remove) listener.remove();
+    };
+  }, []);
 
   const handleNavigate = async (targetUrl = address) => {
     let finalUrl = targetUrl;
