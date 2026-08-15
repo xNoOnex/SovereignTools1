@@ -31,33 +31,35 @@ export function LockScreen({ onUnlock }) {
 };
 
 const handleKeyPress = (num) => {
-    if (pinEntry.length < 10) {
+    if (pinEntry.length < 15) {
       const newStr = pinEntry + num;
       setPinEntry(newStr);
 
-      // 1. SUCCESS CHECKS (Instantly opens if a match is hit)
-      if (newStr === savedPin || (duressPin && newStr === duressPin) || (decoyPin && newStr === decoyPin)) {
-        if (duressPin && newStr === duressPin) {
-          executeProtocol(true);
-          return;
-        }
-        if (decoyPin && newStr === decoyPin) {
-          setSessionMode("DECOY");
-          setFailedAttempts("0");
-          onUnlock();
-          return;
-        }
-        if (newStr === savedPin) {
-          setSessionMode("ARMED");
-          setFailedAttempts("0");
-          onUnlock();
-          return;
-        }
+      // 1. INSTANT SUCCESS CHECKS
+      if (newStr === savedPin) {
+        setSessionMode("ARMED");
+        setFailedAttempts("0");
+        onUnlock();
+        return;
+      }
+      if (duressPin && newStr === duressPin) {
+        executeProtocol(true);
+        return;
+      }
+      if (decoyPin && newStr === decoyPin) {
+        setSessionMode("DECOY");
+        setFailedAttempts("0");
+        onUnlock();
+        return;
       }
 
-      // 2. DYNAMIC FAILURE BOUNDARY (Fails when it hits the length of the Master PIN)
-      const targetLength = savedPin ? savedPin.length : 4;
-      if (newStr.length >= targetLength) {
+      // 2. SMART PREFIX FAILURE
+      // Checks if what you've typed so far is the beginning of ANY valid PIN
+      const isValidPrefix = [savedPin, duressPin, decoyPin]
+        .filter(Boolean)
+        .some(pin => pin.startsWith(newStr));
+
+      if (!isValidPrefix) {
         let attempts = parseInt(failedAttempts || "0") + 1;
         setFailedAttempts(attempts.toString());
 
@@ -66,7 +68,7 @@ const handleKeyPress = (num) => {
             return;
         }
 
-        // STANDARD FAILURE
+        // Instant failure shake
         setErrorShake(true);
         setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
       }

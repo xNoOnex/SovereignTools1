@@ -132,7 +132,7 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
           <p className="text-[10px] font-mono text-zinc-400 leading-relaxed">This is your primary access code to unlock Sovereign Tools.</p>
           <div className="flex gap-2">
             <input type="password" value={masterPin} onChange={(e) => setMasterPin(e.target.value)} placeholder="Enter 4+ digit PIN" className="flex-grow bg-black border border-zinc-700 rounded-lg px-4 py-3 text-sm font-mono text-zinc-300 focus:outline-none focus:border-cyan-500" />
-            <button onClick={handleUpdateMaster} className="bg-cyan-900/30 border border-cyan-800 text-cyan-400 px-4 rounded-lg text-xs font-bold tracking-widest active:scale-95 transition-all">UPDATE</button>
+            <button onClick={async () => { if(masterPin.length < 4) return alert("4+ digits required"); const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault"; await SecureStorage.setItem("sovereign_pin", masterPin, mk); alert("Master PIN Saved. Rebooting..."); window.location.reload(); }} className="bg-cyan-900/30 border border-cyan-800 text-cyan-400 px-4 rounded-lg text-xs font-bold tracking-widest active:scale-95 transition-all">UPDATE</button>
           </div>
         </div>
 
