@@ -13,17 +13,17 @@ import android.webkit.WebViewClient;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.webkit.ProxyConfig;
 import androidx.webkit.ProxyController;
 import androidx.webkit.WebViewFeature;
 
 import com.getcapacitor.Plugin;
-import com.getcapacitor.JSObject;
-import android.widget.Toast;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
+import com.getcapacitor.JSObject;
 
 @CapacitorPlugin(name = "StealthBrowser")
 public class StealthBrowser extends Plugin {
@@ -34,7 +34,6 @@ public class StealthBrowser extends Plugin {
         String url = call.getString("url");
         Boolean autoNuke = call.getBoolean("autoNuke", true);
         
-        // Grab proxy settings from React
         String proxyHost = call.getString("proxyHost", "");
         Integer proxyPort = call.getInt("proxyPort", 0);
 
@@ -51,22 +50,18 @@ public class StealthBrowser extends Plugin {
             // --- PROXY INTERCEPTOR LOGIC ---
             if (proxyHost != null && !proxyHost.isEmpty() && proxyPort != null && proxyPort > 0) {
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
-                    
-                    // Default to SOCKS protocol (Tor/Orbot standard) if user just typed an IP
-                    final String proxyUrl = proxyHost;
-                    
+                    String proxyUrl = proxyHost;
+                    if (!proxyUrl.startsWith("http") && !proxyUrl.startsWith("socks")) {
+                        proxyUrl = "socks://" + proxyUrl;
+                    }
 
-                    // Strict routing: NO fallback to direct IP if proxy fails
                     ProxyConfig strictProxy = new ProxyConfig.Builder()
-                            .addProxyRule((proxyUrl.startsWith("http") || proxyUrl.startsWith("socks") ? proxyUrl : "socks://" + proxyUrl) + ":" + proxyPort)
+                            .addProxyRule(proxyUrl + ":" + proxyPort)
                             .build();
 
-                    ProxyController.getInstance().setProxyOverride(strictProxy, command -> command.run(), () -> {
-                        System.out.println("🛡️ TOR/PROXY ENGAGED: " + proxyUrl + ":" + proxyPort);
-                    });
+                    ProxyController.getInstance().setProxyOverride(strictProxy, command -> command.run(), () -> {});
                 }
             } else {
-                // Clear proxy if toggle is off
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
                     ProxyController.getInstance().clearProxyOverride(command -> command.run(), () -> {});
                 }
@@ -89,47 +84,43 @@ public class StealthBrowser extends Plugin {
             topBar.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, heightPx));
 
             Button closeBtn = new Button(getActivity());
-            closeBtn.setText("❌ CLOSE STEALTH");
+            closeBtn.setText("❌ CLOSE");
             closeBtn.setTextColor(Color.parseColor("#f43f5e"));
             closeBtn.setBackgroundColor(Color.TRANSPARENT);
             closeBtn.setOnClickListener(v -> browserDialog.dismiss());
             topBar.addView(closeBtn);
 
+            // RIPPER BUTTON
             Button ripBtn = new Button(getActivity());
             ripBtn.setText("📥 RIP");
             ripBtn.setTextColor(Color.parseColor("#10b981"));
             ripBtn.setBackgroundColor(Color.TRANSPARENT);
             ripBtn.setOnClickListener(v -> {
-                // Inject JS to hunt for video/audio source tags
-                webView.evaluateJavascript(
-                    "(function() { " +
-                    "  var vids = document.querySelectorAll('video'); " +
-                    "  if(vids.length > 0) return vids[0].src || vids[0].currentSrc; " +
-                    "  return null; " +
-                    "})();",
-                    value -> {
-                        String cleanVal = value != null ? value.replace(""", "") : "";
-                        if (!cleanVal.isEmpty() && !cleanVal.equals("null")) {
-                            // Target acquired: Send URL across the bridge back to React
-                            JSObject ret = new JSObject();
-                            ret.put("url", cleanVal);
-                            notifyListeners("onMediaDetected", ret);
-                        } else {
-                            // Target missing
-                            getActivity().runOnUiThread(() -> {
-                                Toast.makeText(getActivity(), "No video stream detected here.", Toast.LENGTH_SHORT).show();
-                            });
+                WebView targetView = (WebView) mainLayout.getChildAt(1);
+                if (targetView != null) {
+                    targetView.evaluateJavascript(
+                        "(function() { var v = document.querySelector('video'); return v ? (v.src || v.currentSrc) : ''; })();",
+                        value -> {
+                            String cleanVal = value != null ? value.replace("\"", "").trim() : "";
+                            if (!cleanVal.isEmpty() && !cleanVal.equals("null")) {
+                                JSObject ret = new JSObject();
+                                ret.put("url", cleanVal);
+                                notifyListeners("onMediaDetected", ret);
+                            } else {
+                                getActivity().runOnUiThread(() -> {
+                                    Toast.makeText(getActivity(), "No video stream detected.", Toast.LENGTH_SHORT).show();
+                                });
+                            }
                         }
-                    }
-                );
+                    );
+                }
             });
             topBar.addView(ripBtn);
-    
 
             TextView urlText = new TextView(getActivity());
-            urlText.setText((proxyPort > 0 ? "🔒 [PROXY ON] " : "") + url);
+            urlText.setText((proxyPort > 0 ? "🔒 [PROXY] " : "") + url);
             urlText.setTextColor(Color.parseColor("#22d3ee"));
-            urlText.setPadding(30, 0, 0, 0);
+            urlText.setPadding(20, 0, 0, 0);
             urlText.setSingleLine(true);
             topBar.addView(urlText);
 
@@ -140,19 +131,17 @@ public class StealthBrowser extends Plugin {
             settings.setJavaScriptEnabled(true);
             settings.setDomStorageEnabled(true);
             settings.setMediaPlaybackRequiresUserGesture(false);
-
-            
-            webView.setWebChromeClient(new android.webkit.WebChromeClient());
-            settings.setMixedContentMode(android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+            settings.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
             settings.setDatabaseEnabled(true);
-            
+
+            webView.setWebChromeClient(new android.webkit.WebChromeClient());
             webView.setWebViewClient(new WebViewClient() {
                 @Override
                 public void onReceivedSslError(WebView view, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
-                    // Bypass strict SSL checks so Proxied/Tor traffic does not instantly abort
                     handler.proceed();
                 }
             });
+            
             webView.loadUrl(url);
 
             mainLayout.addView(topBar);
@@ -170,7 +159,6 @@ public class StealthBrowser extends Plugin {
                 }
                 webView.destroy();
                 
-                // Reset proxy system on close to prevent leaking to other components
                 if (WebViewFeature.isFeatureSupported(WebViewFeature.PROXY_OVERRIDE)) {
                     ProxyController.getInstance().clearProxyOverride(command -> command.run(), () -> {});
                 }
