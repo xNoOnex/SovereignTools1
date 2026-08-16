@@ -1,3 +1,4 @@
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import React, { useState, useEffect } from 'react';
 import { registerPlugin } from '@capacitor/core';
 const StealthBrowser = registerPlugin('StealthBrowser');
@@ -82,13 +83,62 @@ export function SovereignBrowser({ onNavigate }) {
   useEffect(() => {
     const listener = StealthBrowser.addListener('onMediaDetected', async (info) => {
         if (window.confirm(`🚨 TARGET STREAM ACQUIRED! 🚨\n\nURL: ${info.url.substring(0, 50)}...\n\nExecute ripping sequence to Encrypted Vault?`)) {
-            alert("Initiating secure download pipeline... (To be built next!)");
+            
+        try {
+            if (!vaultKey) {
+                alert("❌ Vault is Locked. Enter Session Vault Key first.");
+                return;
+            }
+            
+            alert("⬇️ Intercepting target stream into volatile RAM...");
+            
+            // Fetch the raw video file
+            const res = await fetch(info.url);
+            const arrayBuffer = await res.arrayBuffer();
+            
+            alert("🔐 Encrypting payload with AES-256-GCM...");
+            
+            // Encrypt the payload using the current vault key
+            const iv = crypto.getRandomValues(new Uint8Array(12));
+            const key = await getCryptoKey(vaultKey);
+            const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, arrayBuffer);
+            
+            // Combine IV and Ciphertext
+            const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
+            combined.set(iv, 0);
+            combined.set(new Uint8Array(encryptedBuffer), iv.length);
+            
+            // Fast convert to Base64 to save to disk
+            const reader = new FileReader();
+            reader.onloadend = async () => {
+                const b64 = reader.result.split(',')[1];
+                const ext = info.url.includes('.webm') ? 'webm' : (info.url.includes('.mp3') ? 'mp3' : 'mp4');
+                const fName = `rip_${Date.now()}.${ext}`;
+                
+                try { 
+                    await Filesystem.mkdir({ path: 'sovereign_media', directory: Directory.Data, recursive: true }); 
+                } catch(e) { /* Directory exists */ }
+                
+                await Filesystem.writeFile({ 
+                    path: `sovereign_media/${fName}`, 
+                    data: b64, 
+                    directory: Directory.Data 
+                });
+                
+                alert("✅ Target Neutralized & Vaulted!\nFile encrypted safely on disk.");
+            };
+            reader.readAsDataURL(new Blob([combined]));
+            
+        } catch(e) {
+            alert("❌ Extraction Failed: " + e.message);
+        }
+    
         }
     });
     return () => {
         if (listener && listener.remove) listener.remove();
     };
-  }, []);
+  }, [vaultKey]);
 
   const handleNavigate = async (targetUrl = address) => {
     let finalUrl = targetUrl;
