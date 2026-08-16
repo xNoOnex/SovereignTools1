@@ -1,5 +1,9 @@
 package com.sovereign.tools;
 
+import android.webkit.WebResourceRequest;
+import android.webkit.WebView;
+
+
 import android.app.Dialog;
 import android.graphics.Color;
 import android.util.TypedValue;
