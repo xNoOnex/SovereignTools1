@@ -33,7 +33,7 @@ export function LockScreen({ onUnlock }) {
     } catch(e) {}
     
     // 3. Inject Kernel Panic
-    document.body.innerHTML = "<div style='background:black;color:#00ff00;height:100vh;padding:20px;font-family:monospace;font-size:12px;z-index:9999;position:fixed;top:0;left:0;width:100%;overflow:hidden;'>Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)<br/>CPU: 0 PID: 1 Comm: init Not tainted Sovereign-OS<br/>Hardware name: Secure Enclave<br/>Call Trace:<br/> dump_stack+0x5c/0x7c<br/> panic+0x101/0x2c3<br/>---[ end Kernel panic - not syncing: Fatal exception ]---<br/><br/>[!] SHREDDING SECURE VOLUMES... DONE.<br/>[!] CRYPTOGRAPHIC KEYS PURGED.<br/>[!] SYSTEM HALTED.</div>";
+    document.body.innerHTML = "<div style=\"background:black;color:#666;height:100vh;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:14px;\"><b>ERROR: NO BOOTABLE DEVICE FOUND.</b><br/><br/>INSERT RECOVERY MEDIA AND PRESS ANY KEY.</div>";
     
     setTimeout(() => { window.location.reload(); }, 5000);
   };

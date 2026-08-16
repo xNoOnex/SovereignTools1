@@ -4,6 +4,7 @@ import { registerPlugin } from "@capacitor/core";
 const ShizukuRunner = registerPlugin('ShizukuRunner');
 
 export function Home({ onNavigate, navigateTo }) {
+  const [panic, setPanic] = useState(false);
     const [shizukuStatus, setShizukuStatus] = useState("CHECKING");
     const [meshActive, setMeshActive] = useState(localStorage.getItem("sovereign_mesh_node") === "true");
     const [currentMode, setCurrentMode] = useState("EXPERT");
@@ -63,8 +64,28 @@ export function Home({ onNavigate, navigateTo }) {
       , { id: "ripped_media", icon: "🗄️", label: "Ripped Media", desc: "Encrypted Vault", isExpert: false }
 ];
 
+    
+  if (panic) {
     return (
-        <div className="p-6 pb-24 space-y-6 max-w-xl mx-auto select-none animate-fade-in">
+      <div style={{background:'black', color:'#00ff00', height:'100vh', padding:'10px', fontFamily:'monospace', fontSize:'11px', zIndex:9999, position:'fixed', top:0, left:0, width:'100%', overflow:'hidden'}}>
+        Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)<br/>
+        CPU: 0 PID: 1 Comm: init Not tainted Sovereign-OS<br/>
+        Hardware name: Secure Enclave<br/>
+        Call Trace:<br/>
+         dump_stack+0x5c/0x7c<br/>
+         panic+0x101/0x2c3<br/>
+         sys_mount+0x289/0x2e0<br/>
+        ---[ end Kernel panic - not syncing: Fatal exception ]---<br/><br/>
+        [!] SEGMENTATION FAULT IN ENCRYPTED MODULE.<br/>
+        [!] ATTEMPTING MEMORY DUMP... FAILED.<br/>
+        [!] CRITICAL I/O ERROR ON SECURE VOLUME.<br/>
+        [!] SYSTEM HALTED.
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-6 pb-24 space-y-6 max-w-xl mx-auto select-none animate-fade-in">
             
             {/* Mesh Opt-In Banner */}
             {!meshActive && (
@@ -122,7 +143,7 @@ export function Home({ onNavigate, navigateTo }) {
                 {allTools.map(tool => {
                     // ABORT RENDERING EXPERT TOOLS IN BASIC MODE
                     if (currentMode === "BASIC" && tool.isExpert) return null;
-            if (localStorage.getItem("RAW_SESSION_STATE") === "DECOY" && tool.isSecret) return null;
+            
                     
                     return (
                         <button 
