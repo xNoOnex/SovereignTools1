@@ -1,4 +1,5 @@
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Innertube } from 'youtubei.js/web';
 import React, { useState, useEffect } from 'react';
 import { registerPlugin } from '@capacitor/core';
 const StealthBrowser = registerPlugin('StealthBrowser');
@@ -84,21 +85,67 @@ export function SovereignBrowser({ onNavigate }) {
     const listener = StealthBrowser.addListener('onMediaDetected', async (info) => {
         if (window.confirm(`🚨 TARGET STREAM ACQUIRED! 🚨\n\nURL: ${info.url.substring(0, 50)}...\n\nExecute ripping sequence to Encrypted Vault?`)) {
             
+        
         try {
             if (!vaultKey) {
                 alert("❌ Vault is Locked. Enter Session Vault Key first.");
                 return;
             }
-            
-            alert("⬇️ Intercepting target stream into volatile RAM...");
-            
-            // Fetch the raw video file
-            const res = await fetch(info.url);
-            const arrayBuffer = await res.arrayBuffer();
-            
+
+            alert("⬇️ Initiating Extraction Engine...");
+
+            let arrayBuffer;
+            let ext = 'mp4';
+
+            // --- YOUTUBE EXTRACTOR (InnerTube API) ---
+            if (info.url.includes('youtube.com') || info.url.includes('youtu.be')) {
+                alert("🔴 YouTube Detected: Engaging InnerTube API Bypass...");
+                
+                // Extract Video ID
+                let videoId = '';
+                if (info.url.includes('youtu.be/')) videoId = info.url.split('youtu.be/')[1].split('?')[0];
+                else videoId = new URL(info.url).searchParams.get('v');
+
+                if (!videoId) throw new Error("Could not extract YouTube Video ID.");
+
+                const yt = await Innertube.create();
+                const ytInfo = await yt.getInfo(videoId);
+                
+                alert("🎬 Stream located: " + ytInfo.basic_info.title.substring(0, 30) + "... Downloading...");
+                
+                // Fetch the highest quality muxed stream (Video + Audio)
+                const stream = await yt.download(videoId, {
+                    type: 'video+audio',
+                    quality: 'best',
+                    format: 'mp4'
+                });
+
+                // Convert Node.js ReadableStream to ArrayBuffer
+                const chunks = [];
+                const reader = stream.getReader();
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    chunks.push(value);
+                }
+                const blob = new Blob(chunks);
+                arrayBuffer = await blob.arrayBuffer();
+                ext = 'mp4';
+                
+            } else {
+                // --- STANDARD EXTRACTOR (Direct RAM Rip) ---
+                // Failsafe for Blob URLs that aren't YouTube
+                if(info.url.startsWith('blob:')) throw new Error("Target is an obfuscated chunked blob. Native extraction requires a direct URL.");
+                
+                alert("🌐 Standard Web Media Detected: Intercepting into RAM...");
+                const res = await fetch(info.url);
+                arrayBuffer = await res.arrayBuffer();
+                ext = info.url.includes('.webm') ? 'webm' : (info.url.includes('.mp3') ? 'mp3' : 'mp4');
+            }
+
             alert("🔐 Encrypting payload with AES-256-GCM...");
             
-            // Encrypt the payload using the current vault key
+            // AES-GCM Encryption
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const key = await getCryptoKey(vaultKey);
             const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, arrayBuffer);
@@ -108,11 +155,10 @@ export function SovereignBrowser({ onNavigate }) {
             combined.set(iv, 0);
             combined.set(new Uint8Array(encryptedBuffer), iv.length);
             
-            // Fast convert to Base64 to save to disk
-            const reader = new FileReader();
-            reader.onloadend = async () => {
-                const b64 = reader.result.split(',')[1];
-                const ext = info.url.includes('.webm') ? 'webm' : (info.url.includes('.mp3') ? 'mp3' : 'mp4');
+            // Convert to Base64 and write to hidden directory
+            const fileReader = new FileReader();
+            fileReader.onloadend = async () => {
+                const b64 = fileReader.result.split(',')[1];
                 const fName = `rip_${Date.now()}.${ext}`;
                 
                 try { 
@@ -127,11 +173,12 @@ export function SovereignBrowser({ onNavigate }) {
                 
                 alert("✅ Target Neutralized & Vaulted!\nFile encrypted safely on disk.");
             };
-            reader.readAsDataURL(new Blob([combined]));
+            fileReader.readAsDataURL(new Blob([combined]));
             
         } catch(e) {
             alert("❌ Extraction Failed: " + e.message);
         }
+    
     
         }
     });

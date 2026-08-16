@@ -136,6 +136,16 @@ public class StealthBrowser extends Plugin {
 
             webView.setWebChromeClient(new android.webkit.WebChromeClient());
             webView.setWebViewClient(new WebViewClient() {
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            String url = request.getUrl().toString();
+            // Block external intent schemes from crashing the WebView
+            if (url.startsWith("intent://") || url.startsWith("market://") || url.startsWith("whatsapp://")) {
+                return true; // We handled it (by doing nothing)
+            }
+            return false; // Let the WebView load standard http/https
+        }
+    
                 @Override
                 public void onReceivedSslError(WebView view, android.webkit.SslErrorHandler handler, android.net.http.SslError error) {
                     handler.proceed();
