@@ -1,3 +1,4 @@
 *.keystore
 *.jks
 *.env
+node_modules/
