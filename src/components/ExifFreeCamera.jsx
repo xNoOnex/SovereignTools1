@@ -21,7 +21,13 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                     tracks.forEach(t => t.stop());
                 }
                 stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+                    video: { 
+            facingMode: facingMode, 
+            width: { ideal: 1920 }, 
+            height: { ideal: 1080 },
+            frameRate: { ideal: 30 },
+            advanced: [{ focusMode: "continuous" }] 
+        },
                     audio: mode === 'Video'
                 });
                 if (videoRef.current) {
