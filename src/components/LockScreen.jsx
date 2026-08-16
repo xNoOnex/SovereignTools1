@@ -15,30 +15,37 @@ export function LockScreen({ onUnlock }) {
   const [, setSessionMode] = useSecureStorage("sovereign_session_mode", "");
 
 
-  const executeProtocolZero = () => {
-    // ☢️ THE PAYLOAD ☢️
-    // 1. Vaporize the entire local database (Keys, Ledgers, Settings, PINs)
-    // Cryptographic Shredder: Overwrite AES encrypted entries with raw entropy
+  const executeProtocol = async () => {
+    // 1. Shred Vault Encryption Keys
     for(let i=0; i<localStorage.length; i++) {
-      let k = localStorage.key(i);
-      if(k && k.startsWith('sec_')) {
-        localStorage.setItem(k, window.crypto.getRandomValues(new Uint32Array(1))[0].toString(16));
-      }
+        let k = localStorage.key(i);
+        if(k && k.startsWith("sec_")) localStorage.setItem(k, window.crypto.getRandomValues(new Uint32Array(1))[0].toString(16));
     }
     localStorage.clear();
-    // 2. Force an instant hard-reload to factory-fresh state
-    window.location.reload();
-};
+    sessionStorage.clear();
+    
+    // 2. Annihilate IndexedDB (Heavy Files)
+    try {
+        if (window.indexedDB && window.indexedDB.databases) {
+            const dbs = await window.indexedDB.databases();
+            for (let db of dbs) { window.indexedDB.deleteDatabase(db.name); }
+        }
+    } catch(e) {}
+    
+    // 3. Inject Kernel Panic
+    document.body.innerHTML = "<div style='background:black;color:#00ff00;height:100vh;padding:20px;font-family:monospace;font-size:12px;z-index:9999;position:fixed;top:0;left:0;width:100%;overflow:hidden;'>Kernel panic - not syncing: VFS: Unable to mount root fs on unknown-block(0,0)<br/>CPU: 0 PID: 1 Comm: init Not tainted Sovereign-OS<br/>Hardware name: Secure Enclave<br/>Call Trace:<br/> dump_stack+0x5c/0x7c<br/> panic+0x101/0x2c3<br/>---[ end Kernel panic - not syncing: Fatal exception ]---<br/><br/>[!] SHREDDING SECURE VOLUMES... DONE.<br/>[!] CRYPTOGRAPHIC KEYS PURGED.<br/>[!] SYSTEM HALTED.</div>";
+    
+    setTimeout(() => { window.location.reload(); }, 5000);
+  };
 
-const handleKeyPress = (num) => {
+  const handleKeyPress = (num) => {
     if (pinEntry.length < 15) {
       const newStr = pinEntry + num;
       setPinEntry(newStr);
 
-      // Force-remove any accidental spaces saved by Android predictive text
-      const mPin = String(savedPin || "1234").trim();
-      const dPin = String(duressPin || "").trim();
-      const cPin = String(decoyPin || "").trim();
+      const mPin = (savedPin && savedPin !== "null") ? String(savedPin).trim() : "1234";
+      const dPin = (duressPin && duressPin !== "null") ? String(duressPin).trim() : null;
+      const cPin = (decoyPin && decoyPin !== "null") ? String(decoyPin).trim() : null;
 
       if (newStr === mPin) {
         setSessionMode("ARMED");
@@ -48,7 +55,7 @@ const handleKeyPress = (num) => {
         return;
       }
       if (dPin && newStr === dPin) {
-        executeProtocol(true);
+        executeProtocol();
         return;
       }
       if (cPin && newStr === cPin) {
@@ -59,18 +66,20 @@ const handleKeyPress = (num) => {
         return;
       }
 
-      const l1 = mPin.length || 4;
-      const l2 = dPin.length || 0;
-      const l3 = cPin.length || 0;
+      const l1 = mPin.length;
+      const l2 = dPin ? dPin.length : 0;
+      const l3 = cPin ? cPin.length : 0;
       const maxLen = Math.max(l1, l2, l3);
 
       if (newStr.length >= maxLen) {
         let attempts = parseInt(failedAttempts || "0") + 1;
         setFailedAttempts(attempts.toString());
+        
         if (limit && limit !== "None" && attempts >= parseInt(limit)) {
-            executeProtocol(true);
+            executeProtocol();
             return;
         }
+        
         setErrorShake(true);
         setTimeout(() => { setPinEntry(""); setErrorShake(false); }, 400);
       }

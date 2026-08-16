@@ -32,12 +32,12 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
     }
   };
 
-  const handleUpdateDuress = () => {
-    if (duressPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
-    localStorage.setItem('sovereign_duress_pin', duressPin);
-    alert("PIN Updated. Rebooting Node to flush RAM..."); window.location.reload();
-    setSaveStatus("Duress PIN updated.");
-    setTimeout(() => setSaveStatus(""), 2000);
+  const handleUpdateDuress = async () => {
+    if (duressPin.length < 4) return alert("PIN must be 4+ digits.");
+    const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault";
+    await SecureStorage.setItem("sovereign_duress_pin", duressPin, mk);
+    alert("Duress PIN Locked in Vault. Rebooting...");
+    window.location.reload();
   };
 
   const handleDisableDuress = async () => {
@@ -47,12 +47,12 @@ export function Settings({ closeSettings, accentColor, setAccentColor, textSize,
       window.location.reload();
     };
 
-  const handleUpdateDecoy = () => {
-    if (decoyPin.length < 4) { alert("PIN must be at least 4 digits."); return; }
-    localStorage.setItem('sovereign_decoy_pin', decoyPin);
-    alert("PIN Updated. Rebooting Node to flush RAM..."); window.location.reload();
-    setSaveStatus("Decoy PIN updated.");
-    setTimeout(() => setSaveStatus(""), 2000);
+  const handleUpdateDecoy = async () => {
+    if (decoyPin.length < 4) return alert("PIN must be 4+ digits.");
+    const mk = window.__SOVEREIGN_KEY__ || "SovereignMasterKeyDefault";
+    await SecureStorage.setItem("sovereign_decoy_pin", decoyPin, mk);
+    alert("Decoy PIN Locked in Vault. Rebooting...");
+    window.location.reload();
   };
 
   const handleDisableDecoy = async () => {
