@@ -132,7 +132,6 @@ public class StealthBrowser extends Plugin {
                 @Override
                 public void onPageFinished(WebView view, String url) {
                     if(!urlInput.isFocused()) urlInput.setText(url);
-                    // Silently sync URL with React Tabs
                     JSObject ret = new JSObject();
                     ret.put("url", url);
                     notifyListeners("onUrlSync", ret);
@@ -149,7 +148,7 @@ public class StealthBrowser extends Plugin {
                 }
             });
 
-            // HARDWARE BACK BUTTON HIJACK (Navigate backwards like a real browser)
+            // HARDWARE BACK BUTTON HIJACK
             browserDialog.setOnKeyListener((dialog, keyCode, event) -> {
                 if (keyCode == KeyEvent.KEYCODE_BACK && event.getAction() == KeyEvent.ACTION_UP) {
                     if (webView.canGoBack()) {
@@ -270,8 +269,8 @@ public class StealthBrowser extends Plugin {
                 }
             }
 
-            // NATIVE SELECTION MENU
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity(), android.R.style.Theme_Device_Default_Dialog_Alert);
+            // FIXED: Standard default Builder invocation
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
             builder.setTitle("🎯 Select Payload to Rip");
             builder.setItems(displayList, (dialog, which) -> {
                 sendToRipper(finalMediaList[which]);
