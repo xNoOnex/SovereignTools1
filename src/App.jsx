@@ -1,6 +1,7 @@
 import RippedMedia from './components/RippedMedia';
 import { useSecureStorage } from './hooks/useSecureStorage';
 import { SwarmComms } from './components/SwarmComms';
+import { SovereignQR } from './components/SovereignQR';
 import { Capacitor } from '@capacitor/core';
 import { MeshProtocol } from './components/MeshProtocol';
 import { Filesystem } from '@capacitor/filesystem';
@@ -216,6 +217,7 @@ function AppContent() {
         {currentScreen === 'browser' && <SovereignBrowser onNavigate={navigateTo} />}
         {currentScreen === 'datautils' && <DataUtils onNavigate={navigateTo} />}
         {currentScreen === 'recorder' && <SovereignRecorder onNavigate={navigateTo} />}
+        {currentScreen === 'qr_gen' && <SovereignQR onNavigate={navigateTo} />}
         {currentScreen === 'home' && <Home onNavigate={navigateTo} currentMode={mode} />}
       {currentScreen === 'calc' && <StealthCalc onNavigate={navigateTo} />}
       {currentScreen === 'calendar' && <Calendar onNavigate={navigateTo} />}

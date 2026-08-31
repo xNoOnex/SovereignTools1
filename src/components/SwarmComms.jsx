@@ -1,4 +1,5 @@
 import { useSecureStorage } from '../hooks/useSecureStorage';
+import { QRCodeSVG } from 'qrcode.react';
 import React, { useState, useEffect, useRef } from 'react';
 import CryptoJS from 'crypto-js';
 
