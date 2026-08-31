@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSecureStorage } from '../hooks/useSecureStorage';
 import { jsPDF } from 'jspdf';
 import CryptoJS from 'crypto-js';
 
@@ -13,14 +14,8 @@ export function EncryptedDocs({ onNavigate }) {
   const [statusMsg, setStatusMsg] = useState('');
 
   // Vault & Embedded Viewer State
-  const [vaultFiles, setVaultFiles] = useState([]);
-  const [viewingFile, setViewingFile] = useState(null);
-  const [unlockPassword, setUnlockPassword] = useState('');
-
-  useEffect(() => {
-    const saved = JSON.parse(localStorage.getItem('sovereign_docs') || '[]');
-    setVaultFiles(saved);
-  }, [activeTab]);
+  const [vaultFiles, setVaultFiles] = useSecureStorage('sovereign_docs', []);
+    // Background sync is handled securely by the hook
 
   const showStatus = (msg) => {
     setStatusMsg(msg);
@@ -97,14 +92,14 @@ export function EncryptedDocs({ onNavigate }) {
 
     const updated = [newDoc, ...vaultFiles];
     setVaultFiles(updated);
-    localStorage.setItem('sovereign_docs', JSON.stringify(updated));
+    
     showStatus('✅ Saved to Secure Vault');
   };
 
   const deleteFromVault = (id) => {
     const updated = vaultFiles.filter(f => f.id !== id);
     setVaultFiles(updated);
-    localStorage.setItem('sovereign_docs', JSON.stringify(updated));
+    
     setViewingFile(null);
   };
 

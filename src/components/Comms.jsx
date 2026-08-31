@@ -236,7 +236,7 @@ useEffect(() => {
                 />
                 {qrSyncData && (
                     <div className="flex flex-col items-center justify-center p-4 bg-white rounded-xl shadow-inner mx-auto w-fit mt-2">
-                        <QRCodeSVG value={qrSyncData} size={180} level="L" includeMargin={true} />
+                        <QRCodeSVG value={qrSyncData} size={280} level="H" includeMargin={true} className="bg-white p-2 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.5)]" />
                         <span className="text-[9px] text-zinc-500 font-black tracking-widest mt-2 uppercase">Scan to Copy</span>
                     </div>
                 )}

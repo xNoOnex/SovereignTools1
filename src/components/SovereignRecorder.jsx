@@ -20,14 +20,14 @@ export function SovereignRecorder({ onNavigate }) {
 
   const initStorage = async () => {
     try {
-      await Filesystem.mkdir({ path: FOLDER_PATH, directory: Directory.Documents, recursive: true });
+      await Filesystem.mkdir({ path: FOLDER_PATH, directory: Directory.Data, recursive: true });
     } catch (e) { /* Folder exists */ }
     loadRecords();
   };
 
   const loadRecords = async () => {
     try {
-      const res = await Filesystem.readdir({ path: FOLDER_PATH, directory: Directory.Documents });
+      const res = await Filesystem.readdir({ path: FOLDER_PATH, directory: Directory.Data });
       const parsed = res.files.filter(f => f.name.endsWith('.enc')).map(f => ({ name: f.name, path: f.uri || f.path }));
       setRecords(parsed.reverse());
     } catch (e) { console.error("Archive load error", e); }
@@ -76,7 +76,7 @@ export function SovereignRecorder({ onNavigate }) {
         const finalPayload = btoa(binaryStr);
 
         const fileName = `Record_${Date.now()}.enc`;
-        await Filesystem.writeFile({ path: `${FOLDER_PATH}/${fileName}`, data: finalPayload, directory: Directory.Documents });
+        await Filesystem.writeFile({ path: `${FOLDER_PATH}/${fileName}`, data: finalPayload, directory: Directory.Data });
         
         loadRecords();
       } catch(e) { console.error("Encryption/Save Error", e); }
@@ -87,7 +87,7 @@ export function SovereignRecorder({ onNavigate }) {
     if (!vaultKey) { alert("❌ Enter your Vault Key to decrypt this file."); return; }
     setIsDecrypting(true);
     try {
-      const file = await Filesystem.readFile({ path: `${FOLDER_PATH}/${record.name}`, directory: Directory.Documents });
+      const file = await Filesystem.readFile({ path: `${FOLDER_PATH}/${record.name}`, directory: Directory.Data });
       const binaryString = atob(file.data);
       const combined = new Uint8Array(binaryString.length);
       for (let i = 0; i < binaryString.length; i++) { combined[i] = binaryString.charCodeAt(i); }

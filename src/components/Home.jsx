@@ -52,6 +52,7 @@ export function Home({ onNavigate, navigateTo }) {
         { id: "fileviewer", icon: "📁", label: "Universal Explorer", desc: "Raw Filesystem Navigator", isExpert: true },
         { id: "audio", icon: "🎧", label: "Sovereign Audio", desc: "Local Background Player", isExpert: false },
         { id: "gallery", icon: "🖼️", label: "Secure Gallery", desc: "Encrypted Media Viewer", isExpert: false },
+    { id: "qr_gen", icon: "🔳", label: "Pro Generator", desc: "High-Fidelity Optical Payloads", isExpert: false },
         { id: "comms", icon: "📡", label: "Comm Link", desc: "Secure offline chat", isExpert: false },
         { id: "aes", icon: "🔐", label: "AES Cipher", desc: "Military-Grade Text Crypto", isExpert: false },
       { id: "datautils", icon: "🧰", label: "Data Utils", desc: "Offline Hash & Encode Engine", isExpert: false },
