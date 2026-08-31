@@ -59,7 +59,12 @@ export function Debloat({ onNavigate }) {
     setFiltered(packages.filter(p => p.pkg.toLowerCase().includes(search.toLowerCase())));
   }, [search, packages]);
 
-  const handleAction = async (action, pkg) => {
+    const handleAction = async (action, pkg) => {
+    // Strict validation: Android package names must only contain alphanumeric characters, dots, and underscores
+    if (!/^[a-zA-Z0-9._]+$/.test(pkg)) {
+      log(`[Security Alert] Rejected malformed package name: ${pkg}`);
+      return;
+    }
     let cmd = '';
     // Safely enforce user profile to prevent crashing
     if (action === 'disable') cmd = `pm disable-user --user 0 ${pkg}`;

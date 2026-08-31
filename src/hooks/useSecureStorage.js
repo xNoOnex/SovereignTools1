@@ -32,7 +32,7 @@ export function useSecureStorage(key, initialValue) {
     return () => {
       isMounted = false; // Cleanup to prevent memory leaks if component unmounts early
     };
-  }, [key, initialValue]);
+  }, [key]);
 
   const setValue = async (value) => {
     try {

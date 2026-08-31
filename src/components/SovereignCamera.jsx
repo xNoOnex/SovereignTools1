@@ -1,3 +1,4 @@
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import React, { useState, useEffect, useRef } from 'react';
 import jsQR from "jsqr";
 
@@ -183,10 +184,16 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
             const ctx = canvas.getContext("2d");
             if (nvgMode) ctx.filter = "contrast(1.3) brightness(1.5) saturate(1.2)";
             ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-            const a = document.createElement('a');
-            a.href = canvas.toDataURL("image/jpeg");
-            a.download = `stealth_cap_${Date.now()}.jpg`;
-            a.click();
+            
+        // Route directly to Capacitor Sandboxed Storage
+        const base64Data = canvas.toDataURL('image/jpeg');
+        const fileName = `stealth_cap_${Date.now()}.jpg`;
+        Filesystem.writeFile({
+            path: fileName,
+            data: base64Data,
+            directory: Directory.Data
+        }).then(() => alert('Photo secured in Vault')).catch(e => console.error('Vault Write Error:', e));
+
         }
     };
 
@@ -204,16 +211,20 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 });
             } catch (e) {}
         } else {
-            // Safe Base64 download fallback that never crashes WebView navigation
-            const reader = new FileReader();
-            reader.readAsDataURL(recordedBlob);
-            reader.onloadend = () => {
-                const a = document.createElement('a');
-                a.href = reader.result;
-                a.download = `stealth_vid_${Date.now()}.webm`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+            
+        // Route video directly to Capacitor Sandboxed Storage
+        const reader = new FileReader();
+        reader.readAsDataURL(recordedBlob);
+        reader.onloadend = () => {
+            const base64Data = reader.result;
+            const fileName = `stealth_vid_${Date.now()}.webm`;
+            Filesystem.writeFile({
+                path: fileName,
+                data: base64Data,
+                directory: Directory.Data
+            }).then(() => alert('Video secured in Vault')).catch(e => console.error('Vault Write Error:', e));
+        };
+
             };
         }
     };
