@@ -197,22 +197,10 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }
     };
 
-    // Safe File Saving Handler (Triggers Native Android Share/Save Sheet)
+    // Safe File Saving Handler (Routes to Sandboxed Storage)
     const handleSaveVideo = async () => {
         if (!recordedBlob) return;
-        const file = new File([recordedBlob], `stealth_vid_${Date.now()}.webm`, { type: 'video/webm' });
         
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try {
-                await navigator.share({
-                    files: [file],
-                    title: 'Stealth Recording',
-                    text: 'Secured video payload'
-                });
-            } catch (e) {}
-        } else {
-            
-        // Route video directly to Capacitor Sandboxed Storage
         const reader = new FileReader();
         reader.readAsDataURL(recordedBlob);
         reader.onloadend = () => {
@@ -222,11 +210,11 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
                 path: fileName,
                 data: base64Data,
                 directory: Directory.Data
-            }).then(() => alert('Video secured in Vault')).catch(e => console.error('Vault Write Error:', e));
+            }).then(() => {
+                alert('Video secured in Vault');
+                setRecordedBlob(null);
+            }).catch(e => console.error('Vault Write Error:', e));
         };
-
-            };
-        }
     };
 
     return (
