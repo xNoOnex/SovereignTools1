@@ -1,4 +1,5 @@
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import Tesseract from 'tesseract.js';
 import React, { useState, useEffect, useRef } from 'react';
 import jsQR from "jsqr";
 
@@ -27,7 +28,7 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
     useEffect(() => {
         if ("BarcodeDetector" in window) {
             try {
-                barcodeDetectorRef.current = new window.BarcodeDetector({ formats: ["qr_code"] });
+                barcodeDetectorRef.current = new window.BarcodeDetector({ formats: ['qr_code', 'ean_13', 'ean_8', 'code_128', 'code_39', 'upc_a', 'upc_e', 'data_matrix', 'itf', 'pdf417'] });
             } catch (e) {
                 console.log("BarcodeDetector init failed, falling back to jsQR");
             }
@@ -195,6 +196,32 @@ export function SovereignCamera({ onNavigate, navigateTo }) {
         }).then(() => alert('Photo secured in Vault')).catch(e => console.error('Vault Write Error:', e));
 
         }
+    };
+
+    
+    const [isExtracting, setIsExtracting] = useState(false);
+    
+    const extractText = async () => {
+        if (!videoRef.current) return;
+        setIsExtracting(true);
+        const canvas = document.createElement("canvas");
+        canvas.width = videoRef.current.videoWidth;
+        canvas.height = videoRef.current.videoHeight;
+        canvas.getContext("2d").drawImage(videoRef.current, 0, 0);
+        
+        try {
+            const { data: { text } } = await Tesseract.recognize(canvas, 'eng');
+            if (text.trim()) {
+                setScannedResult(text.trim());
+                alert("Text successfully ripped to memory.");
+            } else {
+                alert("No readable text found in frame.");
+            }
+        } catch (e) {
+            console.error(e);
+            alert("OCR Engine Failed.");
+        }
+        setIsExtracting(false);
     };
 
     // Safe File Saving Handler (Routes to Sandboxed Storage)
