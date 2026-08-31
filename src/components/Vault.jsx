@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useSecureStorage } from '../hooks/useSecureStorage';
 
 export function Vault({ onNavigate }) {
-  // Vault Data State
-  const [vaultData, setVaultData] = useState(() => {
-    const saved = localStorage.getItem('sovereign_vault');
-    return saved ? JSON.parse(saved) : [];
-  });
+  // Vault Data State (Secured via Native Bridge)
+  const [vaultData, setVaultData] = useSecureStorage('sovereign_vault', []);
 
   // Generator State
   const [genLen, setGenLen] = useState(16);
@@ -21,10 +19,7 @@ export function Vault({ onNavigate }) {
   const [draftPass, setDraftPass] = useState('');
   const [showPass, setShowPass] = useState(false);
 
-  // Sync to local storage
-  useEffect(() => {
-    localStorage.setItem('sovereign_vault', JSON.stringify(vaultData));
-  }, [vaultData]);
+  // Sync is now handled securely in the background by useSecureStorage
 
   const generatePassword = () => {
     const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';

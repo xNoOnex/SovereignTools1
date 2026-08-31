@@ -116,23 +116,41 @@ export function AESCipher({ onNavigate, navigateTo }) {
         }
     };
 
-    const handleAesProcess = () => {
-        if (!aesKey || !aesText) return;
+    const handleAesProcess = async () => {
+        if (!aeskey || !aesText) return;
         try {
-            if (aesMode === "Encrypt") {
-                const encoded = btoa(unescape(encodeURIComponent(aesText + ":::SOV:::" + aesKey)));
-                setAesOutput("AES-GCM-LOCKED[" + encoded + "]");
-                showStatus("AES PAYLOAD LOCKED");
+            const enc = new TextEncoder();
+            // Securely hash the password into a 256-bit key
+            const keyHash = await window.crypto.subtle.digest('SHA-256', enc.encode(aeskey));
+            const cryptoKey = await window.crypto.subtle.importKey('raw', keyHash, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+
+            if (aesMode === 'Encrypt') {
+                // Generate a secure, random Initialization Vector
+                const iv = window.crypto.getRandomValues(new Uint8Array(12));
+                const encrypted = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv: iv }, cryptoKey, enc.encode(aesText));
+                
+                // Package the IV and Ciphertext together securely
+                const combined = new Uint8Array(iv.length + encrypted.byteLength);
+                combined.set(iv, 0);
+                combined.set(new Uint8Array(encrypted), iv.length);
+                const base64 = btoa(String.fromCharCode(...combined));
+                
+                setAesOutput('AES-GCM-LOCKED[' + base64 + ']');
+                showStatus('AES PAYLOAD LOCKED');
             } else {
-                const raw = aesText.replace("AES-GCM-LOCKED[", "").replace("]", "");
-                const decoded = decodeURIComponent(escape(atob(raw)));
-                const [text, pass] = decoded.split(":::SOV:::");
-                if (pass !== aesKey) throw new Error("Invalid key");
-                setAesOutput(text);
-                showStatus("AES PAYLOAD UNLOCKED");
+                const raw = aesText.replace('AES-GCM-LOCKED[', '').replace(']', '');
+                const combined = new Uint8Array(atob(raw).split('').map(c => c.charCodeAt(0)));
+                
+                // Extract the IV and the encrypted data
+                const iv = combined.slice(0, 12);
+                const data = combined.slice(12);
+                
+                const decrypted = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, cryptoKey, data);
+                setAesOutput(new TextDecoder().decode(decrypted));
+                showStatus('AES PAYLOAD UNLOCKED');
             }
         } catch (e) {
-            setAesOutput("Decryption failed. Invalid secret passphrase or corrupted payload.");
+            setAesOutput('Decryption failed. Invalid secret passphrase or corrupted payload.');
         }
     };
 
