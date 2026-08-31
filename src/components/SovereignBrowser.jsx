@@ -11,17 +11,16 @@ export function SovereignBrowser({ onNavigate }) {
     const [activeTabId, setActiveTabId] = useState(1);
     const [address, setAddress] = useState('https://');
     
-    // UI Toggles
+    // UI View Toggles
     const [showMenu, setShowMenu] = useState(false);
-    const [showTabs, setShowTabs] = useState(false);
-    const [showSettings, setShowSettings] = useState(false);
+    const [activeView, setActiveView] = useState('blank'); // 'blank', 'settings', 'bookmarks'
     
     // Ripper State
     const [isExtracting, setIsExtracting] = useState(false);
     const [isScanning, setIsScanning] = useState(false);
     const [foundMedia, setFoundMedia] = useState([]);
 
-    // Security & Proxy State
+    // Security State
     const [autoNuke, setAutoNuke] = useState(true);
     const [proxyEnabled, setProxyEnabled] = useState(false);
     const [proxyHost, setProxyHost] = useState('127.0.0.1');
@@ -32,17 +31,17 @@ export function SovereignBrowser({ onNavigate }) {
     const [bookmarks, setBookmarks] = useState([]);
     const [isUnlocked, setIsUnlocked] = useState(false);
 
+    // Refs for Event Listeners
     const tabsRef = useRef(tabs);
     const activeTabIdRef = useRef(activeTabId);
+    const addressRef = useRef(address);
 
     useEffect(() => { tabsRef.current = tabs; }, [tabs]);
     useEffect(() => { activeTabIdRef.current = activeTabId; }, [activeTabId]);
+    useEffect(() => { addressRef.current = address; }, [address]);
 
     const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
-
-    useEffect(() => {
-        if (activeTab) setAddress(activeTab.url);
-    }, [activeTabId]);
+    useEffect(() => { if (activeTab) setAddress(activeTab.url); }, [activeTabId]);
 
     // --- CRYPTOGRAPHY ---
     const getCryptoKey = async (password) => {
@@ -68,10 +67,9 @@ export function SovereignBrowser({ onNavigate }) {
             const key = await getCryptoKey(vaultKey);
             const decryptedBuffer = await crypto.subtle.decrypt({ name: "AES-GCM", iv: iv }, key, ciphertext);
             
-            // Clean legacy bookmarks to ensure they are strictly URLs
+            // Clean bookmarks to ensure they only store simple URLs
             let parsed = JSON.parse(new TextDecoder().decode(decryptedBuffer));
-            let cleanUrls = parsed.map(b => typeof b === 'string' ? b : b.url).filter(Boolean);
-            setBookmarks(cleanUrls);
+            setBookmarks(parsed.filter(b => typeof b === 'string'));
             setIsUnlocked(true);
         } catch (e) { alert("❌ Decryption Failed. Incorrect Vault Key."); }
     };
@@ -82,8 +80,7 @@ export function SovereignBrowser({ onNavigate }) {
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, new TextEncoder().encode(JSON.stringify(newBookmarks)));
             const combined = new Uint8Array(iv.length + encryptedBuffer.byteLength);
-            combined.set(iv, 0);
-            combined.set(new Uint8Array(encryptedBuffer), iv.length);
+            combined.set(iv, 0); combined.set(new Uint8Array(encryptedBuffer), iv.length);
             let binaryStr = "";
             for (let i = 0; i < combined.byteLength; i++) binaryStr += String.fromCharCode(combined[i]);
             localStorage.setItem('sovereign_bookmarks_enc', btoa(binaryStr));
@@ -91,10 +88,11 @@ export function SovereignBrowser({ onNavigate }) {
     };
 
     const toggleBookmark = async () => {
-        if (!isUnlocked) { alert("❌ Unlock Vault First."); return; }
+        if (!isUnlocked) return;
         let updated = bookmarks.includes(address) ? bookmarks.filter(b => b !== address) : [...bookmarks, address];
         setBookmarks(updated);
         await saveEncryptedBookmarks(updated);
+        setShowMenu(false);
     };
 
     // --- NAVIGATION ---
@@ -102,14 +100,14 @@ export function SovereignBrowser({ onNavigate }) {
         const newId = Date.now();
         setTabs(prev => [...prev, { id: newId, title: 'New Tab', url: 'https://', history: [] }]);
         setActiveTabId(newId);
-        setShowTabs(false);
-        setShowMenu(false);
+        setActiveView('blank');
     };
 
     const closeTab = (id, e) => {
         if (e) e.stopPropagation();
         if (tabs.length === 1) {
             setTabs([{ id: Date.now(), title: 'New Tab', url: 'https://', history: [] }]);
+            setActiveView('blank');
             return;
         }
         const remaining = tabs.filter(t => t.id !== id);
@@ -120,6 +118,7 @@ export function SovereignBrowser({ onNavigate }) {
     const handleNavigate = async (targetUrl = address) => {
         let finalUrl = targetUrl.trim();
         if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) finalUrl = 'https://' + finalUrl;
+        
         setTabs(prev => prev.map(t => {
             if (t.id === activeTabId) {
                 return { ...t, url: finalUrl, title: finalUrl.replace(/^https?:\/\//, '').substring(0, 15), history: t.url && t.url !== 'https://' ? [...t.history, t.url] : t.history };
@@ -128,6 +127,7 @@ export function SovereignBrowser({ onNavigate }) {
         }));
         setAddress(finalUrl);
         setShowMenu(false);
+        setActiveView('blank');
         try { await StealthBrowser.openNative({ url: finalUrl, autoNuke, proxyHost: proxyEnabled ? proxyHost : "", proxyPort: proxyEnabled ? parseInt(proxyPort) : 0 }); } catch (error) { alert("Native Engine Error: " + error.message); }
     };
 
@@ -146,16 +146,15 @@ export function SovereignBrowser({ onNavigate }) {
         }
     };
 
-    // --- MEDIA SCRAPER (Extracts Payload Links from Current Page) ---
+    // --- PAGE SCANNER (Finds Media on Current Site) ---
     const scanCurrentPage = async () => {
         if (address === 'https://' || !address) { alert("Navigate to a webpage first."); return; }
-        
-        setIsScanning(true);
         setShowMenu(false);
+        setIsScanning(true);
         
         try {
             if (address.includes('youtube.com') || address.includes('youtu.be')) {
-                setFoundMedia([{ title: "YouTube Media Stream", url: address }]);
+                setFoundMedia([{ title: "YouTube Video Stream", url: address }]);
                 setIsScanning(false);
                 return;
             }
@@ -163,32 +162,29 @@ export function SovereignBrowser({ onNavigate }) {
             const res = await fetch(address, { mode: 'cors' });
             const html = await res.text();
             
-            // Regex sniffs out standard media links embedded in the raw HTML
-            const regex = /["'](https?:\/\/[^"']*\.(?:mp4|webm|m3u8|mp3|wav|jpg|jpeg|png|gif|webp))["']/gi;
+            const regex = /["'](https?:\/\/[^"']*\.(?:mp4|webm|m3u8|mp3|wav|jpg|jpeg|png|gif))["']/gi;
             const matches = [...html.matchAll(regex)];
             
             let uniqueUrls = [...new Set(matches.map(m => m[1]))];
             let mediaObjects = uniqueUrls.map(u => ({
-                title: u.split('/').pop().substring(0, 35) || 'Media Payload',
+                title: u.split('/').pop().substring(0, 30) || 'Found Payload',
                 url: u
             }));
 
-            if (mediaObjects.length === 0) {
-                alert("No extractable media found embedded on this page.");
-            } else {
-                setFoundMedia(mediaObjects);
-            }
+            if (mediaObjects.length === 0) alert("No direct media files found in the source code of this page.");
+            else setFoundMedia(mediaObjects);
+
         } catch (e) {
-            alert("Scrape Blocked by CORS/Network. Attempting direct native rip...");
-            ripPayload(address, true); // Fallback to direct rip if fetch is blocked
+            alert("Scanner blocked by site security. Attempting blind direct rip...");
+            ripPayload(address, true);
         }
         setIsScanning(false);
     };
 
     // --- GOD-TIER OMNI-RIPPER ENGINE ---
     const ripPayload = async (targetUrl, isManual = false) => {
-        if (!vaultKey) { alert("❌ Vault is Locked. Enter Session Vault Key first."); return; }
-        if (!isManual && !window.confirm(`🚨 TARGET ACQUIRED!\nURL: ${targetUrl.substring(0, 50)}...\n\nExecute ripping sequence to Encrypted Vault?`)) return;
+        if (!vaultKey) { alert("❌ Vault Locked."); return; }
+        if (!isManual && !window.confirm(`🚨 TARGET ACQUIRED!\nURL: ${targetUrl.substring(0, 50)}...\n\nExecute ripping sequence to Vault?`)) return;
 
         setIsExtracting(true);
         try {
@@ -197,9 +193,8 @@ export function SovereignBrowser({ onNavigate }) {
             let sanitizedTitle = `rip_${Date.now()}`;
 
             if (lowRamMode) {
-                alert("🌊 Low-RAM Streaming Mode Engaged: Intercepting chunk-by-chunk...");
+                alert("🌊 Low-RAM Streaming Mode Engaged.");
                 let isFirstChunk = true;
-                let finalFilename = '';
                 
                 const processAndAppendChunk = async (chunkBuffer, extType) => {
                     const iv = crypto.getRandomValues(new Uint8Array(12));
@@ -211,13 +206,12 @@ export function SovereignBrowser({ onNavigate }) {
                     for (let j = 0; j < combined.byteLength; j++) binaryStr += String.fromCharCode(combined[j]);
                     const b64 = btoa(binaryStr);
 
-                    finalFilename = `${sanitizedTitle}_chunked.${extType}`;
                     if (isFirstChunk) {
                         try { await Filesystem.mkdir({ path: 'sovereign_media', directory: Directory.Data, recursive: true }); } catch(e) {}
-                        await Filesystem.writeFile({ path: `sovereign_media/${finalFilename}`, data: b64, directory: Directory.Data });
+                        await Filesystem.writeFile({ path: `sovereign_media/${sanitizedTitle}.${extType}`, data: b64, directory: Directory.Data });
                         isFirstChunk = false;
                     } else {
-                        await Filesystem.appendFile({ path: `sovereign_media/${finalFilename}`, data: b64, directory: Directory.Data });
+                        await Filesystem.appendFile({ path: `sovereign_media/${sanitizedTitle}.${extType}`, data: b64, directory: Directory.Data });
                     }
                 };
 
@@ -245,17 +239,8 @@ export function SovereignBrowser({ onNavigate }) {
                         await processAndAppendChunk(await segRes.arrayBuffer(), 'ts');
                         await new Promise(r => setTimeout(r, 15));
                     }
-                } else {
-                    const res = await fetch(targetUrl, { mode: 'cors' });
-                    const reader = res.body.getReader();
-                    while (true) {
-                        const { done, value } = await reader.read();
-                        if (done) break;
-                        await processAndAppendChunk(value, 'mp4'); 
-                        await new Promise(r => setTimeout(r, 15));
-                    }
                 }
-                alert(`✅ Massive Payload Vaulted!\nSaved as: ${finalFilename}`);
+                alert(`✅ Massive Payload Vaulted!`);
                 setIsExtracting(false);
                 return; 
             }
@@ -281,24 +266,22 @@ export function SovereignBrowser({ onNavigate }) {
                 ext = 'mp4';
             } else {
                 if (targetLower.startsWith('blob:')) throw new Error("Blob URLs require direct network interception.");
-                if (targetLower.includes('.m3u8')) throw new Error("HLS detected. Toggle Low-RAM mode in settings.");
+                if (targetLower.includes('.m3u8')) throw new Error("HLS detected. Turn on Low-RAM mode in settings.");
 
-                alert("🌐 Universal Scraper: Pulling payload into RAM...");
+                alert("🌐 Pulling payload into RAM...");
                 const res = await fetch(targetUrl, { mode: 'cors' });
                 if (!res.ok) throw new Error(`HTTP Error: ${res.status}`);
 
                 mediaBuffer = await res.arrayBuffer();
                 const contentType = res.headers.get('content-type') || '';
-
-                if (contentType.includes('image/jpeg') || targetLower.includes('.jpg')) ext = 'jpg';
-                else if (contentType.includes('image/png') || targetLower.includes('.png')) ext = 'png';
-                else if (contentType.includes('video/mp4') || targetLower.includes('.mp4')) ext = 'mp4';
-                else if (contentType.includes('video/webm') || targetLower.includes('.webm')) ext = 'webm';
-                else if (contentType.includes('audio/mpeg') || targetLower.includes('.mp3')) ext = 'mp3';
+                
+                if (contentType.includes('image/')) ext = 'jpg';
+                else if (contentType.includes('video/')) ext = 'mp4';
+                else if (contentType.includes('audio/')) ext = 'mp3';
                 else ext = 'dat'; 
             }
 
-            alert("🔐 Encrypting payload with AES-256-GCM...");
+            alert("🔐 Encrypting payload...");
             const iv = crypto.getRandomValues(new Uint8Array(12));
             const encryptedBuffer = await crypto.subtle.encrypt({ name: "AES-GCM", iv: iv }, key, mediaBuffer);
 
@@ -319,167 +302,164 @@ export function SovereignBrowser({ onNavigate }) {
         finally { setIsExtracting(false); }
     };
 
+    // Fixes the YouTube Blob Error from your video!
     useEffect(() => {
         const backSub = App.addListener('backButton', () => {
-            if (showMenu || showSettings || showTabs) { setShowMenu(false); setShowSettings(false); setShowTabs(false); } 
+            if (showMenu || activeView !== 'blank') { setShowMenu(false); setActiveView('blank'); } 
             else goBack();
         });
-        const listener = StealthBrowser.addListener('onMediaDetected', (info) => ripPayload(info.url, false));
+        
+        const listener = StealthBrowser.addListener('onMediaDetected', (info) => {
+            let mediaUrl = info.url;
+            const currentAddress = addressRef.current;
+            // If native popup sends a useless blob but we are on youtube, swap it for the page URL!
+            if (mediaUrl.startsWith('blob:') && (currentAddress.includes('youtube.com') || currentAddress.includes('youtu.be'))) {
+                mediaUrl = currentAddress;
+            }
+            ripPayload(mediaUrl, false);
+        });
         return () => { if (listener && listener.remove) listener.remove(); if (backSub && backSub.remove) backSub.remove(); };
     }, [vaultKey, autoNuke, proxyEnabled, proxyHost, proxyPort, lowRamMode]);
 
     return (
-        <div className="flex flex-col h-full bg-zinc-950 text-zinc-300 relative select-none">
+        <div className="flex flex-col h-full bg-black text-zinc-300 font-sans relative">
             
-            {/* MAIN CONTENT AREA */}
-            <div className="flex-1 overflow-y-auto">
-                {!isUnlocked ? (
-                    <div className="flex flex-col items-center justify-center h-full p-6 animate-fadeIn">
-                        <span className="text-4xl mb-4">🌐</span>
-                        <h1 className="text-2xl font-black text-white tracking-tight mb-6">Stealth Browser</h1>
-                        <div className="flex items-center gap-2 bg-black p-3 rounded-xl border border-cyan-900/50 shadow-inner w-full max-w-sm">
-                            <span className="text-xl pl-1">🔑</span>
-                            <input type="password" value={vaultKey} onChange={(e) => setVaultKey(e.target.value)} placeholder="Vault Key..." className="flex-grow bg-transparent text-sm font-mono text-cyan-400 focus:outline-none placeholder:text-zinc-600" />
-                            <button onClick={unlockVault} className="bg-cyan-900/30 text-cyan-400 border border-cyan-900/50 px-4 py-2 rounded-lg text-xs font-bold tracking-widest uppercase active:scale-95">UNLOCK</button>
-                        </div>
+            {/* LOCK SCREEN */}
+            {!isUnlocked ? (
+                <div className="flex flex-col items-center justify-center h-full p-6 animate-fadeIn">
+                    <span className="text-4xl mb-4">🌐</span>
+                    <h1 className="text-2xl font-black text-white tracking-tight mb-6">Stealth Browser</h1>
+                    <div className="flex items-center gap-2 bg-zinc-950 p-2 rounded-xl border border-cyan-900/50 shadow-inner w-full max-w-sm">
+                        <span className="text-lg pl-2">🔑</span>
+                        <input type="password" value={vaultKey} onChange={(e) => setVaultKey(e.target.value)} placeholder="Vault Key..." className="flex-grow bg-transparent text-sm font-mono text-cyan-400 focus:outline-none placeholder:text-zinc-600 px-2" />
+                        <button onClick={unlockVault} className="bg-cyan-900/30 text-cyan-400 border border-cyan-900/50 px-4 py-2 rounded-lg text-xs font-bold tracking-widest uppercase active:scale-95 transition-all">UNLOCK</button>
                     </div>
-                ) : showTabs ? (
-                    /* TAB MANAGER VIEW */
-                    <div className="p-4 grid grid-cols-2 gap-4 animate-fadeIn">
+                </div>
+            ) : (
+                <div className="flex flex-col h-full w-full">
+                    
+                    {/* TOP BAR: TABS */}
+                    <div className="flex bg-zinc-950 pt-2 px-2 gap-1 overflow-x-auto border-b border-zinc-800 shrink-0 no-scrollbar">
                         {tabs.map(tab => (
-                            <div key={tab.id} className={`bg-zinc-900 border rounded-2xl flex flex-col overflow-hidden relative shadow-lg ${tab.id === activeTabId ? 'border-cyan-500 shadow-[0_0_15px_rgba(6,182,212,0.15)]' : 'border-zinc-800'}`}>
-                                <div className="bg-black border-b border-zinc-800 px-3 py-2 flex justify-between items-center">
-                                    <span className="text-xs font-bold text-zinc-300 truncate pr-2">{tab.title}</span>
-                                    <button onClick={(e) => closeTab(tab.id, e)} className="text-zinc-600 hover:text-rose-400 font-bold p-1">✕</button>
-                                </div>
-                                <div onClick={() => { setActiveTabId(tab.id); setShowTabs(false); }} className="h-32 bg-zinc-950 p-3 cursor-pointer">
-                                    <span className="text-[10px] font-mono text-zinc-500 break-all">{tab.url}</span>
-                                </div>
+                            <div key={tab.id} onClick={() => { setActiveTabId(tab.id); setActiveView('blank'); }} className={`flex items-center gap-2 px-4 py-2 rounded-t-xl text-xs font-mono cursor-pointer transition-all max-w-[160px] min-w-[120px] ${tab.id === activeTabId ? 'bg-zinc-900 text-cyan-400 border-t border-l border-r border-zinc-700/50 shadow-[0_-5px_15px_rgba(6,182,212,0.1)]' : 'bg-black text-zinc-500 hover:bg-zinc-900'}`}>
+                                <span className="truncate flex-1">{tab.title}</span>
+                                <span onClick={(e) => closeTab(tab.id, e)} className="text-zinc-600 hover:text-rose-400 font-bold ml-2">×</span>
                             </div>
                         ))}
+                        <button onClick={createNewTab} className="px-3 py-2 text-zinc-500 hover:text-cyan-400 font-bold text-lg leading-none">+</button>
                     </div>
-                ) : (
-                    /* START PAGE / BOOKMARKS */
-                    <div className="flex flex-col h-full p-4 animate-fadeIn">
-                        <div className="flex flex-col items-center pt-10 pb-8">
-                            <h1 className="text-3xl font-black text-white tracking-tight">Stealth</h1>
-                            <span className="text-xs font-mono text-cyan-500 uppercase tracking-widest mt-1">Webkit Engine</span>
+
+                    {/* ADDRESS BAR ROW */}
+                    <div className="flex items-center gap-2 p-2 bg-zinc-900 border-b border-zinc-800 shrink-0 relative">
+                        <button onClick={goBack} disabled={!activeTab || activeTab.history.length === 0} className={`p-2 rounded-lg font-bold transition-all ${activeTab && activeTab.history.length > 0 ? 'text-cyan-400 hover:bg-zinc-800' : 'text-zinc-700 opacity-50'}`}>←</button>
+                        
+                        <div className="flex-1 bg-black rounded-xl flex items-center px-3 border border-zinc-700 focus-within:border-cyan-500 transition-colors h-11">
+                            <span className="text-[10px] text-zinc-500 mr-2">🔒</span>
+                            <input type="text" value={address} onChange={(e) => setAddress(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleNavigate()} placeholder="Type URL..." className="w-full bg-transparent text-sm font-mono text-zinc-200 focus:outline-none" />
                         </div>
                         
-                        <div className="flex flex-col gap-2 mt-4">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 ml-1">Vaulted Sites</span>
-                            {bookmarks.length === 0 ? (
-                                <div className="text-center text-xs font-mono text-zinc-600 py-10 bg-zinc-900/50 rounded-2xl border border-zinc-800/50">No secure bookmarks saved.</div>
-                            ) : (
-                                bookmarks.map((bm, idx) => (
-                                    <div key={idx} onClick={() => { setAddress(bm); handleNavigate(bm); }} className="p-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-sm font-mono text-cyan-400 truncate cursor-pointer hover:border-cyan-500 active:scale-95 transition-all shadow-md">{bm}</div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
+                        <button onClick={() => handleNavigate()} className="px-4 py-2 bg-cyan-900/30 text-cyan-400 font-black text-xs tracking-widest rounded-xl active:scale-95 transition-all border border-cyan-900/50 h-11">GO</button>
+                        
+                        {/* 3-DOT MENU BUTTON */}
+                        <button onClick={() => setShowMenu(!showMenu)} className={`w-10 h-11 flex items-center justify-center rounded-xl transition-all ${showMenu ? 'bg-zinc-800 text-cyan-400' : 'text-zinc-400 hover:bg-zinc-800'}`}>
+                            <span className="text-xl leading-none">⋮</span>
+                        </button>
 
-            {/* FOUND MEDIA MODAL (RIPPER SELECTION) */}
-            {foundMedia.length > 0 && (
-                <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col p-6 animate-fadeIn">
-                    <h2 className="text-emerald-400 font-black text-xl mb-1 flex items-center gap-2"><span>🎯</span> Payload Scanner</h2>
-                    <p className="text-zinc-400 text-xs font-mono mb-4 border-b border-zinc-800 pb-4">Found {foundMedia.length} target(s) on {address}</p>
-                    <div className="flex-1 overflow-y-auto flex flex-col gap-3">
-                        {foundMedia.map((media, idx) => (
-                            <button key={idx} onClick={() => { setFoundMedia([]); ripPayload(media.url, true); }} className="bg-zinc-900 border border-zinc-700 rounded-xl p-4 text-left hover:border-emerald-500 active:scale-95 transition-all flex items-center justify-between shadow-lg">
-                                <div className="flex flex-col truncate pr-4">
-                                    <span className="text-sm font-bold text-zinc-200 truncate">{media.title}</span>
-                                    <span className="text-[10px] font-mono text-zinc-500 truncate mt-1">{media.url}</span>
-                                </div>
-                                <span className="text-xl bg-black p-2 rounded-lg border border-zinc-800">⬇️</span>
-                            </button>
-                        ))}
-                    </div>
-                    <button onClick={() => setFoundMedia([])} className="mt-4 bg-zinc-800 text-white font-bold py-4 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all">CANCEL</button>
-                </div>
-            )}
-
-            {/* SETTINGS MODAL */}
-            {showSettings && (
-                <div className="absolute bottom-20 left-4 right-4 bg-zinc-900 border border-zinc-700 rounded-2xl p-5 shadow-2xl z-50 flex flex-col gap-5 animate-fadeIn">
-                    <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                            <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">🌊 Low-RAM Streaming Mode</span>
-                            <span className="text-[9px] text-zinc-500 font-mono uppercase mt-0.5">Chunk-by-Chunk AES for massive files</span>
-                        </div>
-                        <input type="checkbox" checked={lowRamMode} onChange={() => setLowRamMode(!lowRamMode)} className="w-5 h-5 accent-cyan-500" />
-                    </div>
-                    <div className="h-px bg-zinc-800 w-full" />
-                    <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🔥 Auto-Nuke Session on Close</span>
-                        <input type="checkbox" checked={autoNuke} onChange={() => setAutoNuke(!autoNuke)} className="w-5 h-5 accent-rose-600" />
-                    </div>
-                    <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🛡️ Route via SOCKS5 Proxy</span>
-                            <input type="checkbox" checked={proxyEnabled} onChange={() => setProxyEnabled(!proxyEnabled)} className="w-5 h-5 accent-emerald-500" />
-                        </div>
-                        {proxyEnabled && (
-                            <div className="flex gap-2">
-                                <input type="text" value={proxyHost} onChange={(e) => setProxyHost(e.target.value)} className="w-2/3 bg-black border border-zinc-700 rounded-md px-3 py-2 text-xs font-mono text-zinc-300" placeholder="Host IP (e.g. 127.0.0.1)" />
-                                <input type="text" value={proxyPort} onChange={(e) => setProxyPort(e.target.value)} className="w-1/3 bg-black border border-zinc-700 rounded-md px-3 py-2 text-xs font-mono text-zinc-300" placeholder="Port" />
+                        {/* 3-DOT MENU DROPDOWN */}
+                        {showMenu && (
+                            <div className="absolute top-14 right-2 bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl p-2 w-56 z-50 flex flex-col gap-1 animate-fadeIn">
+                                <button onClick={scanCurrentPage} disabled={isScanning || isExtracting} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-lg flex items-center gap-3 text-emerald-400 font-bold text-sm transition-all">
+                                    {isScanning ? '⏳ Scanning...' : isExtracting ? '📥 Ripping...' : '🎯 Scan & Rip Media'}
+                                </button>
+                                <div className="h-px bg-zinc-800 my-1 mx-2"></div>
+                                <button onClick={toggleBookmark} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-lg flex items-center gap-3 text-zinc-300 text-sm transition-all">
+                                    ★ {bookmarks.includes(address) ? 'Remove Bookmark' : 'Bookmark Site'}
+                                </button>
+                                <button onClick={() => { setActiveView('bookmarks'); setShowMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-lg flex items-center gap-3 text-zinc-300 text-sm transition-all">
+                                    📁 View Bookmarks
+                                </button>
+                                <button onClick={() => { setActiveView('settings'); setShowMenu(false); }} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-lg flex items-center gap-3 text-zinc-300 text-sm transition-all">
+                                    ⚙️ Engine Settings
+                                </button>
+                                <div className="h-px bg-zinc-800 my-1 mx-2"></div>
+                                <button onClick={() => onNavigate('home')} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-lg flex items-center gap-3 text-rose-400 font-bold text-sm transition-all">
+                                    ✕ Exit Browser
+                                </button>
                             </div>
                         )}
                     </div>
-                </div>
-            )}
 
-            {/* 3-DOT MENU BOTTOM SHEET */}
-            {showMenu && isUnlocked && (
-                <div className="absolute bottom-20 right-2 w-64 bg-zinc-900 border border-zinc-700 rounded-2xl shadow-2xl p-2 z-50 animate-fadeIn">
-                    <button onClick={scanCurrentPage} disabled={isScanning} className="w-full text-left px-4 py-4 hover:bg-zinc-800 rounded-xl flex items-center gap-3 text-emerald-400 font-bold text-sm transition-colors">
-                        <span className="text-lg">{isScanning ? '⏳' : '🎯'}</span> {isScanning ? 'Scanning Page...' : 'Rip Page Media'}
-                    </button>
-                    <div className="h-px bg-zinc-800 my-1 mx-2"></div>
-                    <button onClick={() => { setShowMenu(false); createNewTab(); }} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-xl flex items-center gap-3 text-zinc-300 text-sm transition-colors">
-                        <span className="text-lg">➕</span> New Tab
-                    </button>
-                    <button onClick={() => { setShowMenu(false); setShowSettings(true); }} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-xl flex items-center gap-3 text-zinc-300 text-sm transition-colors">
-                        <span className="text-lg">⚙️</span> Engine Settings
-                    </button>
-                    <div className="h-px bg-zinc-800 my-1 mx-2"></div>
-                    <button onClick={() => onNavigate('home')} className="w-full text-left px-4 py-3 hover:bg-zinc-800 rounded-xl flex items-center gap-3 text-rose-400 text-sm transition-colors">
-                        <span className="text-lg">✕</span> Exit Browser
-                    </button>
-                </div>
-            )}
+                    {/* MAIN CONTENT AREA */}
+                    <div className="flex-1 p-4 overflow-y-auto bg-black relative">
+                        
+                        {/* FOUND MEDIA MODAL OVERLAY */}
+                        {foundMedia.length > 0 && (
+                            <div className="absolute inset-0 bg-black/95 z-[100] flex flex-col p-6 animate-fadeIn">
+                                <h2 className="text-emerald-400 font-black text-lg mb-1 flex items-center gap-2"><span>🎯</span> Scanned Payloads</h2>
+                                <p className="text-zinc-500 text-[10px] font-mono mb-4 border-b border-zinc-800 pb-3">Found {foundMedia.length} media target(s)</p>
+                                <div className="flex-1 overflow-y-auto flex flex-col gap-3">
+                                    {foundMedia.map((media, idx) => (
+                                        <button key={idx} onClick={() => { setFoundMedia([]); ripPayload(media.url, true); }} className="bg-zinc-900 border border-zinc-700 rounded-xl p-3 text-left hover:border-emerald-500 active:scale-95 transition-all flex items-center justify-between shadow-lg">
+                                            <div className="flex flex-col truncate pr-4">
+                                                <span className="text-xs font-bold text-zinc-200 truncate">{media.title}</span>
+                                                <span className="text-[9px] font-mono text-zinc-500 truncate mt-1">{media.url}</span>
+                                            </div>
+                                            <span className="text-lg bg-black p-2 rounded-lg border border-zinc-800">📥</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                <button onClick={() => setFoundMedia([])} className="mt-4 bg-zinc-800 text-white font-bold py-4 rounded-xl hover:bg-zinc-700 active:scale-95 transition-all text-sm">CANCEL</button>
+                            </div>
+                        )}
 
-            {/* BRAVE-STYLE BOTTOM NAV BAR */}
-            {isUnlocked && (
-                <div className="bg-zinc-950 border-t border-zinc-900 p-2 flex items-center justify-between gap-2 z-40 pb-4">
-                    <button onClick={() => { setAddress('https://'); setShowTabs(false); }} className="p-2 text-zinc-500 hover:text-white transition-colors">
-                        <span className="text-xl">🏠</span>
-                    </button>
-                    
-                    <button onClick={toggleBookmark} className={`p-2 transition-colors ${bookmarks.includes(address) ? 'text-amber-400' : 'text-zinc-500 hover:text-white'}`}>
-                        <span className="text-xl">★</span>
-                    </button>
-                    
-                    <div className="flex-1 bg-zinc-900 rounded-full flex items-center px-4 border border-zinc-800 focus-within:border-cyan-500 transition-colors h-12 shadow-inner">
-                        <span className="text-[10px] text-zinc-500 mr-2">🔒</span>
-                        <input 
-                            type="text" 
-                            value={address} 
-                            onChange={(e) => setAddress(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleNavigate()}
-                            placeholder="Search or type URL"
-                            className="w-full bg-transparent text-sm font-mono text-zinc-200 py-2 focus:outline-none"
-                        />
+                        {/* ROUTING VIEWS */}
+                        {activeView === 'settings' ? (
+                            <div className="flex flex-col gap-5 animate-fadeIn max-w-md mx-auto">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Engine Settings</h3>
+                                <div className="flex items-center justify-between">
+                                    <div className="flex flex-col">
+                                        <span className="text-xs font-bold uppercase tracking-widest text-cyan-400">🌊 Low-RAM Streaming Mode</span>
+                                        <span className="text-[9px] text-zinc-500 font-mono uppercase mt-0.5">Chunk-by-Chunk AES for massive files</span>
+                                    </div>
+                                    <input type="checkbox" checked={lowRamMode} onChange={() => setLowRamMode(!lowRamMode)} className="w-5 h-5 accent-cyan-500" />
+                                </div>
+                                <div className="h-px bg-zinc-800 w-full" />
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🔥 Auto-Nuke Session on Close</span>
+                                    <input type="checkbox" checked={autoNuke} onChange={() => setAutoNuke(!autoNuke)} className="w-5 h-5 accent-rose-600" />
+                                </div>
+                                <div className="flex flex-col gap-3">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">🛡️ Route via SOCKS5 Proxy</span>
+                                        <input type="checkbox" checked={proxyEnabled} onChange={() => setProxyEnabled(!proxyEnabled)} className="w-5 h-5 accent-emerald-500" />
+                                    </div>
+                                    {proxyEnabled && (
+                                        <div className="flex gap-2">
+                                            <input type="text" value={proxyHost} onChange={(e) => setProxyHost(e.target.value)} className="w-2/3 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono text-zinc-300" placeholder="Host IP" />
+                                            <input type="text" value={proxyPort} onChange={(e) => setProxyPort(e.target.value)} className="w-1/3 bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-xs font-mono text-zinc-300" placeholder="Port" />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        ) : activeView === 'bookmarks' ? (
+                            <div className="flex flex-col gap-3 animate-fadeIn max-w-md mx-auto">
+                                <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-widest border-b border-zinc-800 pb-2">Vaulted Sites</h3>
+                                {bookmarks.length === 0 ? (
+                                    <div className="text-center text-xs font-mono text-zinc-600 py-10 bg-zinc-900/30 rounded-xl border border-zinc-800 border-dashed">No secure bookmarks saved.</div>
+                                ) : (
+                                    bookmarks.map((bm, idx) => (
+                                        <div key={idx} onClick={() => { setAddress(bm); handleNavigate(bm); }} className="p-4 bg-zinc-900 border border-zinc-800 rounded-xl text-sm font-mono text-cyan-400 truncate cursor-pointer hover:border-cyan-500 active:scale-95 transition-all shadow-md">{bm}</div>
+                                    ))
+                                )}
+                            </div>
+                        ) : (
+                            /* BLANK BROWSER STATE (Command Center Idle) */
+                            <div className="flex flex-col items-center justify-center h-full opacity-30 select-none animate-fadeIn pointer-events-none">
+                                <span className="text-5xl mb-4">🌐</span>
+                                <span className="text-[10px] font-mono uppercase tracking-widest text-zinc-500">Secure Webkit Ready</span>
+                            </div>
+                        )}
                     </div>
-                    
-                    <button onClick={() => { setShowTabs(!showTabs); setShowMenu(false); setShowSettings(false); }} className="w-10 h-10 rounded-xl border-2 border-zinc-600 text-zinc-400 flex items-center justify-center text-xs font-black hover:text-white hover:border-zinc-400 transition-colors mx-1">
-                        {tabs.length}
-                    </button>
-                    
-                    <button onClick={() => { setShowMenu(!showMenu); setShowSettings(false); }} className="p-2 text-zinc-500 hover:text-white transition-colors flex items-center justify-center h-10 w-10">
-                        <span className="text-2xl leading-none -mt-2">⋮</span>
-                    </button>
                 </div>
             )}
         </div>
