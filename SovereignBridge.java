@@ -34,5 +34,12 @@ public class SovereignBridge {
         // For now, passing a simple status check to prove the bridge works
         return "[\"/storage/emulated/0/DCIM/test_image.jpg\"]"; 
     }
+
+    // 3. Native Alarm/Notification Trigger
+    @JavascriptInterface
+    public void scheduleAlarm(String title, String timestamp) {
+        // Trigger a native Android Toast to verify the bridge works tonight
+        android.widget.Toast.makeText(mContext, "Event Logged: " + title, android.widget.Toast.LENGTH_LONG).show();
+    }
 }
 

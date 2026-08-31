@@ -31,6 +31,7 @@ import { StorageProvider } from './context/StorageContext';
 import { SettingsProvider, useSettings } from './context/SettingsContext';
 import { AudioProvider } from './context/AudioContext';
 import { CommsProvider } from './context/CommsContext';
+import { CalendarProvider } from './context/CalendarContext';
 
 function AppContent() {
 
@@ -319,7 +320,9 @@ export default function App() {
       <StorageProvider>
         <AudioProvider>
           <CommsProvider>
+            <CalendarProvider>
             <AppContent />
+          </CalendarProvider>
           </CommsProvider>
         </AudioProvider>
       </StorageProvider>
