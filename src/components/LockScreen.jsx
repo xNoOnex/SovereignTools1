@@ -6,10 +6,8 @@ export function LockScreen({ onUnlock }) {
   const [errorShake, setErrorShake] = useState(false);
   const [showInfo, setShowInfo] = useState(false);
 
-  // Shred encrypted storage and inject fake kernel panic
   const executeProtocol = async () => {
     try {
-      // 1. Overwrite Vault Keys with Entropy
       for (let i = 0; i < localStorage.length; i++) {
         let k = localStorage.key(i);
         if (k && k.startsWith("sec_")) {
@@ -19,7 +17,6 @@ export function LockScreen({ onUnlock }) {
       localStorage.clear();
       sessionStorage.clear();
 
-      // 2. Annihilate IndexedDB
       if (window.indexedDB && window.indexedDB.databases) {
         const dbs = await window.indexedDB.databases();
         for (let db of dbs) {
@@ -28,7 +25,6 @@ export function LockScreen({ onUnlock }) {
       }
     } catch (e) {}
 
-    // 3. Inject Fake Kernel Crash Screen
     document.body.innerHTML = "<div style=\"background:black;color:#666;height:100vh;display:flex;align-items:center;justify-content:center;font-family:monospace;font-size:14px;\"><b>ERROR: NO BOOTABLE DEVICE FOUND.</b><br/><br/>INSERT RECOVERY MEDIA AND PRESS ANY KEY.</div>";
 
     setTimeout(() => {
@@ -41,10 +37,7 @@ export function LockScreen({ onUnlock }) {
     const newStr = pinEntry + num;
     setPinEntry(newStr);
 
-    // Calculate input hash
     const inputHash = await SecureStorage.hashPin(newStr);
-
-    // Retrieve configured PIN hashes
     const masterHash = localStorage.getItem('sovereign_pin_hash') || (await SecureStorage.hashPin('0000'));
     const duressHash = localStorage.getItem('sovereign_duress_hash');
     const decoyHash = localStorage.getItem('sovereign_decoy_hash');
@@ -54,11 +47,12 @@ export function LockScreen({ onUnlock }) {
       window.__SOVEREIGN_KEY__ = newStr;
       sessionStorage.setItem("RAW_SESSION_STATE", "ARMED");
       localStorage.setItem("sovereign_failed_attempts", "0");
+      window.dispatchEvent(new Event('secure_session_update'));
       onUnlock();
       return;
     }
 
-    // 2. Check Duress PIN
+    // 2. Check Duress PIN (The Nuke)
     if (duressHash && inputHash === duressHash) {
       executeProtocol();
       return;
@@ -69,6 +63,7 @@ export function LockScreen({ onUnlock }) {
       window.__SOVEREIGN_KEY__ = newStr;
       sessionStorage.setItem("RAW_SESSION_STATE", "DECOY");
       localStorage.setItem("sovereign_failed_attempts", "0");
+      window.dispatchEvent(new Event('secure_session_update'));
       onUnlock();
       return;
     }
@@ -96,7 +91,6 @@ export function LockScreen({ onUnlock }) {
     <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-between p-8 font-sans select-none relative overflow-hidden" style={{ backgroundImage: 'linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.95)), url("/AppIcon.jpg")', backgroundSize: 'cover', backgroundPosition: 'center' }}>
       <div className="absolute inset-0 z-0 opacity-20 pointer-events-none" style={{ backgroundImage: 'var(--bg-image)', backgroundSize: 'var(--bg-size)', backgroundPosition: 'center', filter: 'contrast(1.5)' }} />
 
-      {/* Terminal Header */}
       <div className="flex flex-col items-center mt-12 space-y-5 z-10 w-full animate-fadeIn">
         <div className="w-20 h-20 rounded-2xl overflow-hidden shadow-[0_0_30px_var(--glass-border)] border border-[var(--accent-text)] bg-black p-1">
           <img src="/AppIcon.jpg" alt="Logo" className="w-full h-full object-cover rounded-xl opacity-90" onError={(e) => { e.target.style.display = 'none'; }} />
@@ -109,7 +103,6 @@ export function LockScreen({ onUnlock }) {
         </div>
       </div>
 
-      {/* Cyber PIN Pad */}
       <div className="flex flex-col items-center z-10 w-full max-w-[280px]">
         <div className={`flex gap-5 mb-10 ${errorShake ? 'animate-shake' : ''}`}>
           {[0, 1, 2, 3].map((i) => (
@@ -135,7 +128,6 @@ export function LockScreen({ onUnlock }) {
         </div>
       </div>
 
-      {/* Protocol Drawer */}
       <div className="z-10 w-full flex flex-col items-center pb-6">
         <button onClick={() => setShowInfo(!showInfo)} className="text-[9px] uppercase font-mono font-bold text-zinc-500 hover:theme-accent-text px-4 py-2 transition-colors tracking-[0.2em]">
           {showInfo ? 'CLOSE PROTOCOL' : 'VIEW SECURE PROTOCOL'}

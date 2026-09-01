@@ -21,6 +21,7 @@ export function useSecureStorage(key, initialValue) {
 
         const item = await SecureStorage.getItem(key, masterkey);
         if (isMounted) {
+          // If the Decoy PIN generates a bad AES key, getItem returns null, instantly wiping the UI state.
           setStoredValue(item !== null ? item : initialValue);
           setLoading(false);
         }
@@ -35,8 +36,12 @@ export function useSecureStorage(key, initialValue) {
 
     loadData();
 
+    // Force a data refresh when the LockScreen authenticates a new state
+    window.addEventListener('secure_session_update', loadData);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('secure_session_update', loadData);
     };
   }, [key]);
 
