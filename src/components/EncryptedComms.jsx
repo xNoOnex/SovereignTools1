@@ -13,7 +13,6 @@ export function EncryptedComms({ onNavigate }) {
   const [statusMsg, setStatusMsg] = useState('');
   const [sessionPin, setSessionPin] = useState(''); 
   
-  // Optical Air-Gap States
   const [qrPayload, setQrPayload] = useState(null);
   const [isScanning, setIsScanning] = useState(false);
 
@@ -268,7 +267,7 @@ export function EncryptedComms({ onNavigate }) {
         </div>
       )}
 
-      {/* Tactical Optical Scanner Modal */}
+      {/* TACTICAL HARDWARE CAMERA MODAL (REPLACES DUMMY SCANNER) */}
       {isScanning && (
         <div className="fixed inset-0 z-[9999] bg-black">
           <SovereignCamera 
