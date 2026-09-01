@@ -4,168 +4,181 @@ import { registerPlugin } from '@capacitor/core';
 const SovereignGatt = registerPlugin('SovereignGatt');
 
 class BleMeshService {
-    constructor() {
-        this.isActive = false;
-        this.SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
-        this.CHAR_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
-        this.activeConnections = new Set();
+  constructor() {
+    this.isActive = false;
+    this.SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+    this.CHAR_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
+    this.activeConnections = new Set();
+  }
+
+  async deployScout(logCallback) {
+    this.logCallback = logCallback;
+    if (this.isActive) {
+      if (this.logCallback) this.logCallback("SCOUT RE-ATTACHED. BACKGROUND MESH STILL ACTIVE.");
+      return;
     }
 
-    async deployScout(logCallback) {
-        this.logCallback = logCallback;
-        if (this.isActive) {
-            if(this.logCallback) this.logCallback("SCOUT RE-ATTACHED. BACKGROUND MESH STILL ACTIVE.");
-            return;
-        }
-        try {
-            await BleClient.initialize({ androidNeverForLocation: true });
-            this.isActive = true;
-            if(this.logCallback) this.logCallback("BLE SCOUT DEPLOYED. RADIO INITIALIZED.");
+    try {
+      await BleClient.initialize({ androidNeverForLocation: true });
+      this.isActive = true;
+      if (this.logCallback) this.logCallback("BLE SCOUT DEPLOYED. RADIO INITIALIZED.");
 
-            try {
-                await SovereignGatt.startServer();
-                if(this.logCallback) this.logCallback("GATT SERVER ONLINE. BROADCASTING BEACON.");
-                
-                SovereignGatt.addListener('onSwarmPayload', (event) => {
-                    if(this.logCallback) this.logCallback("INCOMING BLE PAYLOAD DETECTED!");
-                    this.processIncomingGossip(event.data, logCallback);
-                });
-            } catch (nativeErr) {
-                if(this.logCallback) this.logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure."));
+      try {
+        await SovereignGatt.startServer();
+        if (this.logCallback) this.logCallback("GATT SERVER ONLINE. BROADCASTING BEACON.");
+
+        SovereignGatt.addListener('onSwarmPayload', (event) => {
+          if (this.logCallback) this.logCallback("INCOMING BLE PAYLOAD DETECTED!");
+          this.processIncomingGossip(event.data, logCallback);
+        });
+      } catch (nativeErr) {
+        if (this.logCallback) this.logCallback("GATT ERROR: " + (nativeErr.message || "Unknown native failure."));
+      }
+
+      await BleClient.requestLEScan(
+        { services: [this.SERVICE_UUID] },
+        (result) => {
+          this.executeDataSwap(result.device.deviceId, logCallback);
+        }
+      );
+
+      if (this.logCallback) this.logCallback("HYBRID SCOUT ACTIVE. WAITING FOR PEERS.");
+    } catch (error) {
+      if (this.logCallback) this.logCallback("CRITICAL: BLE RADIO FAILURE. " + error.message);
+      this.isActive = false;
+    }
+  }
+
+  async executeDataSwap(deviceId, logCallback) {
+    if (this.activeConnections.has(deviceId)) return;
+    this.activeConnections.add(deviceId);
+
+    if (this.logCallback) this.logCallback(`TARGET LOCKED: [${deviceId}]. ESTABLISHING UPLINK...`);
+
+    let connected = false;
+
+    try {
+      await BleClient.connect(deviceId);
+      connected = true;
+
+      // Negotiate max MTU, default to 512
+      let mtu = 512;
+      try { 
+        // Some older Android stacks throw if MTU is already maxed
+        mtu = await BleClient.requestMtu(deviceId, 512) || 512; 
+      } catch (e) {}
+      
+      await new Promise(r => setTimeout(r, 600)); // kernel breathing room
+
+      const Ledgers = {};
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('swarm_ledger_')) {
+          Ledgers[key] = localStorage.getItem(key);
+        }
+      }
+
+      const payloadString = JSON.stringify({ type: 'SWARM_SYNC', data: Ledgers });
+      const encoder = new TextEncoder();
+      const data = encoder.encode(payloadString);
+      
+      // CHUNKED DISPATCHER (Safety margin: MTU - 3 bytes for ATT header)
+      const chunkSize = Math.max(20, mtu - 3); 
+      for (let i = 0; i < data.length; i += chunkSize) {
+        const chunk = data.slice(i, i + chunkSize);
+        const dataView = new DataView(chunk.buffer);
+        await BleClient.write(deviceId, this.SERVICE_UUID, this.CHAR_UUID, dataView);
+        await new Promise(r => setTimeout(r, 15)); // Prevent buffer overflow on peer
+      }
+
+      if (this.logCallback) this.logCallback(`PAYLOAD DELIVERED TO [${deviceId}].`);
+
+    } catch (err) {
+      if (this.logCallback) this.logCallback(`UPLINK FAILED WITH [${deviceId}]: ` + err.message);
+    } finally {
+      if (connected) {
+        try { await BleClient.disconnect(deviceId); } catch (e) {}
+      }
+      
+      // Ensure cooldown fires even if connection drops mid-write
+      setTimeout(() => {
+        this.activeConnections.delete(deviceId);
+      }, 15000);
+    }
+  }
+
+  processIncomingGossip(payloadString, logCallback) {
+    try {
+      const payload = JSON.parse(payloadString);
+      if (payload.type === 'SWARM_SYNC') {
+        let updated = 0;
+        const myNodeId = localStorage.getItem('sovereign_node_id');
+
+        Object.keys(payload.data).forEach(key => {
+          const localData = localStorage.getItem(key);
+          const incomingData = payload.data[key];
+
+          try {
+            const localArr = localData ? JSON.parse(localData) : [];
+            const incArr = JSON.parse(incomingData);
+
+            if (Array.isArray(localArr) && Array.isArray(incArr)) {
+              const normalizedInc = incArr.map(m => {
+                if (m.device && m.device !== myNodeId) return { ...m, sender: 'peer' };
+                return m;
+              });
+
+              const map = new Map();
+              localArr.forEach(m => { if (m.id) map.set(m.id, m); });
+              let added = 0;
+              
+              normalizedInc.forEach(m => {
+                if (m.id && !map.has(m.id)) { map.set(m.id, m); added++; }
+              });
+
+              if (added > 0) {
+                const merged = Array.from(map.values()).sort((a, b) => a.id - b.id);
+                localStorage.setItem(key, JSON.stringify(merged));
+                updated++;
+              }
+            } else {
+              if (!localData || incomingData.length > localData.length) {
+                localStorage.setItem(key, incomingData);
+                updated++;
+              }
             }
-
-            await BleClient.requestLEScan(
-                { services: [this.SERVICE_UUID] },
-                (result) => {
-                    this.executeDataSwap(result.device.deviceId, logCallback);
-                }
-            );
-            
-            if(this.logCallback) this.logCallback("HYBRID SCOUT ACTIVE. WAITING FOR PEERS.");
-        } catch (error) {
-            if(this.logCallback) this.logCallback("CRITICAL: BLE RADIO FAILURE. " + error.message);
-            this.isActive = false;
-        }
-    }
-
-    async executeDataSwap(deviceId, logCallback) {
-        // Prevent spamming the same device if we are already connected to it
-        if (this.activeConnections.has(deviceId)) return; 
-        this.activeConnections.add(deviceId);
-        
-        if(this.logCallback) this.logCallback(`TARGET LOCKED: [${deviceId}]. ESTABLISHING UPLINK...`);
-        
-        try {
-            await BleClient.connect(deviceId);
-            
-            // Request max MTU bandwidth (up to 512 bytes on modern Android)
-            try { await BleClient.requestMtu(deviceId, 512); } catch (e) {}
-            await new Promise(r => setTimeout(r, 600)); // Kernel breathing room
-
-            // Package the local Swarm Ledgers
-            const ledgers = {};
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key.startsWith('swarm_ledger_')) {
-                    ledgers[key] = localStorage.getItem(key);
-                }
+          } catch(e) {
+            if (!localData || incomingData.length > localData.length) {
+              localStorage.setItem(key, incomingData);
+              updated++;
             }
-            const payloadString = JSON.stringify({ type: 'SWARM_SYNC', data: ledgers });
-            
-            // Convert to byte stream
-            const encoder = new TextEncoder();
-            const data = encoder.encode(payloadString);
-            const dataView = new DataView(data.buffer);
-            
-            // Fire the payload directly into the peer's GATT Server
-            await BleClient.write(deviceId, this.SERVICE_UUID, this.CHAR_UUID, dataView);
-            if(this.logCallback) this.logCallback(`PAYLOAD DELIVERED TO [${deviceId}].`);
-            
-            // Instantly sever connection to save power
-            await BleClient.disconnect(deviceId);
-        } catch (err) {
-            if(this.logCallback) this.logCallback(`UPLINK FAILED WITH [${deviceId}]: ` + err.message);
-        }
-        
-        // 15-second cooldown before we allow a reconnect to the exact same device
-        setTimeout(() => {
-            this.activeConnections.delete(deviceId);
-        }, 15000);
-    }
+          }
+        });
 
-    processIncomingGossip(payloadString, logCallback) {
-        try {
-            const payload = JSON.parse(payloadString);
-            if (payload.type === 'SWARM_SYNC') {
-                let updated = 0;
-                const myNodeId = localStorage.getItem('sovereign_node_id');
-                
-                Object.keys(payload.data).forEach(key => {
-                    const localData = localStorage.getItem(key);
-                    const incomingData = payload.data[key];
-                    
-                    try {
-                        const localArr = localData ? JSON.parse(localData) : [];
-                        const incArr = JSON.parse(incomingData);
-                        
-                        // SMART ARRAY MERGE (For Chats)
-                        if (Array.isArray(localArr) && Array.isArray(incArr)) {
-                            const normalizedInc = incArr.map(m => {
-                                if (m.device && m.device !== myNodeId) return { ...m, sender: 'peer' };
-                                return m;
-                            });
-                            
-                            const map = new Map();
-                            localArr.forEach(m => { if(m.id) map.set(m.id, m); });
-                            let added = 0;
-                            normalizedInc.forEach(m => {
-                                if (m.id && !map.has(m.id)) { map.set(m.id, m); added++; }
-                            });
-                            
-                            if (added > 0) {
-                                const merged = Array.from(map.values()).sort((a,b) => a.id - b.id);
-                                localStorage.setItem(key, JSON.stringify(merged));
-                                updated++;
-                            }
-                        } else {
-                            // FALLBACK (For text ledgers)
-                            if (!localData || incomingData.length > localData.length) {
-                                localStorage.setItem(key, incomingData);
-                                updated++;
-                            }
-                        }
-                    } catch(e) {
-                        if (!localData || incomingData.length > localData.length) {
-                            localStorage.setItem(key, incomingData);
-                            updated++;
-                        }
-                    }
-                });
-                
-                if (updated > 0) {
-                    if(this.logCallback) this.logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
-                    window.dispatchEvent(new Event('storage')); // Trigger UI refresh
-                } else {
-                    if(this.logCallback) this.logCallback("INCOMING PAYLOAD IDENTICAL. NO UPDATES.");
-                }
-            }
-        } catch (e) {
-            if(this.logCallback) this.logCallback("IGNORED MALFORMED BLUETOOTH PACKET.");
+        if (updated > 0) {
+          if (this.logCallback) this.logCallback(`${updated} LOCAL VAULTS UPDATED VIA BLUETOOTH.`);
+          window.dispatchEvent(new Event('storage'));
+        } else {
+          if (this.logCallback) this.logCallback("INCOMING PAYLOAD IDENTICAL. NO UPDATES.");
         }
+      }
+    } catch (e) {
+      if (this.logCallback) this.logCallback("IGNORED MALFORMED BLUETOOTH PACKET.");
     }
+  }
 
-    async killScout(logCallback) {
-        if (!this.isActive) return;
-        try {
-            await BleClient.stopLEScan();
-            await SovereignGatt.stopServer().catch(()=>console.log("No GATT to stop"));
-            SovereignGatt.removeAllListeners();
-            this.isActive = false;
-            if(this.logCallback) this.logCallback("BLE SCOUT TERMINATED. RADIO DARK.");
-        } catch (error) {
-            if(this.logCallback) this.logCallback("ERROR KILLING SCOUT: " + error.message);
-        }
+  async killScout(logCallback) {
+    if (!this.isActive) return;
+    try {
+      await BleClient.stopLEScan();
+      await SovereignGatt.stopServer().catch(()=>console.log("No GATT to stop"));
+      SovereignGatt.removeAllListeners();
+      this.isActive = false;
+      if (this.logCallback) this.logCallback("BLE SCOUT TERMINATED. RADIO DARK.");
+    } catch (error) {
+      if (this.logCallback) this.logCallback("ERROR KILLING SCOUT: " + error.message);
     }
+  }
 }
 
 export const BleScout = new BleMeshService();

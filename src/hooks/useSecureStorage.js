@@ -7,13 +7,19 @@ export function useSecureStorage(key, initialValue) {
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const loadData = async () => {
       try {
-        // Automatically grab the master key from RAM
-        const masterKey = window.__SOVEREIGN_KEY__ || 'SovereignMasterKeyDefault';
-        const item = await SecureStorage.getItem(key, masterKey);
-        
+        const masterkey = window.__SOVEREIGN_KEY__;
+        if (!masterkey) {
+          if (isMounted) {
+            setStoredValue(initialValue);
+            setLoading(false);
+          }
+          return;
+        }
+
+        const item = await SecureStorage.getItem(key, masterkey);
         if (isMounted) {
           setStoredValue(item !== null ? item : initialValue);
           setLoading(false);
@@ -30,21 +36,19 @@ export function useSecureStorage(key, initialValue) {
     loadData();
 
     return () => {
-      isMounted = false; // Cleanup to prevent memory leaks if component unmounts early
+      isMounted = false;
     };
   }, [key]);
 
   const setValue = async (value) => {
     try {
-      // Allow React function updates just like standard useState
       const valueToStore = value instanceof Function ? value(storedValue) : value;
-      
-      // Update UI instantly
       setStoredValue(valueToStore);
-      
-      // Encrypt and write to flash memory in the background
-      const masterKey = window.__SOVEREIGN_KEY__ || 'SovereignMasterKeyDefault';
-      await SecureStorage.setItem(key, valueToStore, masterKey);
+
+      const masterkey = window.__SOVEREIGN_KEY__;
+      if (masterkey) {
+        await SecureStorage.setItem(key, valueToStore, masterkey);
+      }
     } catch (error) {
       console.error(`[Vault] Encryption error for ${key}:`, error);
     }
