@@ -124,8 +124,46 @@ export function SovereignBrowser({ onNavigate }) {
                         const ytInfo = await yt.getInfo(videoId);
                         sanitizedTitle = (ytInfo.basic_info.title || `yt_${videoId}`).replace(/[^a-zA-Z0-9_-]/g, '_').substring(0, 40);
                         const stream = await yt.download(videoId, { type: 'video+audio', quality: 'best', format: 'mp4' });
-                        const reader = stream.getReader();
-                        while (true) { const { done, value } = await reader.read(); if (done) break; await processAndAppendChunk(value, 'mp4'); await new Promise(r => setTimeout(r, 15)); }
+        const reader = stream.getReader();
+        const chunks = [];
+        let totalLen = 0;
+        
+        // 1. Accumulate all chunks in memory first
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+            totalLen += value.length;
+        }
+        
+        // 2. Combine into a single buffer
+        const fullBuf = new Uint8Array(totalLen);
+        let offset = 0;
+        for (let c of chunks) { 
+            fullBuf.set(c, offset); 
+            offset += c.length; 
+        }
+        
+        // 3. Encrypt the entire file at once with ONE IV
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const enc = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, fullBuf);
+        
+        // 4. Prepend IV and prep for writing
+        const combined = new Uint8Array(12 + enc.byteLength);
+        combined.set(iv, 0); 
+        combined.set(new Uint8Array(enc), 12);
+        
+        const fr = new FileReader();
+        fr.onloadend = async () => {
+            const b64 = fr.result.split(',')[1];
+            await Filesystem.mkdir({ path: 'sovereign_media', directory: Directory.Data, recursive: true }).catch(()=>{});
+            await Filesystem.writeFile({ 
+                path: `sovereign_media/${sanitizedTitle}_${Date.now()}.mp4`, 
+                data: b64, 
+                directory: Directory.Data 
+            });
+        };
+        fr.readAsDataURL(new Blob([combined]));
                     } else if (targetLower.includes('.m3u8')) {
                         const rText = await (await fetch(info.url, { mode: 'cors' })).text();
                         let baseUrl = info.url.substring(0, info.url.lastIndexOf('/') + 1);

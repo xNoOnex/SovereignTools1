@@ -270,7 +270,7 @@ public class StealthBrowser extends Plugin {
             }
 
             // FIXED: Standard default Builder invocation
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            AlertDialog.Builder builder = new AlertDialog.Builder(browserDialog.getContext());
             builder.setTitle("🎯 Select Payload to Rip");
             builder.setItems(displayList, (dialog, which) -> {
                 sendToRipper(finalMediaList[which]);
