@@ -13,6 +13,7 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(SecurityToggle.class);
         registerPlugin(StealthBrowser.class);
         registerPlugin(ShizukuRunner.class);
+        registerPlugin(MeshNodePlugin.class);
         super.onCreate(savedInstanceState);
         
         // Restore Sovereign Screenshot Shield on Boot
