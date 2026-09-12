@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sovereign Tools | Local-First Privacy Utilities</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: '#00ffcc',
+            darkBg: '#05070a',
+            surface: '#0b1017',
+            surfaceBorder: '#16222f',
+          },
+          fontFamily: {
+            mono: ['"JetBrains Mono"', 'monospace'],
+            sans: ['"Space Grotesk"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #05070a; color: #f3f4f6; font-family: 'Space Grotesk', sans-serif; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .hud-grid { background-size: 32px 32px; background-image: linear-gradient(to right, rgba(0,255,204,0.03) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,255,204,0.03) 1px, transparent 1px); }
+  </style>
+</head>
+<body class="hud-grid antialiased selection:bg-brand selection:text-black">
+
+  <!-- Navigation -->
+  <header class="sticky top-0 z-50 bg-[#05070a]/90 backdrop-blur-md border-b border-surfaceBorder px-4 py-3">
+    <div class="max-w-4xl mx-auto flex justify-between items-center">
+      <div class="flex items-center gap-2">
+        <div class="border border-brand/40 px-2 py-1 flex items-center gap-1.5 rounded-sm bg-brand/5">
+          <svg class="w-3.5 h-3.5 text-brand" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+          <span class="font-mono text-xs font-bold tracking-widest text-white uppercase">SOVEREIGN</span>
+          <span class="font-mono text-xs font-bold tracking-widest text-brand uppercase">TOOLS</span>
+        </div>
+      </div>
+      <a href="#download" class="border border-brand/30 hover:border-brand text-brand px-3 py-1 text-xs font-mono tracking-wider transition-all uppercase rounded-sm">
+        DOWNLOAD ↗
+      </a>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <section class="px-5 pt-12 pb-16 max-w-4xl mx-auto flex flex-col items-start">
+    <div class="inline-flex items-center gap-2 px-2.5 py-1 rounded-full border border-brand/20 bg-brand/5 text-[11px] font-mono text-brand mb-6 tracking-wide">
+      <span class="w-1.5 h-1.5 rounded-full bg-brand animate-pulse"></span>
+      LOCAL-FIRST PRIVACY UTILITIES
+    </div>
+
+    <h1 class="text-4xl sm:text-6xl font-extrabold tracking-tight leading-[1.08] mb-6">
+      Your data.<br>
+      Your device.<br>
+      <span class="text-brand">Your rules.</span>
+    </h1>
+
+    <p class="text-gray-400 text-base sm:text-lg leading-relaxed max-w-xl mb-8 font-normal">
+      An offline-capable Android toolkit for cryptography, secure storage, system control, and private communications, built for people who want more control over the device in their hand.
+    </p>
+
+    <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto mb-8 font-mono text-xs">
+      <a href="#toolkit" class="w-full sm:w-auto text-center px-6 py-3.5 bg-brand text-black font-bold uppercase tracking-wider hover:bg-[#00ddb0] transition-colors rounded-sm flex items-center justify-center gap-1.5">
+        EXPLORE THE TOOLKIT ↗
+      </a>
+      <div class="w-full sm:w-auto text-center px-4 py-3 border border-surfaceBorder bg-surface text-gray-400 tracking-wider flex items-center justify-center gap-2 rounded-sm">
+        <span>OUTPUT:</span> <span class="text-brand font-bold">VERIFIED</span>
+      </div>
+    </div>
+
+    <div class="flex flex-col sm:flex-row gap-2 sm:gap-6 text-xs text-gray-400 font-mono mb-12">
+      <span class="flex items-center gap-1.5"><span class="text-brand">✓</span> Designed for offline use</span>
+      <span class="flex items-center gap-1.5"><span class="text-brand">✓</span> Android-native workflows</span>
+    </div>
+
+    <!-- HUD Schematic Graphic -->
+    <div class="w-full border border-surfaceBorder bg-surface p-4 sm:p-6 rounded-md relative overflow-hidden">
+      <div class="flex justify-between items-center border-b border-surfaceBorder/60 pb-3 mb-4 font-mono text-xs text-gray-400">
+        <span class="flex items-center gap-2 text-brand">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          SOVEREIGN TOOLS
+        </span>
+        <span class="text-[11px] text-gray-500">NODE STATUS: <span class="text-brand font-bold">LOCAL</span></span>
+      </div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono text-[11px]">
+        <div class="p-2.5 bg-[#05070a] border border-surfaceBorder rounded">
+          <div class="text-brand">01 // OPENPGP</div>
+          <div class="text-gray-500 text-[10px] mt-1">ASYMMETRIC</div>
+        </div>
+        <div class="p-2.5 bg-[#05070a] border border-surfaceBorder rounded">
+          <div class="text-brand">02 // AES-256</div>
+          <div class="text-gray-500 text-[10px] mt-1">GCM SYMMETRIC</div>
+        </div>
+        <div class="p-2.5 bg-[#05070a] border border-surfaceBorder rounded">
+          <div class="text-brand">03 // KEYRING</div>
+          <div class="text-gray-500 text-[10px] mt-1">DEVICE LOCAL</div>
+        </div>
+        <div class="p-2.5 bg-[#05070a] border border-surfaceBorder rounded">
+          <div class="text-brand">04 // AIR-GAP</div>
+          <div class="text-gray-500 text-[10px] mt-1">ZERO CLOUD</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Spec Banner -->
+  <section class="border-y border-surfaceBorder bg-surface/50 py-4 px-4 font-mono text-[11px] tracking-wider text-gray-400">
+    <div class="max-w-4xl mx-auto flex flex-wrap justify-between items-center gap-4 text-center sm:text-left">
+      <div>OFFLINE-FIRST</div>
+      <div>LOCAL CRYPTOGRAPHY</div>
+      <div>ANDROID POWER TOOLS</div>
+      <div>NO CLOUD DEPENDENCY</div>
+    </div>
+  </section>
+
+  <!-- Section 01: The Toolkit -->
+  <section id="toolkit" class="px-5 py-16 max-w-4xl mx-auto">
+    <div class="font-mono text-xs text-brand mb-2 tracking-widest uppercase">01 / THE TOOLKIT</div>
+    <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">One device. More control.</h2>
+    <p class="text-gray-400 text-sm sm:text-base leading-relaxed max-w-2xl mb-8">
+      Purpose-built utilities for the moments where a general-purpose phone stops being enough. Keep the interface close, the workflows deliberate, and the network optional.
+    </p>
+
+    <!-- Filter Buttons (Smooth Horizontal Scroll on Mobile) -->
+    <div class="flex overflow-x-auto no-scrollbar gap-2 pb-4 mb-6">
+      <button onclick="filterCards('all')" class="filter-btn active px-3.5 py-1.5 text-xs font-mono border border-brand bg-brand text-black font-bold uppercase rounded-sm whitespace-nowrap">ALL</button>
+      <button onclick="filterCards('security')" class="filter-btn px-3.5 py-1.5 text-xs font-mono border border-surfaceBorder bg-surface text-gray-300 hover:border-brand/40 uppercase rounded-sm whitespace-nowrap">SECURITY</button>
+      <button onclick="filterCards('data')" class="filter-btn px-3.5 py-1.5 text-xs font-mono border border-surfaceBorder bg-surface text-gray-300 hover:border-brand/40 uppercase rounded-sm whitespace-nowrap">DATA</button>
+      <button onclick="filterCards('system')" class="filter-btn px-3.5 py-1.5 text-xs font-mono border border-surfaceBorder bg-surface text-gray-300 hover:border-brand/40 uppercase rounded-sm whitespace-nowrap">SYSTEM</button>
+      <button onclick="filterCards('privacy')" class="filter-btn px-3.5 py-1.5 text-xs font-mono border border-surfaceBorder bg-surface text-gray-300 hover:border-brand/40 uppercase rounded-sm whitespace-nowrap">PRIVACY</button>
+      <button onclick="filterCards('comms')" class="filter-btn px-3.5 py-1.5 text-xs font-mono border border-surfaceBorder bg-surface text-gray-300 hover:border-brand/40 uppercase rounded-sm whitespace-nowrap">COMMS</button>
+      <button onclick="filterCards('storage')" class="filter-btn px-3.5 py-1.5 text-xs font-mono border border-surfaceBorder bg-surface text-gray-300 hover:border-brand/40 uppercase rounded-sm whitespace-nowrap">STORAGE</button>
+    </div>
+
+    <!-- Cards Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4" id="cards-grid">
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="security">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">SECURITY</span>
+        <h3 class="text-base font-bold text-white mb-2">OpenPGP + AES-256 GCM</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">Asymmetric and symmetric workflows designed for local use, with key material kept close to the device.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="data">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">DATA</span>
+        <h3 class="text-base font-bold text-white mb-2">Offline hashing + encoding</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">Hash, encode, decode, and generate UUIDs without sending working data to a remote service.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="privacy">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">PRIVACY</span>
+        <h3 class="text-base font-bold text-white mb-2">Stealth Calc</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">A decoy calculator surface that keeps a private tool within an ordinary-looking interface.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="storage">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">STORAGE</span>
+        <h3 class="text-base font-bold text-white mb-2">Secure Vault + encrypted docs</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">A local space for private material, markdown notes, and encrypted document workflows.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="comms">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">COMMS</span>
+        <h3 class="text-base font-bold text-white mb-2">Swarm Comms + Comm Link</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">Private communication concepts for local-first and offline-capable operating conditions.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="system">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">SYSTEM</span>
+        <h3 class="text-base font-bold text-white mb-2">Shizuku system bridge</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">A bridge for deeper Android operations where device permissions and Shizuku setup support them.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="system">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">SYSTEM</span>
+        <h3 class="text-base font-bold text-white mb-2">Data Shredder</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">A deliberate utility for removing sensitive files, with deep-system behavior dependent on device access.</p>
+      </div>
+
+      <div class="tool-card border border-surfaceBorder bg-surface p-5 rounded hover:border-brand/40 transition-colors" data-cat="privacy">
+        <span class="text-[10px] font-mono text-brand uppercase tracking-wider block mb-1">PRIVACY</span>
+        <h3 class="text-base font-bold text-white mb-2">Offline Smart AI</h3>
+        <p class="text-xs text-gray-400 leading-relaxed">A local node concept for working with an assistant without cloud access as a requirement.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 02: Cryptographic Engine -->
+  <section class="px-5 py-14 max-w-4xl mx-auto border-t border-surfaceBorder">
+    <div class="font-mono text-xs text-brand mb-2 tracking-widest uppercase">02 / CRYPTOGRAPHIC ENGINE</div>
+    <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Security that stays within reach.</h2>
+    <p class="text-gray-400 text-sm sm:text-base leading-relaxed mb-6">
+      OpenPGP asymmetric security and AES-256 GCM symmetric encryption sit side by side. Generate, load, encrypt, decrypt, and keep the keyring local to the device.
+    </p>
+    <div class="space-y-2.5 font-mono text-xs text-gray-300">
+      <div class="flex items-center gap-2"><span class="text-brand">🔓</span> OpenPGP key generation and local keyring</div>
+      <div class="flex items-center gap-2"><span class="text-brand">🛡️</span> AES-256 GCM text encryption workflows</div>
+      <div class="flex items-center gap-2"><span class="text-brand">🔒</span> Explicit passphrase and storage controls</div>
+    </div>
+  </section>
+
+  <!-- Section 03: Data Utilities -->
+  <section class="px-5 py-14 max-w-4xl mx-auto border-t border-surfaceBorder">
+    <div class="font-mono text-xs text-brand mb-2 tracking-widest uppercase">03 / DATA UTILITIES</div>
+    <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">Useful when air-gapped.</h2>
+    <p class="text-gray-400 text-sm sm:text-base leading-relaxed mb-6">
+      Hashing, encoding, UUID generation, and file encryption tools for working with data without making a network connection part of the workflow.
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 font-mono text-xs">
+      <div class="p-3.5 bg-surface border border-surfaceBorder rounded">
+        <div class="text-white font-bold">SHA-256</div>
+        <div class="text-gray-500 text-[11px] mt-1">OFFLINE HASH</div>
+      </div>
+      <div class="p-3.5 bg-surface border border-surfaceBorder rounded">
+        <div class="text-white font-bold">BASE64 / HEX</div>
+        <div class="text-gray-500 text-[11px] mt-1">ENCODE + DECODE</div>
+      </div>
+      <div class="p-3.5 bg-surface border border-surfaceBorder rounded">
+        <div class="text-white font-bold">UUID v4</div>
+        <div class="text-gray-500 text-[11px] mt-1">LOCAL GENERATION</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 04: Field Notes / FAQ (Interactive Accordion) -->
+  <section class="px-5 py-16 max-w-4xl mx-auto border-t border-surfaceBorder">
+    <div class="font-mono text-xs text-brand mb-2 tracking-widest uppercase">06 / FIELD NOTES</div>
+    <h2 class="text-3xl sm:text-4xl font-extrabold tracking-tight mb-8">Questions, answered without the noise.</h2>
+
+    <div class="space-y-3 font-sans" id="faq-list">
+      <div class="border border-surfaceBorder bg-surface rounded overflow-hidden">
+        <button onclick="toggleFaq(this)" class="w-full flex justify-between items-center p-4 text-left font-bold text-sm text-gray-200 hover:text-brand transition-colors">
+          <span>Can Sovereign Tools work offline?</span>
+          <span class="text-brand font-mono text-base">+</span>
+        </button>
+        <div class="faq-content hidden px-4 pb-4 text-xs text-gray-400 leading-relaxed">
+          Many of the toolkit's workflows are designed to run locally and remain useful without a cloud dependency. Networked or device-specific features behave differently when disconnected.
+        </div>
+      </div>
+
+      <div class="border border-surfaceBorder bg-surface rounded overflow-hidden">
+        <button onclick="toggleFaq(this)" class="w-full flex justify-between items-center p-4 text-left font-bold text-sm text-gray-200 hover:text-brand transition-colors">
+          <span>Does every feature work on every Android device?</span>
+          <span class="text-brand font-mono text-base">+</span>
+        </button>
+        <div class="faq-content hidden px-4 pb-4 text-xs text-gray-400 leading-relaxed">
+          Standard crypto and utilities work across all modern Android versions. Advanced system tools like Shizuku bridge or Package Eradication require Shizuku or root privileges.
+        </div>
+      </div>
+
+      <div class="border border-surfaceBorder bg-surface rounded overflow-hidden">
+        <button onclick="toggleFaq(this)" class="w-full flex justify-between items-center p-4 text-left font-bold text-sm text-gray-200 hover:text-brand transition-colors">
+          <span>Where does my data go?</span>
+          <span class="text-brand font-mono text-base">+</span>
+        </button>
+        <div class="faq-content hidden px-4 pb-4 text-xs text-gray-400 leading-relaxed">
+          The product is positioned around local-first handling: your working data, keys, notes, and files are intended to stay on the device during supported offline workflows.
+        </div>
+      </div>
+
+      <div class="border border-surfaceBorder bg-surface rounded overflow-hidden">
+        <button onclick="toggleFaq(this)" class="w-full flex justify-between items-center p-4 text-left font-bold text-sm text-gray-200 hover:text-brand transition-colors">
+          <span>Who is it for?</span>
+          <span class="text-brand font-mono text-base">+</span>
+        </button>
+        <div class="faq-content hidden px-4 pb-4 text-xs text-gray-400 leading-relaxed">
+          Android power users, security researchers, system administrators, and crypto enthusiasts who operate in offline or air-gapped environments.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Section 07: Download & Alert Form -->
+  <section id="download" class="px-5 py-20 max-w-4xl mx-auto border-t border-surfaceBorder">
+    <div class="font-mono text-xs text-brand mb-2 tracking-widest uppercase">07 / NEXT TRANSMISSION</div>
+    <h2 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-3">Keep your toolkit within reach.</h2>
+    <p class="text-gray-400 text-sm max-w-lg mb-8">
+      Get direct access to signed release builds or subscribe for deployment notifications.
+    </p>
+
+    <div class="border border-surfaceBorder bg-surface p-6 sm:p-8 rounded-lg max-w-md">
+      <span class="text-[11px] font-mono text-brand/80 uppercase tracking-widest block mb-2">DIRECT RELEASE</span>
+      <h3 class="text-xl font-bold text-white mb-2">Download Sovereign Tools</h3>
+      <p class="text-xs text-gray-400 leading-relaxed mb-6">Download the standalone Android APK directly from GitHub Releases.</p>
+
+      <a href="https://github.com/xNoOnex/SovereignTools1/releases/latest" target="_blank" rel="noopener noreferrer" class="w-full py-3.5 px-4 bg-brand text-black font-mono font-bold text-sm text-center uppercase tracking-wider rounded-sm hover:bg-[#00ddb0] transition-colors flex items-center justify-center gap-2 mb-8">
+        DOWNLOAD APK ↗
+      </a>
+
+      <!-- Notification Form -->
+      <form action="https://formsubmit.co/xNoOnex@dnmx.cc" method="POST" class="pt-6 border-t border-surfaceBorder/80">
+        <input type="hidden" name="_subject" value="New Sovereign Tools Release Alert Subscriber">
+        <input type="hidden" name="_captcha" value="false">
+        <label class="block text-xs font-mono uppercase text-gray-400 mb-2">Get Notified on New Builds</label>
+        <div class="flex gap-2">
+          <input type="email" name="email" placeholder="operator@network.io" required class="bg-[#05070a] border border-surfaceBorder text-white text-xs font-mono px-3 py-2.5 rounded-sm outline-none focus:border-brand flex-1">
+          <button type="submit" class="bg-surface border border-brand/50 text-brand px-4 py-2.5 font-mono text-xs font-bold uppercase rounded-sm hover:bg-brand/10 transition-colors">NOTIFY</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="border-t border-surfaceBorder py-8 px-5 font-mono text-xs text-gray-500 text-center">
+    <div class="max-w-4xl mx-auto flex flex-col sm:flex-row justify-between items-center gap-4">
+      <div>© 2026 SOVEREIGN TOOLS // LOCAL-FIRST UTILITIES</div>
+      <div class="text-brand">AIR-GAPPED BY DESIGN</div>
+    </div>
+  </footer>
+
+  <!-- Interactivity Scripts -->
+  <script>
+    function filterCards(category) {
+      document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('bg-brand', 'text-black', 'font-bold', 'border-brand');
+        btn.classList.add('bg-surface', 'text-gray-300', 'border-surfaceBorder');
+      });
+      event.currentTarget.classList.remove('bg-surface', 'text-gray-300', 'border-surfaceBorder');
+      event.currentTarget.classList.add('bg-brand', 'text-black', 'font-bold', 'border-brand');
+
+      document.querySelectorAll('.tool-card').forEach(card => {
+        if (category === 'all' || card.getAttribute('data-cat') === category) {
+          card.style.display = 'block';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function toggleFaq(button) {
+      const content = button.nextElementSibling;
+      const indicator = button.querySelector('span:last-child');
+      if (content.classList.contains('hidden')) {
+        content.classList.remove('hidden');
+        indicator.textContent = '−';
+      } else {
+        content.classList.add('hidden');
+        indicator.textContent = '+';
+      }
+    }
+  </script>
+</body>
+</html>
