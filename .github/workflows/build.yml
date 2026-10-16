@@ -19,14 +19,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Accept Android SDK Licenses
+        run: |
+          yes | sudo $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
 
       - name: Install Dependencies & Build Vite Bundle
         run: |
           npm install
           npx vite build
-          
+
           if [ ! -f "dist/index.html" ]; then
             echo "ERROR: dist/index.html missing after vite build!"
             exit 1
@@ -40,11 +41,9 @@ jobs:
 
           npx cap sync android
 
-          # Guarantee compiled dist files are inside native Android assets
           mkdir -p android/app/src/main/assets/public
           cp -r dist/* android/app/src/main/assets/public/
 
-          # Inject App Launcher Icons
           sudo apt-get update && sudo apt-get install -y imagemagick
           if [ -f "public/sovereign_logo.jpg" ]; then
             convert public/sovereign_logo.jpg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher.png
@@ -52,7 +51,7 @@ jobs:
             convert public/sovereign_logo.jpg -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher.png
             convert public/sovereign_logo.jpg -resize 144x144 android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png
             convert public/sovereign_logo.jpg -resize 192x192 android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-            
+
             convert public/sovereign_logo.jpg -resize 48x48 android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
             convert public/sovereign_logo.jpg -resize 72x72 android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
             convert public/sovereign_logo.jpg -resize 96x96 android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png

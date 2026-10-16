@@ -1,8 +1,10 @@
-name: Deploy to GitHub Pages
+name: Deploy Website Landing Page
 
 on:
   push:
-    branches: ['main', 'master']
+    branches: ['main']
+    paths:
+      - 'landing/**'
   workflow_dispatch:
 
 permissions:
@@ -24,26 +26,14 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build site
-        run: npm run build
-
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v4
 
-      - name: Upload static artifact
+      - name: Upload Landing Page Artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: './dist'
+          path: './landing'
 
-      - name: Deploy
+      - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
