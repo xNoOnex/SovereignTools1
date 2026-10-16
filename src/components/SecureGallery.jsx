@@ -89,7 +89,8 @@ const SecureMediaNode = ({ file, className, onClick, isFullscreen = false, zoom 
           if (!masterKey) throw new Error('Vault Locked');
 
           const contents = await Filesystem.readFile({
-            path: file.path,
+            path: file.name || file.path,
+            directory: "DATA",
             encoding: Encoding.UTF8
           });
 
@@ -361,7 +362,11 @@ export function SecureGallery({ onNavigate }) {
     if (!targets.length || !window.confirm(`Permanently delete ${targets.length} file(s)?`)) return;
     for (const file of targets) {
       try {
-        await Filesystem.deleteFile({ path: file.path });
+        if (file.directory === "DATA" || file.path.endsWith(".aes")) {
+          await Filesystem.deleteFile({ path: file.name || file.path, directory: "DATA" });
+        } else {
+          await Filesystem.deleteFile({ path: file.path });
+        }
       } catch (e) {
         console.warn('Delete error:', e);
       }
